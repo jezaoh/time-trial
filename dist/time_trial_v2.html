@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head>
-<!-- Time Trial V2 · versão 16/11/2026 19:39 --><meta charset="utf-8">
+<!-- Time Trial V2 · versão 16/11/2026 20:19 --><meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#06121c"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Time Trial V2</title>
 <style>
@@ -35,7 +35,7 @@ const META={"idle": {"azul": {"cw": 290, "ch": 388, "sx": 2.311418685121107, "sy
 const $=id=>document.getElementById(id),c=$('game'),ctx=c.getContext('2d',{alpha:false}),W=1536,H=864,SS=W/1672,IMG={},nickEl=$('nick');
 const NUT=[[0,2,99,240],[99,2,100,240],[199,2,99,240],[298,2,99,240],[397,2,100,240],[497,2,100,240],[597,28,121,214]];
 // versão: data e hora da montagem (preenchida por tools/montar_arquivo_unico.py; aparece no canto da tela inicial)
-const VERSAO="16/11/2026 19:39";
+const VERSAO="16/11/2026 20:19";
 // fonte do jogo: Exo 2 itálico (900 títulos e números · 800 textos)
 const FT=(w,s)=>`italic ${w} ${s}px Exo2,system-ui,sans-serif`;
 const ICON={clock:0,flag:1,avg:2,speed:3,up:4,flat:5,down:6};
@@ -2721,8 +2721,8 @@ const _garHub=drawHub;drawHub=function(){_garHub();const L=garTitulos();if(!L.le
        Se o jogo ficar lento (média > 24 ms por quadro por ~4 s) a névoa sai sozinha (LUZ.leve). LUZ.on=false desliga tudo.
    2 · SOMBRA embaixo de cada ciclista (jogador e NPCs): mancha pequena, chapada, borda dura (estilo desenho animado),
        que respira com a pedalada (LUZ_SOMBRA). Igual em todos os períodos.
-   4 · ANOITECER: lua (com crateras) no lugar do sol, estrelas, sem raios; lanterna vermelha atrás e farolete branco
-       na frente de toda bike (fixa ou piscando, como na vida real) e faróis/lanternas no caminhão e no furgão.
+   4 · ANOITECER: lua (com crateras) no lugar do sol, estrelas, sem raios; lanterna vermelha embaixo do selim e facho de
+       luz saindo das mãos em toda bike (fixa ou piscando, como na vida real) e faróis/lanternas no caminhão e no furgão.
        Brilhos prontos (LZL), sem shadowBlur; somem se o jogo ficar lento (LUZ.leve).
    3 · LINHAS DE VENTO: as retas originais de sensacao.js (a versão que seguia o relevo foi desfeita a pedido do dono).
        Os raios do sol têm borda desfocada.
@@ -2801,35 +2801,37 @@ function luzDesempenho(){const t=performance.now();if(LZT.t>0){const d=t-LZT.t;i
 const _luzVento=sensVento;   // linhas de vento: as retas originais de sensacao.js (dono preferiu às que seguiam o relevo)
 sensVento=function(){if(state==='run')luzDesempenho();const L=luzPronta();
  if(L.grade)luzCola(LZC.grade,'multiply',L.gradeA);if(!LUZ.leve||L.vinheta)luzCola(LZC.raios,'source-over',1);
- if(luzNoite())luzFilaDesenha();else LZQ.length=0;
  _luzVento()};
 
 // ---------- 4 · luzes do anoitecer: bikes (lanterna atrás, farolete na frente) e veículos do Pedal Livre ----------
 const LZL=(()=>{const mk=(cor)=>{const c=document.createElement('canvas');c.width=c.height=64;const g=c.getContext('2d'),d=g.createRadialGradient(32,32,0,32,32,32);
   d.addColorStop(0,cor+'ff');d.addColorStop(.18,cor+'cc');d.addColorStop(.45,cor+'44');d.addColorStop(1,cor+'00');g.fillStyle=d;g.fillRect(0,0,64,64);return c};
- return{verm:mk('#ff2a2a'),bran:mk('#fff6d8')}})();
+ // facho da bike: cone que sai do guidão para a frente (desenhado uma vez, só colado)
+ const f=document.createElement('canvas');f.width=256;f.height=96;const g=f.getContext('2d'),d=g.createLinearGradient(0,0,256,0);
+ d.addColorStop(0,'rgba(255,246,210,.9)');d.addColorStop(1,'rgba(255,246,210,0)');g.fillStyle=d;g.beginPath();g.moveTo(0,44);g.lineTo(256,0);g.lineTo(256,96);g.lineTo(0,52);g.closePath();g.fill();
+ return{verm:mk('#ff2a2a'),bran:mk('#fff6d8'),facho:f}})();
 // posição das luzes em relação às rodas (fração do raio): atrás no canote, na frente no guidão
-const LUZ_BIKE={tras:[.1,-1.6],frente:[-.2,-1.72],halo:1.35,nucleo:.11};
+// lanterna colada embaixo do selim; facho saindo da frente das mãos (frações do raio da roda; medido no ciclista branco)
+// tras: [x, y por pose 0·1·2·3] logo abaixo do selim, medido em cada ciclista
+const LUZ_BIKE={tras:{branco:[.45,[-1.6,-1.6,-1.8,-1.8]],azul:[.45,[-1.55,-1.55,-1.6,-1.6]],vinho:[.45,[-1.55,-1.55,-1.4,-1.6]]},frente:[.1,-1.72],halo:.9,nucleo:.08,facho:{comp:5.2,larg:1.5,a:.95,ang:.14}};
 const luzNoite=()=>LUZ.on&&!LUZ.leve&&luzP().luzes;
 function luzModo(sem){let h=0;const t=String(sem);for(let i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))|0;return Math.abs(h)%3}   // 0 fixa · 1 pisca rápido · 2 pisca lento
 function luzAcesa(m,fase){if(m===0)return 1;const p=m===1?.5:1.1,t=((T+fase)%p)/p;return t<(m===1?.35:.5)?1:.12}
-const LZQ=[];   // luzes do quadro, já em pixels da tela: [tipo, x, y, raio do halo, raio da lâmpada, acesa]
-function luzFila(t,x,y,h,n,a){const m=ctx.getTransform(),p=m.transformPoint({x,y}),e=Math.hypot(m.a,m.b);LZQ.push([t,p.x,p.y,h*e,n*e,a])}
+// luz desenhada junto com a bike/veículo (quem passa na frente tapa): halo somado + lâmpada cheia
+function luzFila(t,x,y,h,n,a){ctx.save();if(h>0){ctx.globalCompositeOperation='lighter';luzPonto(t==='v'?LZL.verm:LZL.bran,x,y,h,1);ctx.globalCompositeOperation='source-over'}
+ if(n>0){ctx.globalAlpha=1;ctx.fillStyle=t==='v'?(a>.5?'#ffe2dc':'#5a1010'):(a>.5?'#fff':'#55524a');ctx.beginPath();ctx.arc(x,y,n,0,7);ctx.fill()}ctx.restore()}
 function luzPonto(img,x,y,r,a){if(a<=0)return;ctx.globalAlpha=a;ctx.drawImage(img,x-r,y-r,2*r,2*r)}
-function luzFilaDesenha(){if(!LZQ.length)return;ctx.save();ctx.setTransform(1,0,0,1,0,0);ctx.globalCompositeOperation='lighter';
- for(const[t,x,y,h]of LZQ)luzPonto(t==='v'?LZL.verm:LZL.bran,x,y,h,1);
- ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
- for(const[t,x,y,,n,a]of LZQ){if(n<=0)continue;ctx.fillStyle=t==='v'?(a>.5?'#ffd6d0':'#5a1010'):(a>.5?'#fff':'#55524a');ctx.beginPath();ctx.arc(x,y,n,0,7);ctx.fill()}
- ctx.restore();LZQ.length=0}
 function luzBike(id,st,ox,oy,k,sem){const R=RODAS[id]&&RODAS[id][st];if(!R)return;const[[x0,y0,r0],[x1,y1,r1]]=R,B=LUZ_BIKE;
- const mT=luzModo(sem+'t'),mF=luzModo(sem+'f'),f=(luzModo(sem)+1)*.37;
- const tx=ox+(x0+B.tras[0]*r0)*k,ty=oy+(y0+B.tras[1]*r0)*k,fx=ox+(x1+B.frente[0]*r1)*k,fy=oy+(y1+B.frente[1]*r1)*k,rr=r0*k;
- const aT=luzAcesa(mT,f),aF=luzAcesa(mF===1?0:mF,f+.2);
- luzFila('v',tx,ty,rr*B.halo*aT,rr*B.nucleo,aT);luzFila('b',fx,fy,rr*B.halo*.7*aF,rr*B.nucleo*.9,aF)}
+ const mT=sem==='eu'?0:luzModo(sem+'t'),f=(luzModo(sem)+1)*.37;   // a sua fica fixa
+ const TR=B.tras[id]||B.tras.branco,tx=ox+(x0+TR[0]*r0)*k,ty=oy+(y0+TR[1][st]*r0)*k,fx=ox+(x1+B.frente[0]*r1)*k,fy=oy+(y1+B.frente[1]*r1)*k,rr=r0*k;
+ const aT=luzAcesa(mT,f),F=B.facho;
+ luzFila('v',tx,ty,rr*B.halo*aT,rr*B.nucleo,aT);
+ ctx.save();ctx.globalCompositeOperation='lighter';ctx.globalAlpha=F.a;ctx.translate(fx,fy);ctx.rotate(F.ang);ctx.drawImage(LZL.facho,0,-rr*F.larg/2,rr*F.comp,rr*F.larg);ctx.restore()}
 const _luzSR=sensRodas;sensRodas=function(id,st,ox,oy,k,v){_luzSR(id,st,ox,oy,k,v);if(!luzNoite())return;
  const n=v==null?null:(typeof NPC_DES!=='undefined'?NPC_DES:null);luzBike(id,st,ox,oy,k,n?(n.nome||'')+n.k+n.f:'eu')};
 // caminhão e furgão: farol na frente (com facho curto) e lanterna atrás; pontos medidos nas imagens (px da imagem)
-const LUZ_VEIC={caminhao:{frente:[733,210],tras:[16,186]},furgao:{frente:[707,172],tras:[26,180]}};
+const LUZ_VEIC={caminhao:{frente:[733,210],tras:[16,186]},
+ furgao:{frente:[707,172],tras:[26,180]}};
 if(typeof veicArte==='function'){const _luzVA=veicArte;veicArte=function(){_luzVA();if(!luzNoite()||typeof LV==='undefined'||!LV||!LV.veic)return;
  const c=LV.veic,V=VEIC[c.tipo],P=LUZ_VEIC[c.tipo],im=IMG[V.img];if(!P||!im)return;const x=bikeX+(c.rear-dist)*PX_KM,h=V.w*im.height/im.width;
  if(x>WX1+300||x+V.w<WX0-300)return;const s=segEm(x+V.w/2),ey=s.e+s.m*(x+V.w/2-s.xa);
@@ -2837,7 +2839,7 @@ if(typeof veicArte==='function'){const _luzVA=veicArte;veicArte=function(){_luzV
  const fx=-V.w/2+P.frente[0],fy=-h+P.frente[1],tx=-V.w/2+P.tras[0],ty=-h+P.tras[1];
  const d=ctx.createLinearGradient(fx,0,fx+520,0);d.addColorStop(0,'rgba(255,246,210,.38)');d.addColorStop(1,'rgba(255,246,210,0)');
  ctx.fillStyle=d;ctx.beginPath();ctx.moveTo(fx,fy-8);ctx.lineTo(fx+520,fy-60);ctx.lineTo(fx+520,fy+70);ctx.lineTo(fx,fy+8);ctx.closePath();ctx.fill();
- ctx.globalCompositeOperation='source-over';luzFila('b',fx,fy,70,9,1);luzFila('v',tx,ty,50,7,1);ctx.restore()}}
+ luzFila('b',fx,fy,70,9,1);luzFila('v',tx,ty,50,7,1);ctx.restore()}}
 
 /* ===== CONTROLE (gamepad) — desde 16/11/2026 =====
    Qualquer controle que o navegador reconheça (Xbox, PlayStation, genéricos), pelo mapeamento PADRÃO da Gamepad API,
