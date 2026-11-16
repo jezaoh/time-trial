@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head>
-<!-- Time Trial V2 · versão 16/11/2026 18:35 --><meta charset="utf-8">
+<!-- Time Trial V2 · versão 16/11/2026 19:04 --><meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#06121c"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Time Trial V2</title>
 <style>
@@ -35,7 +35,7 @@ const META={"idle": {"azul": {"cw": 290, "ch": 388, "sx": 2.311418685121107, "sy
 const $=id=>document.getElementById(id),c=$('game'),ctx=c.getContext('2d',{alpha:false}),W=1536,H=864,SS=W/1672,IMG={},nickEl=$('nick');
 const NUT=[[0,2,99,240],[99,2,100,240],[199,2,99,240],[298,2,99,240],[397,2,100,240],[497,2,100,240],[597,28,121,214]];
 // versão: data e hora da montagem (preenchida por tools/montar_arquivo_unico.py; aparece no canto da tela inicial)
-const VERSAO="16/11/2026 18:35";
+const VERSAO="16/11/2026 19:04";
 // fonte do jogo: Exo 2 itálico (900 títulos e números · 800 textos)
 const FT=(w,s)=>`italic ${w} ${s}px Exo2,system-ui,sans-serif`;
 const ICON={clock:0,flag:1,avg:2,speed:3,up:4,flat:5,down:6};
@@ -2726,14 +2726,14 @@ const _garHub=drawHub;drawHub=function(){_garHub();const L=garTitulos();if(!L.le
 const LUZ={on:true,leve:false,p:'dia',
  peso:{amanhecer:.2,dia:.4,tarde:.25,anoitecer:.15},
  P:{
-  amanhecer:{ceu:['#86a9e6','#ffd6b8'],ceuA:.55,sol:[230,345],brilho:'#ffe6c4',brilhoA:.85,brilhoR:620,
+  amanhecer:{ceu:['#86a9e6','#ffd6b8'],ceuA:.55,sol:[250,262],solR:46,solCor:'#fff4dc',brilho:'#ffe6c4',brilhoA:.85,brilhoR:620,
    nevoa:'#fff4ec',nevoaA:[.5,.3],grade:['#dcdfff','#ffe0cc'],gradeA:.55,raios:.08,vinheta:.16,
    sombra:{a:.34,len:2.6,dir:1}},
   dia:{ceu:null,sol:null,nevoa:null,grade:null,raios:0,vinheta:0,sombra:{a:.55,len:1.12,dir:.15}},
-  tarde:{ceu:['#5d7fc4','#ffb36e'],ceuA:.62,sol:[1270,350],brilho:'#ffc874',brilhoA:.95,brilhoR:760,
+  tarde:{ceu:['#5d7fc4','#ffb36e'],ceuA:.62,sol:[1290,268],solR:50,solCor:'#fff0c4',brilho:'#ffc874',brilhoA:.95,brilhoR:760,
    nevoa:'#ffcf96',nevoaA:[.38,.2],grade:['#ffd29a','#e3946a'],gradeA:.68,raios:.13,vinheta:.26,
    sombra:{a:.4,len:3,dir:-1}},
-  anoitecer:{ceu:['#2f3a78','#ff8f5e'],ceuA:.72,sol:[1180,410],brilho:'#ff9a6c',brilhoA:.8,brilhoR:560,
+  anoitecer:{ceu:['#2f3a78','#ff8f5e'],ceuA:.72,sol:[1180,330],solR:54,solCor:'#ffd2a2',brilho:'#ff9a6c',brilhoA:.8,brilhoR:560,
    nevoa:'#d9a2c4',nevoaA:[.3,.16],grade:['#8f86c8','#6f5f98'],gradeA:.8,raios:.05,vinheta:.38,
    sombra:{a:.28,len:3.4,dir:-1}}}};
 function luzSorteia(){let r=Math.random(),acc=0;for(const[k,p]of Object.entries(LUZ.peso)){acc+=p;if(r<=acc){LUZ.p=k;break}}LZC.k=null}
@@ -2747,7 +2747,10 @@ function luzTela(f){const c=document.createElement('canvas');c.width=W;c.height=
 function luzMontar(){const L=luzP();LZC.k=LUZ.p+(LUZ.on?1:0);
  LZC.ceu=L.ceu?luzTela(g=>{const d=g.createLinearGradient(0,0,0,600);d.addColorStop(0,L.ceu[0]);d.addColorStop(1,L.ceu[1]);g.globalAlpha=L.ceuA;g.fillStyle=d;g.fillRect(0,0,W,LZC_CEU);
    if(L.sol){const[x,y]=L.sol,r=L.brilhoR,s=g.createRadialGradient(x,y,0,x,y,r);s.addColorStop(0,'#fffef6');s.addColorStop(.05,'#fffbe8');s.addColorStop(.14,L.brilho+'dd');s.addColorStop(.42,L.brilho+'55');s.addColorStop(1,L.brilho+'00');
-    g.globalAlpha=L.brilhoA;g.globalCompositeOperation='screen';g.fillStyle=s;g.fillRect(0,0,W,LZC_CEU)}}):null;
+    g.globalAlpha=L.brilhoA;g.globalCompositeOperation='screen';g.fillStyle=s;g.fillRect(0,0,W,LZC_CEU);
+    // disco do sol com borda esfumaçada (sem borda seca): cheio até 55% do raio, some até 100%
+    if(L.solR){const R=L.solR,d2=g.createRadialGradient(x,y,0,x,y,R);d2.addColorStop(0,'#fffffa');d2.addColorStop(.55,L.solCor);d2.addColorStop(.78,L.solCor+'99');d2.addColorStop(1,L.solCor+'00');
+     g.globalAlpha=1;g.globalCompositeOperation='source-over';g.fillStyle=d2;g.fillRect(x-R,y-R,2*R,2*R)}}}):null;
  const nev=(y0,y1)=>L.nevoa?luzTela(g=>{const d=g.createLinearGradient(0,y0,0,y1);d.addColorStop(0,L.nevoa+'00');d.addColorStop(.55,L.nevoa);d.addColorStop(1,L.nevoa+'00');g.fillStyle=d;g.fillRect(0,y0,W,y1-y0)}):null;
  LZC.nev0=nev(280,560);LZC.nev1=nev(380,660);
  LZC.grade=L.grade?luzTela(g=>{const d=g.createLinearGradient(0,0,0,H);d.addColorStop(0,L.grade[0]);d.addColorStop(1,L.grade[1]);g.fillStyle=d;g.fillRect(0,0,W,H)}):null;
