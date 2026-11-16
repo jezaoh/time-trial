@@ -93,9 +93,10 @@ function npcQuadro(f,st,fi,kit){const id=FID[f],[fw,fh]=META.pedal[id][st],img=I
   npcCx.globalCompositeOperation=(c==='h'||c==='w'||(f==='b'&&c==='p'))?'multiply':'color';npcCx.drawImage(npcMv,0,0)}
  npcCx.globalCompositeOperation='source-over';return[npcCv,fw,fh]}
 function npcSt(n){const r=n.ia?n.w/n.ftp:(n.lider?n.lider.wEf:n.wEf||n.w)/250,g=n.gr;return g>SPR.subida&&r>=SPR.subidaPct?2:r>=SPR.bravo?1:0}
+let NPC_DES=null;   // NPC sendo desenhado agora (luz.js usa para a lanterna de cada um)
 function npcDesenhar(){if(typeof porticosArte==='function')porticosArte();if(!NPCS.length)return;
  const lista=NPCS.map(n=>({n,x:bikeX+(n.dist-dist)*PX_KM})).filter(o=>!o.n.sentado&&o.x>WX0-200&&o.x<WX1+200).sort((a,b)=>((b.n.lane||0)-(a.n.lane||0))||(b.x-a.x));
- for(const{n,x}of lista){const id=FID[n.f],st=npcSt(n),fi=Math.floor(n.ped)%10,s=segEm(x),ey=s.e+s.m*(x-s.xa);
+ for(const{n,x}of lista){NPC_DES=n;const id=FID[n.f],st=npcSt(n),fi=Math.floor(n.ped)%10,s=segEm(x),ey=s.e+s.m*(x-s.xa);
   const ln=n.lane||0,esc=NPCK.escala-ln*.045,[cv,fw,fh]=npcQuadroC(n.f,st,fi,n.k),k=KS*esc,pdx=(META.pedalDx[id]||[])[st]||0;
   ctx.save();ctx.translate(x,roadY+NPCK.faixa-ln*17-ey);ctx.rotate(-Math.atan(s.m));
   ctx.drawImage(cv,0,0,cv.width,cv.height,-150*esc-pdx*k,-fh*k,fw*k,fh*k);if(typeof sensRodas==='function')sensRodas(id,st,-150*esc-pdx*k,-fh*k,k,(n.v||0)*3.6);ctx.restore()}}
