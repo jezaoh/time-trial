@@ -1,0 +1,2 @@
+Aqui fica o index.html do jogo V2 com ranking ligado.
+Gere com:  python3 tools/montar_arquivo_unico.py --rank-api "/?rest_route=/timetrial2/v1" --saida wordpress/plugin-fonte/game/index.html

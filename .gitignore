@@ -1,0 +1,10 @@
+# Copias de seguranca antigas (o Git ja guarda o historico)
+backup/
+
+# Pacotes do plugin WordPress (arquivos grandes, gerados a partir de wordpress/plugin-fonte)
+wordpress/*.zip
+
+# Lixo do sistema
+Thumbs.db
+desktop.ini
+.DS_Store
