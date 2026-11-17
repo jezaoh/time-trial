@@ -303,3 +303,6 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   vídeo [301,472,53]/[469,471,53]), volta muito limpa (23 quadros 27–49, emenda 0,63) → `ia_normal.webp` (escala 1,26, 368×373,
   ~1 MB) em TODAS as poses. `ia_bravo` (personagem antigo) removido. Efeito de sprint (inclinação/rastro) removido: dono prefere
   só o vento. recorte.py: ilhas cinza internas aceitas até dm < 11 (o triângulo do quadro ficava cinza). Jogo: 16,9 MB.
+- **17/11 — "Ciclista Sentado HQ V2":** ciclista maior no vídeo (49% da altura; rodas [273.5,500.8,70.2]/[494.4,500.7,69.3]),
+  fundo 160, volta de 19 quadros (25–43, emenda 1,28) → `ia_normal.webp` com escala .95 (reduz em vez de ampliar: mais nítido),
+  367×370, ~1 MB. recorte.py ganhou `HALO` (env HALO no montar_folha; V2 usou 14, padrão 26).

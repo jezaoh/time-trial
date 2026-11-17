@@ -6,6 +6,7 @@ import sys,os,json,subprocess,tempfile,glob,numpy as np
 from PIL import Image
 sys.path.insert(0,os.path.dirname(os.path.abspath(__file__)));from recorte import recorta,RODAS_V
 vid,ini,per,esc,out=sys.argv[1],int(sys.argv[2]),int(sys.argv[3]),float(sys.argv[4]),sys.argv[5]
+import recorte as _rc;_rc.HALO=float(os.environ.get('HALO','26'))
 RODAS=json.loads(sys.argv[6]) if len(sys.argv)>6 else RODAS_V   # pneus no vídeo [[cx,cy,r],[cx,cy,r]]
 t=tempfile.mkdtemp();subprocess.run(['ffmpeg','-v','error','-i',vid,os.path.join(t,'f%03d.png')],check=True)
 fs=sorted(glob.glob(os.path.join(t,'f*.png')))[ini:ini+per];Q=[recorta(np.array(Image.open(f).convert('RGB')),RODAS) for f in fs]

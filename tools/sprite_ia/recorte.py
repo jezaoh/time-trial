@@ -1,6 +1,7 @@
 import sys,numpy as np
 from PIL import Image
 from scipy import ndimage as ndi
+HALO=26   # tolerância do halo (cinza colado no fundo); vídeos com camisa clara perto do fundo pedem menos
 RODAS_V=[(206.4,551.3,106.9),(548.0,550.3,106.0)]   # pneus no vídeo de 768 px
 def recorta(a,rodas=RODAS_V):
   a=a.astype(float);borda=np.concatenate([a[:6].reshape(-1,3),a[-6:].reshape(-1,3),a[:,:6].reshape(-1,3),a[:,-6:].reshape(-1,3)]);bg=np.median(borda,0)
@@ -18,7 +19,7 @@ def recorta(a,rodas=RODAS_V):
   # sombra no chão (cinza mais escuro, embaixo): também é fundo
   lum=a.mean(2);yy=np.arange(H)[:,None];fundo|=(sat<10)&(lum<bg.mean()+4)&(lum>bg.mean()-55)&(yy>H*.83)
   # halo: cinza um pouco mais escuro colado no fundo também sai (2 passes)
-  for _ in range(2):fundo|=(d<26)&(sat<12)&ndi.binary_dilation(fundo)
+  for _ in range(2):fundo|=(d<HALO)&(sat<12)&ndi.binary_dilation(fundo)
   # borda suave: 1 px de transição, cor desmisturada
   al=1-ndi.uniform_filter(fundo.astype(float),3);al=np.where(fundo&(al<.5),0,al)
   rgb=np.clip(np.where(al[...,None]>0,(a-bg*(1-al[...,None]))/np.maximum(al[...,None],1e-3),0),0,255)

@@ -6,7 +6,7 @@
    Quando vierem bravo/em pé do personagem novo, é só pôr em IA.P e mapear em iaPose().
    Troca de pose com fusão de 0,15 s. Mesmo tamanho de roda do sprite atual; roda de trás no mesmo lugar, pneu no chão. */
 const IA={on:true,
- P:{normal:{img:'ia_normal',fw:368,fh:373,n:23,cols:5,roda:[79.5,294.2,66.9]}},
+ P:{normal:{img:'ia_normal',fw:367,fh:370,n:19,cols:5,roda:[77.4,289.6,66.7]}},   // 17/11: "Ciclista Sentado HQ V2"
  funde:.15};                        // s para trocar de pose
 let IA_atual='normal',IA_ant=null,IA_t=1,IA_T=-1;
 function iaPose(st){return 'normal'}
