@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head>
-<!-- Time Trial V2 · versão 16/11/2026 23:29 --><meta charset="utf-8">
+<!-- Time Trial V2 · versão 16/11/2026 23:30 --><meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#06121c"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Time Trial V2</title>
 <style>
@@ -35,7 +35,7 @@ const META={"idle": {"azul": {"cw": 290, "ch": 388, "sx": 2.311418685121107, "sy
 const $=id=>document.getElementById(id),c=$('game'),ctx=c.getContext('2d',{alpha:false}),W=1536,H=864,SS=W/1672,IMG={},nickEl=$('nick');
 const NUT=[[0,2,99,240],[99,2,100,240],[199,2,99,240],[298,2,99,240],[397,2,100,240],[497,2,100,240],[597,28,121,214]];
 // versão: data e hora da montagem (preenchida por tools/montar_arquivo_unico.py; aparece no canto da tela inicial)
-const VERSAO="16/11/2026 23:29";
+const VERSAO="16/11/2026 23:30";
 // fonte do jogo: Exo 2 itálico (900 títulos e números · 800 textos)
 const FT=(w,s)=>`italic ${w} ${s}px Exo2,system-ui,sans-serif`;
 const ICON={clock:0,flag:1,avg:2,speed:3,up:4,flat:5,down:6};
@@ -161,13 +161,13 @@ const FRI={liga:true,
   curva:[[0,.33],[.5,.58],[.75,.72],[.9,.82],[1,.88],[1.2,.95],[1.5,1]],   // %FCmáx pela intensidade (P/FTP)
   drift:.12},                            // +0,12 bpm por ponto de fadiga
  wpKJ:20};                               // W' mostrado no HUD: stamina 100% = 20 kJ
-let friSeg=false,friUlt=-9,friT=0,friRpm=0,friFC=FRI.fc.rep;
+let friSeg=false,friUlt=-9,friFim=-9,friT=0,friRpm=0,friFC=FRI.fc.rep;
 const friOn=()=>FRI.liga&&MODO==='crono';
-function friZera(){friSeg=false;friUlt=-9;friT=0;friRpm=0;friFC=FRI.fc.rep+25}
-const friPedalando=()=>friSeg||friT-friUlt<FRI.ritmo;
+function friZera(){friSeg=false;friUlt=-9;friFim=-9;friT=0;friRpm=0;friFC=FRI.fc.rep+25}
+const friPedalando=()=>friSeg||friT-friFim<FRI.ritmo;   // conta desde que SOLTOU (depois de segurar muito, ainda está pedalando)
 function friPasso(dt){friT+=dt;
  if(boost){if(!friSeg){friSeg=true;friUlt=friT}if(friT-friUlt>FRI.segura)power+=FRI.sobe*dt}   // apertou = mais uma pedalada; segurando, acelera
- else{friSeg=false;power*=Math.exp(-dt/(friPedalando()?FRI.tauMantem:FRI.tauSolto))}}
+ else{if(friSeg)friFim=friT;friSeg=false;power*=Math.exp(-dt/(friPedalando()?FRI.tauMantem:FRI.tauSolto))}}
 function friDepois(dt){friRpm=power>15?speed/3.6*60/FRI.dev:0;
  const F=FRI.fc,alvo=F.max*curva(F.curva,power/FTP)+F.drift*fatigue;friFC+=(Math.min(F.max,alvo)-friFC)*Math.min(1,dt/F.tau)}
 

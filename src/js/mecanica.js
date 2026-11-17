@@ -102,13 +102,13 @@ const FRI={liga:true,
   curva:[[0,.33],[.5,.58],[.75,.72],[.9,.82],[1,.88],[1.2,.95],[1.5,1]],   // %FCmáx pela intensidade (P/FTP)
   drift:.12},                            // +0,12 bpm por ponto de fadiga
  wpKJ:20};                               // W' mostrado no HUD: stamina 100% = 20 kJ
-let friSeg=false,friUlt=-9,friT=0,friRpm=0,friFC=FRI.fc.rep;
+let friSeg=false,friUlt=-9,friFim=-9,friT=0,friRpm=0,friFC=FRI.fc.rep;
 const friOn=()=>FRI.liga&&MODO==='crono';
-function friZera(){friSeg=false;friUlt=-9;friT=0;friRpm=0;friFC=FRI.fc.rep+25}
-const friPedalando=()=>friSeg||friT-friUlt<FRI.ritmo;
+function friZera(){friSeg=false;friUlt=-9;friFim=-9;friT=0;friRpm=0;friFC=FRI.fc.rep+25}
+const friPedalando=()=>friSeg||friT-friFim<FRI.ritmo;   // conta desde que SOLTOU (depois de segurar muito, ainda está pedalando)
 function friPasso(dt){friT+=dt;
  if(boost){if(!friSeg){friSeg=true;friUlt=friT}if(friT-friUlt>FRI.segura)power+=FRI.sobe*dt}   // apertou = mais uma pedalada; segurando, acelera
- else{friSeg=false;power*=Math.exp(-dt/(friPedalando()?FRI.tauMantem:FRI.tauSolto))}}
+ else{if(friSeg)friFim=friT;friSeg=false;power*=Math.exp(-dt/(friPedalando()?FRI.tauMantem:FRI.tauSolto))}}
 function friDepois(dt){friRpm=power>15?speed/3.6*60/FRI.dev:0;
  const F=FRI.fc,alvo=F.max*curva(F.curva,power/FTP)+F.drift*fatigue;friFC+=(Math.min(F.max,alvo)-friFC)*Math.min(1,dt/F.tau)}
 
