@@ -12,7 +12,9 @@ window.ACEL=function(o){o=Object.assign({tipo:'treino',km:30,nivel:1,motor:0,fol
   while(state==='run'&&fr<1e6){let w=alvo;
    if(o.roda){const fim=GOAL<9999&&dist>GOAL-1;let g=1e9;for(const r of (CORR.on?CORR.riders:NPCS.filter(n=>n.ia&&!n.sentado))){if(r.dnf)continue;const d=(r.dist-dist)*PX_KM;if(d>0&&d<g)g=d}
     w=fim?9999:g<1500?(g>230?alvo*1.25:alvo*.9):alvo}
-   boost=w>=9999?stamina>1:power<w;if(boost)pres++;
+   // 18/11 (pedalada "o dedo é a força" em todos os modos): o robô TOCA como gente — toque de 0,2 s quando cai do alvo;
+   // só continua segurando se o toque não bastou (antes segurava direto: com CRN isso seca a barra, o que ninguém faz)
+   if(w>=9999)boost=stamina>1;else if(typeof CRN!=='undefined'&&CRN.on){const L=clamp((w*1.06-CRN.base*FTP)/(CRN.porSeg*FTP/250),.15,3);boost=boost?holdT<L:power<w}else boost=power<w;if(boost)pres++;
    if(fatigue>35&&water>0&&waterEffect<=0)drink();if(LV&&LV.iso>0&&LV.isoT<=0&&fatigue>30)tomarIso();if(LV&&LV.banana>0&&fatigue>50)comerBanana();if(fatigue>55&&gel>0)eat();
    if(LV&&LV.azul>0&&!LV.azulUsou&&fatigue>90)gelAzul();
    update(1/60);T+=1/60;fr++;if(vacuo>.05)vac++;

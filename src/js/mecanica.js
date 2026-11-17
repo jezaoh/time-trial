@@ -123,7 +123,7 @@ function friDepois(dt){friRpm=power>15?speed/3.6*60/FRI.dev:0;
 // =====================================================================================================================
 const CRN={on:true,base:.8,porSeg:120,sprintApos:2.5,sprintAcel:500,chega:10,meiaVida:3,meiaVidaAlta:.6,   // meia-vida acima do FTP: solta e cai rápido
  aperta:[[.6,4],[.9,8],[1.1,14],[2,12],[4.6,4]]};   // stamina/s apertado (antes 24/s fixo até o FTP: toque leve já secava a barra)
-function crnPasso(dt,active,livre){const alvo=FTP*CRN.base+CRN.porSeg*holdT+(holdT>CRN.sprintApos?CRN.sprintAcel*(holdT-CRN.sprintApos)**1.5:0);
+function crnPasso(dt,active,livre){const k=FTP/250,alvo=FTP*CRN.base+k*(CRN.porSeg*holdT+(holdT>CRN.sprintApos?CRN.sprintAcel*(holdT-CRN.sprintApos)**1.5:0));   // 18/11: todos os modos; subida proporcional ao FTP (Contrarrelógio = 250, igual)
  if(active&&power<alvo)power+=(alvo-power)*Math.min(1,dt*CRN.chega);
  else power=livre+(power-livre)*Math.exp(-dt*Math.LN2/(power>FTP?CRN.meiaVidaAlta:CRN.meiaVida))}
 let climbs=[{start:8,end:9.5,peak:5.5,descentEnd:11.5},{start:23,end:26.5,peak:6.5,descentEnd:29.5},{start:36,end:42,peak:7.5,descentEnd:45}];
@@ -167,7 +167,7 @@ function update(dt){
  if(active)holdT+=dt;else holdT=0;
  const sprint=!emp&&active&&holdT>=AJ.tapSegura;
  if(mar)friPasso(dt);
- else if(emp&&MODO==='crono'&&CRN.on){pTap=0;crnPasso(dt,active,Math.min(base,FTP*AJ.empLivre))}
+ else if(emp&&CRN.on){pTap=0;crnPasso(dt,active,Math.min(base,FTP*AJ.empLivre))}
  else if(emp){pTap=0;const livre=Math.min(base,FTP*AJ.empLivre);   // sem apertar: sem pedalar
   if(active)power=Math.max(power,livre)+AJ.empSobe*(1+AJ.empAcel*Math.max(0,holdT-AJ.empSegura))*dt;   // mesmo ritmo = mesmos watts no plano e na subida (na subida a física é que pesa)
   else power+=(livre-power)*Math.min(1,dt*AJ.empSolta)}
@@ -192,7 +192,7 @@ function update(dt){
  // 3) stamina: pressionado gasta conforme a intensidade; solto recupera na hora; teto 100 − fadiga
  // Contrarrelógio: apertado gasta (por intensidade), solto recupera; acima do FTP a bateria de explosão desconta sempre
  if(mar){const wp=Math.max(0,power-FTP)/AJ.empWp*100;stamina=clamp(stamina+((friSeg?-FRI.gasto:FRI.recupera)-wp)*dt,0,cap)}   // fricção: segurando come a stamina; solto recupera
- else if(emp){const wp=Math.max(0,power-FTP)/AJ.empWp*100;const ap=MODO==='crono'&&CRN.on?curva(CRN.aperta,r):curva(AJ.empAperta,r);stamina=clamp(stamina+((active?(holdT<AJ.empSegura?-ap:0):AJ.empRecupera)-wp)*dt,0,cap)}   // no sprint (segurando > empSegura) só a bateria gasta
+ else if(emp){const wp=Math.max(0,power-FTP)/AJ.empWp*100;const ap=CRN.on?curva(CRN.aperta,r):curva(AJ.empAperta,r);stamina=clamp(stamina+((active?(holdT<AJ.empSegura?-ap:0):AJ.empRecupera)-wp)*dt,0,cap)}   // no sprint (segurando > empSegura) só a bateria gasta
  else if(!emp)stamina=sprint?Math.max(0,stamina-curva(AJ.staGasto,r)*dt):active?stamina:Math.min(cap,stamina+AJ.staRecupera*dt);stamina=Math.min(stamina,cap);
  if(fatigue>=99.9){finish(false);return}
  // 4) física (velocidade com inércia): m·dv/dt = η·P/v − resistências (integrada em dt·kin, 4 subpassos)

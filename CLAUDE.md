@@ -311,3 +311,9 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   solto: cai com meia-vida de 3 s abaixo do FTP e 0,6 s acima (soltou o talo, cai rápido). Gasto apertado `CRN.aperta`.
   Calibrado pelo Strava do dono (Chocolate 0,91 km 4,8% 2:30 ≈ 398 W; Rachão 1 h 251 W). Robô 50 km: toques leves ~172–190 W
   chegam tranquilos (fadiga 50–71), ~220 W só com itens, ~240 W quebra; segurar ~2 s ≈ 400 W; quebrou → recupera em Z2 com fadiga alta.
+- **18/11 — "O DEDO É A FORÇA" EM TODOS OS MODOS (pedido do dono):** `crnPasso` vale em Carreira, Rachão, Corrida, Treino e Pedal Livre
+  (`CRN.on=false` volta todos ao acelerador antigo). A subida por segundo segurando é proporcional ao FTP (`k=FTP/250`: Contrarrelógio igual).
+  Fadiga continua a de cada modo (`empFad` reescalado na Carreira). Robô (`acelerador.js`) agora TOCA (toque do tamanho certo para
+  chegar ao alvo, solta até cair) — segurando direto ele secava a barra. Metas 12/13: treino iniciante 150 W chega (fadiga 64), 165 W
+  quebra; corrida 90% 6º–8º; Pedal Livre 140 W 57 km (antes 83), 160 W 28 km (antes 34). FORA: Rachão nível 10 no máximo chega
+  em último (15º; antes 7º) — stamina zera acima de ~FTP. A conversar com o dono (opção: `CORR.dopeFtp`, regra 4: mexer no NPC).
