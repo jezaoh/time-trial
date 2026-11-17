@@ -65,7 +65,7 @@ function drawRace(){
  tiles(IMG.cen_ceu,sp*.02,-170,1900,634);ctx.fillStyle='#3db4ff';ctx.fillRect(0,-200,W,40);
  camada(IMG.cen_mont,sp*.04,312,140);
  morros(sp*.09);
- ctx.fillStyle='#8cc83c';ctx.fillRect(0,600,W,H);   // chão por trás (aparece se a estrada desce muito)
+ ctx.fillStyle=cenChao();ctx.fillRect(0,600,W,H);   // chão por trás (aparece se a estrada desce muito): grama ou água
  ctx.restore();
  // ---- mundo (com zoom: campo de visão maior) ----
  ctx.save();mundoT();
@@ -94,9 +94,24 @@ const scrX=x=>(x-bikeX)*ZOOM+BXS,scrY=y=>(y-roadY)*ZOOM+RYS;
 // camada repetida com emenda suave: cada cópia tem a borda esquerda em degradê (fade px) e se sobrepõe à anterior
 function camada(img,off,y,fade){if(!img||!img.width)return;const w=img.width,st=w-fade,i0=Math.floor(off/st)-1;
  for(let i=i0;i*st-off<W;i++)ctx.drawImage(img,Math.floor(i*st-off),y)}
-// morros: sequência com igreja rara (1 a cada 5); base alinhada
-function morros(off){const A=IMG.cen_morro,B=IMG.cen_morro_i;if(!A||!A.width)return;const fade=150,st=A.width-fade,base=640,i0=Math.floor(off/st)-1;
- for(let i=i0;i*st-off<W;i++){const im=(((i%5)+5)%5===2)?B:A;ctx.drawImage(im,Math.floor(i*st-off),base-im.height)}}
+// ---------- CENÁRIO (17/11): campo ↔ mar ----------
+// Campo e mar são tiras "infinitas" (a ponta direita emenda na esquerda: sem sobreposição, sem árvore fantasma na emenda).
+// O campo tem a igreja rara (1 tira a cada 5). O mar aparece em trechos, com transição suave (um some, o outro aparece):
+//   Pedal Livre: campo por 10–20 km, mar por 4–8 km, alternando (sorteado a cada pedalada).
+//   Provas (todos os outros modos): começa no campo; a orla vai de 40% a 60% da distância.
+const CEN={trans:1.5,igreja:5,livreCampo:[10,20],livreMar:[4,8],prova:[.4,.6],chao:['#8cc83c','#3fd8d2']};
+let CENZ=null;   // trechos de mar [[início, fim], …] em km
+function cenZonas(){const Z=[];if(GOAL>=9999){let k=0;while(k<3000){const r=(a,b)=>a+Math.random()*(b-a);k+=r(CEN.livreCampo[0],CEN.livreCampo[1]);const m=r(CEN.livreMar[0],CEN.livreMar[1]);Z.push([k,k+m]);k+=m}}
+ else Z.push([GOAL*CEN.prova[0],GOAL*CEN.prova[1]]);return Z}
+function cenMar(km){if(!CENZ)CENZ=cenZonas();for(const[a,b]of CENZ){if(km<a-CEN.trans)break;if(km<=b+CEN.trans)return smooth(Math.min((km-a)/CEN.trans+1,(b-km)/CEN.trans+1))}return 0}
+const _cenReset=reset;reset=function(){CENZ=null;_cenReset()};
+function cenTiras(A,B,off,base,a){if(a<=0||!A||!A.width)return;const st=A.width,i0=Math.floor(off/st)-1;ctx.globalAlpha=a;
+ for(let i=i0;i*st-off<W;i++){const im=B&&(((i%CEN.igreja)+CEN.igreja)%CEN.igreja===2)?B:A;ctx.drawImage(im,Math.floor(i*st-off),base-im.height,im.width+1,im.height)}ctx.globalAlpha=1}
+function morros(off){const f=state==='run'||state==='paused'||state==='over'?cenMar(dist):0;
+ cenTiras(IMG.cen_campo,IMG.cen_campo_i,off,640,1-f);cenTiras(IMG.cen_mar,null,off,640,f)}
+// cor do chão por trás dos morros (aparece se a estrada desce muito): grama no campo, água no mar
+function cenChao(){const f=state==='run'||state==='paused'||state==='over'?cenMar(dist):0;if(f<=0)return CEN.chao[0];
+ const c=CEN.chao.map(h=>[1,3,5].map(i=>parseInt(h.substr(i,2),16)));return`rgb(${c[0].map((v,i)=>Math.round(v+(c[1][i]-v)*f)).join(',')})`}
 function drawIcons(){for(const a of ICN){const x=a.x*SS,y=a.y*SS,r=ICN_R*SS,u=r/34,hv=!pnl&&d2(mx,my,x,y)<(r*1.3)**2;ctx.save();ctx.translate(x,y);ctx.scale(hv?1.1:1,hv?1.1:1);
  ctx.beginPath();ctx.arc(0,0,r,0,7);ctx.fillStyle='#ffd800';ctx.fill();ctx.lineWidth=5;ctx.strokeStyle='#0f1a3a';ctx.stroke();
  ctx.strokeStyle='#0f1a3a';ctx.fillStyle='#0f1a3a';ctx.lineWidth=5*u;ctx.lineCap='round';ctx.lineJoin='round';

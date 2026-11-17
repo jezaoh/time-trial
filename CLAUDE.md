@@ -240,3 +240,8 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   (FTP 250 fixo, `empFad` calibrado pelo dono, sem a reescala ×1,5/×ts da Carreira). Também saíram a subida arcade, FC/W' e
   as bagzinhas (eram do teste). Código do teste guardado. teste_v2.py voltou a valer (erros: nenhum, violações 0).
   Próximo: o dono quer ajustar só o Contrarrelógio (stamina/FTP), a partir do formato da barra do Pedal Livre.
+- **17/11 — CENÁRIO CAMPO ↔ MAR (dono subiu `cenario infinito.webp` e `cen_mar_infinito.webp`):** a folha do campo foi separada
+  em `cen_campo.webp` (1564×268) e `cen_campo_i.webp` (com igreja, 1564×335); o mar foi copiado para `cen_mar.webp` (o montador
+  exige nome = chave). As tiras emendam sem sobreposição (`cenTiras`, sem o fade de 150 px que fazia as árvores fantasmas).
+  Bloco `CEN` em desenho.js: Pedal Livre alterna campo 10–20 km / mar 4–8 km (sorteado por pedalada); provas: orla de 40% a 60%
+  da distância; transição de 1,5 km (um some, o outro aparece); o chão de trás vira água no mar. `cen_morro*` não são mais usados.
