@@ -1,29 +1,14 @@
-/* ===== PEDALADA VISÍVEL — todos os modos (até 15/11 era só no Contrarrelógio) =====
-   Liga o dedo ao boneco: cada aperto no raio = a perna desce empurrando (meia volta do pé de vela, com "soco" no início).
-   Sem apertar, o giro é leve (cruzeiro). Segurando muito (sprint), as pernas giram rápido.
-   Só visual: não mexe em potência, stamina, fadiga nem ranking. Nos outros modos a animação continua como antes.
-   A folha de sprite tem 10 quadros por volta → meia volta = 5 quadros (variável global `pedal`).
+/* ===== PEDALADA VISÍVEL — todos os modos =====
+   17/11 (pedido do dono, "a pedalada tem que ser arcade"): a perna NÃO segue mais o dedo (antes cada aperto = meia volta
+   seca, e girava rápido demais). Agora tem cadência própria pela força: 60 rpm com pouca força → 110 rpm no sprint,
+   mudando suave; sem força (watts quase zero) desacelera até parar, como na roda livre.
+   Só visual: não mexe em potência, stamina, fadiga nem ranking. A folha tem 10 quadros por volta (variável global `pedal`).
 */
-const PEDK={
- meia:5,                // quadros por pedalada (meia volta)
- soco:16,               // rapidez com que a perna completa a pedalada (maior = mais seco); ~0,15 s
- fila:2,                // no máximo 2 pedaladas acumuladas (toques muito rápidos não deixam a perna "atrasada")
- lento:.45,             // giro de cruzeiro sem apertar (× giro antigo, que era pela velocidade)
- sprint:1.3,            // giro no sprint (× giro antigo)
- segura:1.2             // segurando mais que isso = sprint (igual a AJ.empSegura): as pernas giram sem parar
-};
-let pdAlvo=0,pdAnt=false;
-function pedalCrono(){return state==='run'}   // desde 16/11 vale em todos os modos (o acelerador também)
-// mesma regra de toque da mecânica (lida ANTES do update, com os mesmos valores)
+const PEDK={rpmMin:60,rpmMax:110,livre:15,suave:2.5,quadros:10};
+let pdRpm=0;
+function pedalCrono(){return state==='run'}   // principal.js: durante a prova o giro é daqui (a cadência), não o antigo pela velocidade
 const _pdUpdate=update;
-update=function(dt){
- if(!pedalCrono()){_pdUpdate(dt);pdAnt=boost;pdAlvo=pedal;return}
- // fricção (17/11, Contrarrelógio): a perna gira pela velocidade numa marcha só (10 quadros por volta), sem tranco
- if(typeof friOn==='function'&&friOn()){pdAnt=boost;_pdUpdate(dt);if(state==='run')pedal+=friRpm/60*10*dt;pdAlvo=pedal;return}
- const toque=boost&&!pdAnt&&stamina>.5&&!(typeof CONT!=='undefined'&&CONT>0);pdAnt=boost;
- _pdUpdate(dt);if(!pedalCrono())return;
- const g0=speed*dt*.5,sprint=boost&&stamina>.5&&holdT>=PEDK.segura;
- if(sprint){pedal+=g0*PEDK.sprint;pdAlvo=pedal;return}
- const giro=g0*PEDK.lento*clamp(power/40,0,1);pedal+=giro;pdAlvo+=giro;
- if(toque)pdAlvo=Math.min(Math.max(pdAlvo,pedal)+PEDK.meia,pedal+PEDK.meia*PEDK.fila);
- if(pdAlvo>pedal)pedal+=(pdAlvo-pedal)*Math.min(1,dt*PEDK.soco)};
+update=function(dt){_pdUpdate(dt);if(state!=='run')return;
+ if(typeof friOn==='function'&&friOn()){pedal+=friRpm/60*PEDK.quadros*dt;return}   // teste de fricção (desligado)
+ const K=PEDK,r=power/FTP,alvo=power<K.livre?0:clamp(K.rpmMin+(K.rpmMax-K.rpmMin)*clamp((r-.4)/1.4,0,1),K.rpmMin,K.rpmMax);
+ pdRpm+=(alvo-pdRpm)*Math.min(1,dt*K.suave);pedal+=pdRpm/60*K.quadros*dt};

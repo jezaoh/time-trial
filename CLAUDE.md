@@ -253,3 +253,7 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   Pose em pé = spriteSt 2/3. Gancho em desenho.js (`ncDesenha`). Em aberto: no ponto mais baixo o sapato desce perto demais
   do chão (o giro do pé nas folhas é maior que o pedivela); luzes da noite/borrão das rodas não aparecem no ciclista novo.
 - 17/11: perna do ciclista novo com **cadência própria** (`NC.rpm`: 60→110 rpm pela força P/FTP, suave; sem força = para), não segue mais o dedo (`pedal`), que girava rápido demais. Ritmo 0,4/0,6 ≈ 74 rpm · sprint 110.
+- **17/11 — CICLISTA DE TESTE APAGADO** (dono não gostou): saíram `ciclista_novo.js`, `nc_*.webp`, `nc.json` e `tools/ciclista_novo`.
+  **PEDALADA ARCADE EM TODO O JOGO** (`pedalada.js`, bloco `PEDK`): a perna não segue mais o dedo; cadência própria pela força
+  (60 rpm → 110 no sprint, `(P/FTP − 0,4)/1,4`, suave τ 0,4 s; < 15 W = para). Ritmo 0,4/0,6 ≈ 73 rpm · sprint 110.
+  ⚠️ `pedalCrono()` é usada por principal.js — não apagar.

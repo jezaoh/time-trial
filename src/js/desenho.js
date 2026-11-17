@@ -74,8 +74,7 @@ function drawRace(){
  const id=jogadorSkin(),st=spriteSt(),[fw,fh]=META.pedal[id][st],bw=fw*KS,bh=fh*KS,fi=Math.floor(pedal)%10;
  ctx.save();ctx.translate(bikeX,roadY-EYB+(typeof GF!=='undefined'?GF.tranco:0));ctx.rotate(-Math.atan(sk));
  const pdx=((META.pedalDx||{})[id]||[])[st]||0,gq=typeof garQuadro==='function'?garQuadro(id,st,fi):null;   // garagem.js: quadro com as peças (só Carreira)
- if(typeof ncDesenha==='function'&&ncDesenha(st)){}   // ciclista novo em camadas (teste, só Contrarrelógio; ciclista_novo.js)
- else{if(gq)ctx.drawImage(gq,0,0,fw,fh,-150-pdx*KS,-bh,bw,bh);else ctx.drawImage(IMG['p_'+id[0]+st],(fi%5)*fw,Math.floor(fi/5)*fh,fw,fh,-150-pdx*KS,-bh,bw,bh);if(typeof sensRodas==='function')sensRodas(id,st,-150-pdx*KS,-bh,KS)}ctx.restore();
+ if(gq)ctx.drawImage(gq,0,0,fw,fh,-150-pdx*KS,-bh,bw,bh);else ctx.drawImage(IMG['p_'+id[0]+st],(fi%5)*fw,Math.floor(fi/5)*fh,fw,fh,-150-pdx*KS,-bh,bw,bh);if(typeof sensRodas==='function')sensRodas(id,st,-150-pdx*KS,-bh,KS);ctx.restore();
  if(typeof porticosFrente==='function')porticosFrente();
  pistaFrente();
  ctx.restore();
