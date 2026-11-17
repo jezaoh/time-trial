@@ -295,3 +295,7 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   quadros do vídeo (13–32, 24 fps ≈ 72 rpm); `montar_folha.py` → `ia_sent.webp` (5×4, 363 px, ~1,1 MB; jogo 15,6 → 17,0 MB).
   `src/js/ia_ciclista.js`: quadro = `pedal×2` (20 por volta), escala pelo raio da roda do sprite atual, roda de trás no mesmo
   lugar. Falta: poses bravo/em pé/sprint, borrão de roda/sombra com as rodas novas, NPCs/garagem (máscaras).
+- **17/11 — POSES DO CICLISTA AUTOSPRITE:** `ia_normal.webp` (vídeo "cyclist pedaling", fundo cinza 199, rodas no vídeo
+  [272,501,71]/[495,501,70], 25 quadros 28–52, escala .94) = rosto tranquilo; `ia_bravo.webp` (ex-`ia_sent`, "Cyclist 2") = rosto
+  bravo. spriteSt 0 → normal · 1 e 2 → bravo (não há arte em pé) · 3 sprint → bravo + cisalhamento para a frente (`IA.sprint.inclina`)
+  + 2 cópias de rastro. Fusão de 0,15 s entre poses. `montar_folha.py` aceita as rodas do vídeo como 6º argumento. Jogo: 18,7 MB.
