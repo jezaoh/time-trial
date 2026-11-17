@@ -214,3 +214,10 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   dali; o 1º toque depois do embalo só retoma (não conta como pedalada rápida, `marPosEmb`). Gás = bater rápido (segurar
   nunca passa do verde). Robô: segurando ~60% do tempo, ~1 toque/s (antes ~2,5/s), mesmo equilíbrio (≈187 W chega sem itens,
   ≈211 W só com itens).
+- **17/11 (noite) — FRICÇÃO ("carrinho de fricção", pedido do dono; `MAR.modo='friccao'`, uma marcha só, sem toques):**
+  segurar o raio = empurrar: medidor de pressão em volta do raio enche em 1,1 s e os watts sobem 240 W/s; soltar = o volante
+  guarda a força e cai (τ pela zona: cinza .5 s · VERDE 1,4 s · laranja .9 · vermelho .4). Zonas: cinza (fraca) · verde
+  (PERFEITA, fadiga ×0,85, "×N" em sequência) · laranja (GÁS) · vermelho (PATINOU: −45% da força, −10 stamina, +3 fadiga).
+  O verde sobe com a velocidade (.38 a 20 km/h → .70 a 50 km/h). Vibração em pulsos crescentes (Android) e som de fricção
+  (dente de serra, Web Audio, em `audioTick`). HUD: RPM pela velocidade (50×17), FC e W'. Robô: ~0,7 empurrada/s, segurando
+  ~40%: ~181 W chega sem itens (fadiga 81) · ~213 W só com itens · só no laranja ~234 W chega no limite com itens.

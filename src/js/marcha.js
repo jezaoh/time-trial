@@ -13,6 +13,7 @@ const MARH={
  zonas:[[.6,'#9fb3c8','Z1'],[.7,'#4fc3ff','Z2'],[.8,'#35f21c','Z3'],[.9,'#ffd83a','Z4'],[9,'#ff3b2a','Z5']]};
 HB_IDS.push('m_sobe','m_desce');   // somem junto com os botões dos itens fora da prova
 const marSlotX=i=>(MAR.modo==='marcha'?MARH.slotX:36)+i*MARH.slotPasso;
+const friOn=()=>MAR.modo==='friccao';
 const marTela=()=>marOn()&&(state==='run'||state==='paused');
 // botões de toque (DOM, por cima do canvas, como os dos itens)
 (function(){const st=$('stage');if(!st)return;[['m_sobe',1],['m_desce',-1]].forEach(([id,d])=>{const b=document.createElement('button');
@@ -27,13 +28,15 @@ function marBotao(r,d,alerta){const pul=alerta?.5+.5*Math.sin(T*12):0;
  ctx.closePath();ctx.fillStyle=alerta?'#ffd83a':'#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#06121e';ctx.stroke();
  tx(d>0?'PESADA':'LEVE',cx,r.y+r.h-14,20,'center',alerta?'#ffd83a':'#fff')}
 function marHud(){const H0=MARH,[co,pi]=MAR.marchas[marG],rit=MAR.modo==='ritmo';
+ if(friOn())friHud();
  // coluna das marchas (só no modo marcha)
  if(!rit){marBotao(H0.sobe,1,marDica>0);marBotao(H0.desce,-1,marDica<0);
  const m=H0.meio;rr(m.x,m.y,m.w,m.h,18);ctx.fillStyle='rgba(222,240,255,.82)';ctx.fill();
  tx(`${marG+1}`,m.x+m.w/2,m.y+46,44,'center','#fff');tx(`${co}×${pi}`,m.x+m.w/2,m.y+72,20,'center','#fff');
  if(marDica&&state==='run')tx(marDica>0?'TROQUE ▲':'TROQUE ▼',H0.sobe.x+H0.sobe.w/2,H0.sobe.y-14,22,'center','#ffd83a')}
  // RPM: número + régua com a faixa verde
- const R=H0.rpm,rv=Math.round(marRpm),G=rit?MAR.ritmo.verde:MAR.faixa,A=MAR.ritmo.amarela,dentro=rv>=G[0]&&rv<=G[1];
+ if(friOn()){const R=H0.rpm;pilula(R.x,R.y,R.w,R.h);tx('RPM',R.x+24,R.y+40,22,'left','#fff');tx('50×17',R.x+24,R.y+70,20,'left','#fff');tx(`${Math.round(marRpm)}`,R.x+R.w-24,R.y+62,56,'right','#fff')}
+ else{const R=H0.rpm,rv=Math.round(marRpm),G=rit?MAR.ritmo.verde:MAR.faixa,A=MAR.ritmo.amarela,dentro=rv>=G[0]&&rv<=G[1];
  const zn=!rv?['','#fff']:rv<G[0]?['FRACO','#9fb3c8']:dentro?[marEmb?'EMBALO':'PERFEITO','#35f21c']:rit&&rv<=A?['ATAQUE','#ffd83a']:rit?['SPRINT','#ff3b2a']:['','#ffd83a'];
  pilula(R.x,R.y,R.w,R.h);
  if(dentro&&state==='run'){rr(R.x-3,R.y-3,R.w+6,R.h+6,(R.h+6)/2);ctx.lineWidth=5;ctx.strokeStyle=`rgba(53,242,28,${.55+.45*Math.sin(T*10)})`;ctx.stroke()}
@@ -43,7 +46,8 @@ function marHud(){const H0=MARH,[co,pi]=MAR.marchas[marG],rit=MAR.modo==='ritmo'
  rr(bx,by,bw,bh,8);ctx.fillStyle='#0a1a2c';ctx.fill();
  if(rit){ctx.fillStyle='#ffd83a';rr(X(G[1]),by+2,X(A)-X(G[1]),bh-4,4);ctx.fill();ctx.fillStyle='#ff3b2a';rr(X(A),by+2,X(R.max)-X(A)-2,bh-4,4);ctx.fill()}
  ctx.fillStyle='#35f21c';rr(X(G[0]),by+2,X(G[1])-X(G[0]),bh-4,6);ctx.fill();
- if(rv>0){const x=X(rv);ctx.beginPath();ctx.moveTo(x,by-2);ctx.lineTo(x-9,by-14);ctx.lineTo(x+9,by-14);ctx.closePath();ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#06121e';ctx.stroke();ctx.fillStyle='#fff';ctx.fillRect(x-2,by,4,bh)}
+ if(rv>0){const x=X(rv);ctx.beginPath();ctx.moveTo(x,by-2);ctx.lineTo(x-9,by-14);ctx.lineTo(x+9,by-14);ctx.closePath();ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#06121e';ctx.stroke();ctx.fillStyle='#fff';ctx.fillRect(x-2,by,4,bh)}}
+
  // FC com a zona
  const F=H0.fc,fc=Math.round(marFC),pz=fc/MAR.fc.max,z=H0.zonas.find(q=>pz<q[0]);pilula(F.x,F.y,F.w,F.h);
  tx('♥',F.x+24,F.y+46,34,'left','#ff3b5c');tx(`${fc}`,F.x+70,F.y+47,40,'left','#fff');tx('bpm',F.x+70+ctx.measureText(`${fc}`).width+8,F.y+46,20,'left','#fff');
@@ -55,3 +59,34 @@ function marBags(){const n=slotsHUD().length;for(let i=0;i<n;i++){const x=marSlo
 const _marHud=hud;hud=function(){const on=marTela();if(on)marBags();_marHud();
  if(on)marHud();
  const vis=on&&state==='run'&&MAR.modo==='marcha';botaoDOM('m_sobe',vis?MARH.sobe:null);botaoDOM('m_desce',vis?MARH.desce:null)};
+
+// ===== FRICÇÃO: medidor de pressão em volta do raio, aviso da pedalada, vibração e som de "carrinho de fricção" =====
+const FRIH={cx:1346,cy:678,r:136,lw:16,a0:Math.PI*.75,a1:Math.PI*2.25,   // arco de 270°, começando embaixo à esquerda
+ cor:{cinza:'#4a5b6e',verde:'#35f21c',laranja:'#ff9a1f',vermelho:'#ff3b2a'},
+ txt:{cinza:'FRACA',verde:'PERFEITA!',laranja:'GÁS!',vermelho:'PATINOU!'}};
+function friArco(q0,q1,cor,lw){const F=FRIH,a=q=>F.a0+(F.a1-F.a0)*q;ctx.beginPath();ctx.arc(F.cx,F.cy,F.r,a(q0),a(q1));ctx.strokeStyle=cor;ctx.lineWidth=lw;ctx.lineCap='butt';ctx.stroke()}
+function friHud(){const F=FRIH,g=friVerde(),M=MAR.fric;ctx.save();
+ friArco(0,1,'rgba(6,18,30,.75)',F.lw+8);
+ friArco(0,g[0],F.cor.cinza,F.lw);friArco(g[0],g[1],F.cor.verde,F.lw);friArco(g[1],M.laranja,F.cor.laranja,F.lw);friArco(M.laranja,1,F.cor.vermelho,F.lw);
+ if(friSeg||friQ>0&&marT-friZT<.25){const q=friQ,z=friZona(q),a=F.a0+(F.a1-F.a0)*q;friArco(0,q,'#fff',F.lw*.45);
+  ctx.beginPath();ctx.arc(F.cx+Math.cos(a)*F.r,F.cy+Math.sin(a)*F.r,13,0,7);ctx.fillStyle=F.cor[z];ctx.fill();ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.stroke()}
+ ctx.restore();
+ // aviso da última pedalada (sobe e some em 0,9 s)
+ const dt=marT-friZT;if(friZ&&dt<.9){ctx.globalAlpha=clamp(1.6-dt*1.8,0,1);const t=F.txt[friZ]+(friZ==='verde'&&friSeq>1?` ×${friSeq}`:'');
+  tx(t,F.cx,F.cy-F.r-26-dt*40,friZ==='verde'?34:28,'center',F.cor[friZ]);ctx.globalAlpha=1}}
+// vibração: pulsos cada vez mais fortes enquanto segura; um "toc" ao soltar no verde (só Android)
+let friVibT=0,friVibZ=-9;
+function friVibra(){if(!friOn()||state!=='run'||typeof vibrar!=='function')return;
+ if(friSeg&&marT-friVibT>.11){friVibT=marT;vibrar(Math.round(6+22*friQ))}
+ if(friZT!==friVibZ){friVibZ=friZT;if(friZ==='verde')vibrar(35);else if(friZ==='vermelho')vibrar(70)}}
+// som: motor de fricção (dente de serra filtrado) — sobe de tom com a pressão enquanto segura; solto, zumbe pela velocidade
+let FRS=null;
+function friSom(){if(typeof AC==='undefined'||!AC||!gSfx)return;
+ if(!FRS){try{const o=AC.createOscillator(),f=AC.createBiquadFilter(),g=AC.createGain();o.type='sawtooth';f.type='lowpass';f.frequency.value=900;g.gain.value=0;
+  o.connect(f);f.connect(g);g.connect(gSfx);o.start();FRS={o,f,g}}catch(e){return}}
+ const t=AC.currentTime,on=friOn()&&marTela()&&state==='run',hz=on?(friSeg?140+420*friQ:90+speed*4.5):80,
+  vol=on?(friSeg?.05+.07*friQ:clamp(power/600,0,.05)):0;
+ FRS.o.frequency.setTargetAtTime(hz,t,.05);FRS.f.frequency.setTargetAtTime(500+hz*2,t,.08);FRS.g.gain.setTargetAtTime(vol,t,.06)}
+const _friHud=hud;hud=function(){_friHud();friVibra()};
+// o som é atualizado em todo quadro (também nos menus, para calar)
+const _friAud=audioTick;audioTick=function(dt){_friAud(dt);friSom()};
