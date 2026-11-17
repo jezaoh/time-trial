@@ -89,7 +89,14 @@ const AJ={
 //   Stamina = W' (só esvazia acima do FTP; abaixo recupera, mais quanto mais leve). Stamina zerada: ainda pedala,
 //   limitado a 85% do FTP e com fadiga mais rápida. Fora da faixa verde de RPM: mais fadiga (perna) ou mais stamina (fôlego).
 // =====================================================================================================================
-const MAR={liga:true,
+// 17/11 (noite): dono achou as marchas difíceis → MAR.modo 'ritmo' (proposta A, sem marchas): o RITMO dos toques define os
+//   watts por zonas de RPM — verde 65–85 (70–90% do FTP, "pedalada perfeita": fadiga ×0,9), amarela até 105 (ataque, até
+//   140%), vermelha acima (sprint). Gás = bater mais rápido. MAR.modo='marcha' volta às marchas (código guardado).
+const MAR={liga:true,modo:'ritmo',
+ ritmo:{verde:[65,85],amarela:105,
+  W:[[0,0],[40,.4],[65,.7],[85,.9],[105,1.4],[130,2.5],[160,4.6]],   // watts (× FTP) pelo RPM
+  fad:[[0,1],[64,1],[65,.9],[85,.9],[86,1],[300,1]],                 // na faixa verde a fadiga é ×0,9 (pedalada perfeita)
+  suave:4},                                                           // os watts seguem o ritmo em ~0,25 s
  marchas:[[34,30],[34,26],[34,23],[34,20],[34,17],[50,21],[50,19],[50,17],[50,15],[50,14],[50,12],[50,11]],   // 1 (leve) … 12 (pesada)
  roda:2.1,inicial:6,                     // m por volta da roda · começa na 7ª (50×19: 90 rpm ≈ 30 km/h)
  volta:.5,                               // quanto do pedivela cada toque gira: .5 = uma perna (90 rpm = 3 toques/s) · 1 = volta completa (1,5/s)
@@ -111,20 +118,21 @@ const MAR={liga:true,
 let marG=MAR.inicial,marIv=0,marUlt=-1,marT=0,marCad=0,marRpm=0,marFC=MAR.fc.rep,marDica=0,marForaT=0,marPed=0;
 const marOn=()=>MAR.liga&&MODO==='crono';
 const marDev=i=>MAR.marchas[i][0]/MAR.marchas[i][1]*MAR.roda;
-function marTroca(d){if(!marOn()||state!=='run')return;marG=clamp(marG+d,0,MAR.marchas.length-1)}
+function marTroca(d){if(!marOn()||MAR.modo!=='marcha'||state!=='run')return;marG=clamp(marG+d,0,MAR.marchas.length-1)}
 function marZera(){marG=MAR.inicial;marIv=0;marUlt=-1;marT=0;marCad=0;marRpm=0;marFC=MAR.fc.rep+25;marDica=0;marForaT=0;marPed=0}
 // potência pedida pela cadência × marcha (antes do teto)
 function marPasso(dt,toque){marT+=dt;
  if(toque){if(marUlt>=0){const iv=clamp(marT-marUlt,MAR.ivMin,MAR.ivMax);marIv=marIv?marIv+(iv-marIv)*MAR.ivSuave:iv}else marIv=60*MAR.volta/MAR.rpm1;marUlt=marT}
  const desde=marUlt<0?1e9:marT-marUlt;marCad=desde<MAR.ivMax?60*MAR.volta/Math.max(marIv,desde):0;
+ if(MAR.modo==='ritmo')return marPed=FTP*curva(MAR.ritmo.W,marCad);   // ritmo: os watts saem só do RPM
  const v=speed/3.6,dev=marDev(marG),vT=marCad/60*dev;
  const acel=Math.min(FTP*MAR.acelMax,(AJ.peso+AJ.bike)*(vT-v)/MAR.alcance*Math.max(v,AJ.vmin)/AJ.eta);
  marPed=marCad>0?Math.max(0,vT*resist(vT)/AJ.eta+acel):0;
  return marPed}
 // depois do teto: RPM real (a perna presa na roda), setinha e FC
-function marDepois(dt){const v=speed/3.6,dev=marDev(marG);marRpm=marCad>0?Math.min(marCad,60*v/dev):0;
+function marDepois(dt){const v=speed/3.6,dev=marDev(marG);marRpm=MAR.modo==='ritmo'?marCad:marCad>0?Math.min(marCad,60*v/dev):0;
  const fora=marCad>0?(marRpm<MAR.dica.baixo?-1:marRpm>MAR.dica.alto?1:0):0;marForaT=fora&&fora===Math.sign(marForaT||fora)?marForaT+fora*dt:fora*dt;
- marDica=Math.abs(marForaT)>=MAR.dica.seg?Math.sign(marForaT):0;
+ marDica=MAR.modo==='marcha'&&Math.abs(marForaT)>=MAR.dica.seg?Math.sign(marForaT):0;
  const F=MAR.fc,alvo=F.max*curva(F.curva,power/FTP)+F.drift*fatigue+(marRpm>115?F.rpmAlto:0);
  marFC+=(Math.min(F.max,alvo)-marFC)*Math.min(1,dt/F.tau)}
 
@@ -168,7 +176,7 @@ function update(dt){
  const toque=boost&&!boostAnt&&(mar||stamina>.5);boostAnt=boost;   // cada novo toque = uma pedalada
  if(active)holdT+=dt;else holdT=0;
  const sprint=!emp&&active&&holdT>=AJ.tapSegura;
- if(mar){power+=(marPasso(dt,toque)-power)*Math.min(1,dt*MAR.suave)}
+ if(mar){power+=(marPasso(dt,toque)-power)*Math.min(1,dt*(MAR.modo==='ritmo'?MAR.ritmo.suave:MAR.suave))}
  else if(emp){pTap=0;const livre=Math.min(base,FTP*AJ.empLivre);   // sem apertar: sem pedalar
   if(active)power=Math.max(power,livre)+AJ.empSobe*(1+AJ.empAcel*Math.max(0,holdT-AJ.empSegura))*dt;   // mesmo ritmo = mesmos watts no plano e na subida (na subida a física é que pesa)
   else power+=(livre-power)*Math.min(1,dt*AJ.empSolta)}
@@ -185,14 +193,14 @@ function update(dt){
  const r=power/FTP;pSoma+=power*dt;pTempo+=dt;
  // 2) fadiga: resistência (sempre) + esforço pela potência real × tanque + insistir exausto; só água e gel reduzem
  const tanque=1+AJ.fadTanque*Math.pow(1-clamp(stamina/100,0,1),AJ.fadTanqueExp);
- let df=(mar?curva(AJ.empFad,r)*curva(MAR.fadRpm,marCad>0?marRpm:75)*(stamina<MAR.zona?MAR.exausto:1)
+ let df=(mar?curva(AJ.empFad,r)*(MAR.modo==='ritmo'?curva(MAR.ritmo.fad,marRpm):curva(MAR.fadRpm,marCad>0?marRpm:75))*(stamina<MAR.zona?MAR.exausto:1)
   :(emp?curva(AJ.empFad,r):AJ.fadResist+curva(AJ.fadInt,r)*tanque)+(boost&&stamina<4?AJ.fadExausto:0))*dt;
  if(waterEffect>0){const q=Math.min(aguaResta,AJ.aguaFad/AJ.aguaSeg*dt);aguaResta-=q;df-=q;waterEffect=Math.max(0,waterEffect-dt)}
  fatigue=clamp(fatigue+df,0,100);
  const cap=100-fatigue;
  // 3) stamina: pressionado gasta conforme a intensidade; solto recupera na hora; teto 100 − fadiga
  // Contrarrelógio: apertado gasta (por intensidade), solto recupera; acima do FTP a bateria de explosão desconta sempre
- if(mar){const k=curva(MAR.staRpm,marRpm),wp=Math.max(0,power-FTP)/AJ.empWp*100*k,rec=MAR.recupera*clamp((1-r)/(1-MAR.recCheio),0,1)/k;stamina=clamp(stamina+(rec-wp)*dt,0,cap)}
+ if(mar){const k=MAR.modo==='ritmo'?1:curva(MAR.staRpm,marRpm),wp=Math.max(0,power-FTP)/AJ.empWp*100*k,rec=MAR.recupera*clamp((1-r)/(1-MAR.recCheio),0,1)/k;stamina=clamp(stamina+(rec-wp)*dt,0,cap)}
  else if(emp){const wp=Math.max(0,power-FTP)/AJ.empWp*100;stamina=clamp(stamina+((active?(holdT<AJ.empSegura?-curva(AJ.empAperta,r):0):AJ.empRecupera)-wp)*dt,0,cap)}   // no sprint (segurando > empSegura) só a bateria gasta
  else if(!emp)stamina=sprint?Math.max(0,stamina-curva(AJ.staGasto,r)*dt):active?stamina:Math.min(cap,stamina+AJ.staRecupera*dt);stamina=Math.min(stamina,cap);
  if(fatigue>=99.9){finish(false);return}

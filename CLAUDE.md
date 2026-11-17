@@ -204,3 +204,8 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   Em aberto: painel CONTROLES ainda descreve o acelerador; subida arcade e marchas nos outros modos só se o teste agradar.
 - 17/11 (depois): dono achou difícil com 1 volta por toque → **cada toque = uma perna** (`MAR.volta` .5: 3 toques/s = 90 rpm;
   `ivMin` .12, sem tocar por 1 s = roda livre). Para voltar: `MAR.volta=1`.
+- **17/11 (noite) — RITMO POR ZONAS (proposta A; marchas saíram, código guardado em `MAR.modo='marcha'`):** `MAR.modo='ritmo'`.
+  Toque = uma perna; o RPM dos toques dá os watts (`MAR.ritmo.W`): verde 65–85 rpm (2,2–2,8 toques/s, 70–90% FTP, "PERFEITO",
+  fadiga ×0,9, quadro do RPM brilha) · amarela até 105 (ATAQUE, até 140%) · vermelha acima (SPRINT). Gás = bater mais rápido.
+  Sem coluna de marchas; itens nas bagzinhas no canto esquerdo; FC e W' ficam. Robô 50 km: 65 rpm 174 W fadiga 40 · 75 rpm
+  199 W fadiga 83 · 80 rpm 211 W quebra sem itens (com itens chega) · 85 rpm 225 W com itens fadiga 78.
