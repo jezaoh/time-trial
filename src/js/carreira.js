@@ -25,6 +25,7 @@ const CAR={
            {n:'SEMIPROFISSIONAL',km:80,forca:250},{n:'ESTRELA NACIONAL',km:80,forca:265},{n:'NÍVEL MUNDIAL',km:100,forca:285}],
  xpKm:1,xpRecorde:15,xpMed:[25,45,80],xpPos:[150,100,75,45,45,45,30,30,30,30,20,20,20,20,20],
  max:10,nivelMax:25,
+ aposta:{op:[100,250,500],mult:{1:5,2:2,3:1}},   // 17/11: RACHÃO = APOSTA (paga ao largar; 1º 5× · 2º 2× · 3º devolve · resto perde)
  moedas:{rachaoKm:1,med:[20,40,80],pos:[50,35,25,15,15,15,10,10,10,10,6,6,6,6,6]},   // 16/11: era 80·50·35·20… (quem vence sempre fazia ~3.000/h; meta ~1.000/h)
  loja:[{id:'banana',n:'BANANA',d:['−fadiga e +stamina','leva até 5 por pedalada'],p:20},
   {id:'gel',n:'GEL',d:['−40% da fadiga (o 2º rende','menos) · até 3 por pedalada'],p:60},
@@ -35,7 +36,7 @@ const CAR={
   {n:'SPRINTER',a:'Sprint · Motor · Recuperação',d:'Esconde no vácuo e explode no fim.',c:'#ffb36b'},
   {n:'CLÁSSICO',a:'Motor · Sprint · Recuperação',d:'Ataca na subida curta e segura o ritmo.',c:'#7ee0ff'},
   {n:'ROLADOR',a:'Motor · Fôlego',d:'Ritmo alto e constante, foge no plano.',c:'#ffe27a'}]};
-const xpNec=n=>40+15*n;
+const xpNec=n=>60+20*n+2*n*n;   // 17/11: era 40+15n (subia ~1 nível por corrida). Nível 10→11 = 460 · 20→21 = 1.260 · total até o 25 ≈ 17.240 (~10 h)
 const ftpDe=(nivel,motor)=>Math.round(CAR.ftp+CAR.ftpNivel*(nivel-1)+CAR.ftpMotor*motor);   // FTP cresce com o nível (e um pouco com o motor)                   // XP para ir do nível n ao n+1
 const ATR=[
  {k:'motor',n:'MOTOR',d:'+4 W de FTP (o nível dá +6,5 W)',ef:l=>`FTP ${ftpDe(CS.nivel,l)} W`},
@@ -83,7 +84,7 @@ finish=function(w){_carFinish(w);if(MODO!=='carreira')return;
  if(carTipo==='livre'){livreFim(r,add)}
  else if(aband){devolverItens();r.moedas=Math.floor(dist*CAR.moedas.rachaoKm*.8);r.aband=true}
  else if(carTipo==='treino'){CS.treinos++;devolverItens();   // rachão: vale a colocação (não sobe patente)
-  if(w){r.pos=corridaPos();add(CAR.xpPos[Math.min(r.pos,15)-1]*.7,`${r.pos}º lugar no rachão`);r.moedas+=CAR.moedas.pos[Math.min(r.pos,15)-1];
+  if(w){r.pos=corridaPos();add(CAR.xpPos[Math.min(r.pos,15)-1]*.7,`${r.pos}º lugar no rachão`);const ap=(LV&&LV.aposta)||0;r.aposta=ap;r.premio=Math.round(ap*(CAR.aposta.mult[r.pos]||0));r.moedas+=r.premio;
    CS.melhorPos=CS.melhorPos||{};if(!CS.melhorPos[km]||r.pos<CS.melhorPos[km]){CS.melhorPos[km]=r.pos}
    const rec=CS.rec[km];if(rec==null||t<rec){add(CAR.xpRecorde,rec==null?'primeira chegada':'novo recorde pessoal');CS.rec[km]=t}}
   else add(dist*CAR.xpKm,`${Math.floor(dist)} km pedalados`);
@@ -299,7 +300,12 @@ function drawMochila(){fundo();tituloGrande('BOLSO',84,66);btnVoltar('VOLTAR',()
  if(MOCH_DEST.t==='corrida')tx('REGULAMENTO DA CORRIDA: água, isotônico e gel. Banana e gel azul ficam em casa.',W/2,640,22,'center','#ffcc00');
  const az=MOCH_DEST.t==='corrida'?0:CS.inv.azul||0;if(MOCH_DEST.t==='corrida'){}else if(az){itemIc('azul',150,590,110);tx(`GEL AZUL: ${az} no estoque · usa 1 nesta pedalada (fica acima do raio)`,210,600,22,'left','#fff')}
  else tx('Gel azul: compre na LOJA (vida extra, 1 por pedalada).',90,600,22,'left','#cfe3f1');
- btn('LOJA',70,680,300,96,()=>{state='loja'},false,40);btn(MOCH_DEST.t==='livre'?'PEDALAR':'LARGAR',W/2-200,680,560,110,()=>correr(MOCH_DEST.t,MOCH_DEST.km),true,54)}
+ if(MOCH_DEST.t==='treino'){const A=CAR.aposta.op;if(!A.includes(CS.aposta))CS.aposta=A[0];tx('APOSTA',830,604,26,'left','#ffd23a');
+  A.forEach((v,i)=>{const x=970+i*170,b={x,y:566,w:150,h:60},ok=CS.moedas>=v;if(ok)btns.push({...b,act:()=>{CS.aposta=v;carSalvar()}});ctx.globalAlpha=ok?1:.4;
+   card(b.x,b.y,b.w,b.h,CS.aposta===v,ok&&hit(b,mx,my));tx(`${v}`,x+75,606,30,'center','#fff');ctx.globalAlpha=1});
+  tx(`1º leva ${CS.aposta*5} · 2º ${CS.aposta*2} · 3º devolve · do 4º para trás perde`,1210,654,20,'center','#cfe3f1')}
+ const semGrana=MOCH_DEST.t==='treino'&&CS.moedas<(CS.aposta||CAR.aposta.op[0]);
+ btn('LOJA',70,680,300,96,()=>{state='loja'},false,40);btn(semGrana?'SEM MOEDAS':MOCH_DEST.t==='livre'?'PEDALAR':MOCH_DEST.t==='treino'?`APOSTAR ${CS.aposta} E LARGAR`:'LARGAR',W/2-200,680,560,110,()=>{if(!semGrana)correr(MOCH_DEST.t,MOCH_DEST.km)},!semGrana,MOCH_DEST.t==='treino'?40:54)}
 function drawPedalar(){fundo();tituloGrande('PEDALAR',84,66);btnVoltar('VOLTAR',toHub);moedasChip();
  const C=[{t:'PEDAL LIVRE',c:'#ffe27a',l:['Estrada sem fim, até quebrar',`Seu recorde: ${f1(CS.recLivre||0)} km`,'Itens, caminhão, furgão e moedas'],a:()=>irMochila('livre')},
   {t:'RACHÃO',c:'#7ee0ff',l:['30 · 50 · 80 · 100 km','Bata seus tempos e ganhe medalhas','Com a galera na estrada'],a:()=>{state='treino'}},
@@ -335,6 +341,7 @@ function carOverlay(){const r=carRes,X=588,BW=360;if(CLASSIF&&r.classif){drawCla
  if(r.tipo==='treino'&&won&&!r.pos&&r.med<2){const M=CAR.med[r.km];tx(`Próxima medalha: ${MEDN[r.med+1].toLowerCase()} a ${f1(M[r.med+1])} km/h de média`,W/2,y,22,'center','#cfe3f1');y+=34}
  y+=14;r.linhas.forEach(([s,n])=>{tx(s,W/2-220,y,25,'left','#fff');tx(`+${n} XP`,W/2+220,y,25,'right','#7ee0ff');y+=34});
  tx('TOTAL',W/2-220,y+4,28,'left','#7ee0ff');tx(`+${r.ganho} XP`,W/2+220,y+4,30,'right','#7ee0ff');y+=44;
+ if(r.aposta){tx(`APOSTA ${r.aposta} → ${r.premio?'PRÊMIO '+r.premio:'perdeu'}`,W/2,y,26,'center',r.premio>r.aposta?MN.verde:r.premio?'#fff':'#ff8a80');y+=40}
  if(r.moedas>0){moedaIc(W/2-220,y-28,34);tx('MOEDAS',W/2-178,y,26,'left','#ffd23a');tx(`+${r.moedas}`,W/2+220,y,28,'right','#ffd23a');y+=42}
  if(r.niveis){tx(`NÍVEL ${CS.nivel}!  +${r.niveis} ponto${r.niveis>1?'s':''} de atributo`,W/2,y,30,'center','#ffe27a');y+=40}
  if(r.sobe){tx(`NOVA PATENTE: ${r.sobe}!`,W/2,y,32,'center','#a8ffb4');y+=40;if(r.libera.length){tx(`Treino de ${r.libera.join(', ')} km liberado!`,W/2,y,26,'center','#7ee0ff');y+=36}}

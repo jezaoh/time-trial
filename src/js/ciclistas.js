@@ -29,6 +29,8 @@ const FIS={
  encontros:[{t:'recreativo',n:1,p:.16},{t:'recreativo',n:2,p:.07},{t:'intermediario',n:1,p:.13},{t:'intermediario',n:2,p:.09},
   {t:'forte',n:1,p:.10},{t:'forte',n:2,p:.06},{t:'muitoForte',n:1,p:.05},{t:'muitoForte',n:4,p:.06},{t:'elite',n:1,p:.04},{t:'pro',n:1,p:.02},
   {t:'seu',n:1,p:.10},{t:'misto',n:5,p:.12}],
+ // 17/11: no Pedal Livre longo, quem você encontra também já pedalou muito: chance de vir cansado/quebrado cresce com o SEU km
+ cansaco:{km:[20,80],p:[.1,.35],fad:[72,94],extra:8},
  encIntervalo:[4,7],                      // km entre encontros no Pedal Livre (era 3,5–6; 6–10 ficou vazio demais)
  encPrimeiro:[1.5,3],                     // km do 1º encontro sorteado
  encLargada:[1,2],                        // ciclistas tranquilos (solo, "só pedalando") já na estrada à frente quando você sai
@@ -212,7 +214,8 @@ function ciclPopular(){
  const E=sorteio(FIS.encontros),n=E.t==='misto'?3+Math.floor(Math.random()*2):E.n===3?2+Math.floor(Math.random()*2):E.n,
   ini=rnd(0,55),feito=ini*1.1,time=Math.floor(Math.random()*KITS.length),kit=()=>E.n>=4&&Math.random()<.6?time:Math.floor(Math.random()*KITS.length);
  const G=[];for(let i=0;i<n;i++){const t=E.t==='misto'?sorteiaL(['recreativo','intermediario','intermediario','forte','forte','muitoForte']):E.t;
-  const ex=Math.random()<.22,r=ciclDoNivel(t,{dist:0,fad:ex?rnd(45,70):ini*rnd(.8,1.2),kmPlano:feito+rnd(30,90),k:kit(),Fend:ex?rnd(104,122):undefined});r.kmFeito=feito;G.push(r)}   // o afoito já vem gastando há tempo
+  const cs=FIS.cansaco,fk=clamp((dist-cs.km[0])/(cs.km[1]-cs.km[0]),0,1),tira=E.t!=='seu'&&Math.random()<(dist<cs.km[0]?cs.p[0]*dist/cs.km[0]:cs.p[0]+(cs.p[1]-cs.p[0])*fk);
+  const ex=Math.random()<.22,r=ciclDoNivel(t,{dist:0,fad:tira?rnd(...cs.fad):ex?rnd(45,70):ini*rnd(.8,1.2)+cs.extra*fk,kmPlano:feito+rnd(30,90),k:kit(),Fend:ex?rnd(104,122):undefined});r.kmFeito=feito;G.push(r)}   // o afoito já vem gastando há tempo
  if(n===1&&E.t!=='seu'&&Math.random()<FIS.passeio)G[0].passeio=true;   // "só pedalando": não quer vácuo de ninguém
  // posição: mais lento que você → aparece à frente; mais rápido → vem de trás
  const ref=G.reduce((a,r)=>a+r.ftp,0)/n,vS=vEq(G[0],ref*.72,0,n>1?.12:0)*3.6,frente=vS<LV.vJ;

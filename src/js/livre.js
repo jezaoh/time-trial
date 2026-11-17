@@ -131,7 +131,9 @@ function livreFim(r,add){CS.livres=(CS.livres||0)+1;const rec=CS.recLivre||0,avg
  devolverItens();
  r.encerrou=LV.encerrou;r.itens={...LV.pegos}}
 const _livReset=reset;
-reset=function(){if(LV&&MODO==='carreira'){devolverItens();carSalvar()}_livReset();LV=null;if(MODO==='carreira'){livreNovo(carTipo==='livre');PERFIL=null}};
+reset=function(){if(LV&&MODO==='carreira'){devolverItens();carSalvar()}_livReset();LV=null;if(MODO==='carreira'){livreNovo(carTipo==='livre');PERFIL=null;
+  // Rachão = aposta: paga ao largar (reiniciar = nova largada, nova aposta; a anterior fica perdida)
+  if(carTipo==='treino'){const ap=CS.aposta||CAR.aposta.op[0];LV.aposta=CS.moedas>=ap?ap:0;CS.moedas-=LV.aposta;carSalvar()}}};
 const _livUpdate=update;
 update=function(dt){_livUpdate(dt);if(LV&&state==='run')livrePasso(dt)};
 // ---------- desenho ----------

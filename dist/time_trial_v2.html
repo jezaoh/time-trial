@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head>
-<!-- Time Trial V2 · versão 17/11/2026 07:55 --><meta charset="utf-8">
+<!-- Time Trial V2 · versão 17/11/2026 08:03 --><meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#06121c"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Time Trial V2</title>
 <style>
@@ -35,7 +35,7 @@ const META={"idle": {"azul": {"cw": 290, "ch": 388, "sx": 2.311418685121107, "sy
 const $=id=>document.getElementById(id),c=$('game'),ctx=c.getContext('2d',{alpha:false}),W=1536,H=864,SS=W/1672,IMG={},nickEl=$('nick');
 const NUT=[[0,2,99,240],[99,2,100,240],[199,2,99,240],[298,2,99,240],[397,2,100,240],[497,2,100,240],[597,28,121,214]];
 // versão: data e hora da montagem (preenchida por tools/montar_arquivo_unico.py; aparece no canto da tela inicial)
-const VERSAO="17/11/2026 07:55";
+const VERSAO="17/11/2026 08:03";
 // fonte do jogo: Exo 2 itálico (900 títulos e números · 800 textos)
 const FT=(w,s)=>`italic ${w} ${s}px Exo2,system-ui,sans-serif`;
 const ICON={clock:0,flag:1,avg:2,speed:3,up:4,flat:5,down:6};
@@ -1018,6 +1018,7 @@ const CAR={
            {n:'SEMIPROFISSIONAL',km:80,forca:250},{n:'ESTRELA NACIONAL',km:80,forca:265},{n:'NÍVEL MUNDIAL',km:100,forca:285}],
  xpKm:1,xpRecorde:15,xpMed:[25,45,80],xpPos:[150,100,75,45,45,45,30,30,30,30,20,20,20,20,20],
  max:10,nivelMax:25,
+ aposta:{op:[100,250,500],mult:{1:5,2:2,3:1}},   // 17/11: RACHÃO = APOSTA (paga ao largar; 1º 5× · 2º 2× · 3º devolve · resto perde)
  moedas:{rachaoKm:1,med:[20,40,80],pos:[50,35,25,15,15,15,10,10,10,10,6,6,6,6,6]},   // 16/11: era 80·50·35·20… (quem vence sempre fazia ~3.000/h; meta ~1.000/h)
  loja:[{id:'banana',n:'BANANA',d:['−fadiga e +stamina','leva até 5 por pedalada'],p:20},
   {id:'gel',n:'GEL',d:['−40% da fadiga (o 2º rende','menos) · até 3 por pedalada'],p:60},
@@ -1028,7 +1029,7 @@ const CAR={
   {n:'SPRINTER',a:'Sprint · Motor · Recuperação',d:'Esconde no vácuo e explode no fim.',c:'#ffb36b'},
   {n:'CLÁSSICO',a:'Motor · Sprint · Recuperação',d:'Ataca na subida curta e segura o ritmo.',c:'#7ee0ff'},
   {n:'ROLADOR',a:'Motor · Fôlego',d:'Ritmo alto e constante, foge no plano.',c:'#ffe27a'}]};
-const xpNec=n=>40+15*n;
+const xpNec=n=>60+20*n+2*n*n;   // 17/11: era 40+15n (subia ~1 nível por corrida). Nível 10→11 = 460 · 20→21 = 1.260 · total até o 25 ≈ 17.240 (~10 h)
 const ftpDe=(nivel,motor)=>Math.round(CAR.ftp+CAR.ftpNivel*(nivel-1)+CAR.ftpMotor*motor);   // FTP cresce com o nível (e um pouco com o motor)                   // XP para ir do nível n ao n+1
 const ATR=[
  {k:'motor',n:'MOTOR',d:'+4 W de FTP (o nível dá +6,5 W)',ef:l=>`FTP ${ftpDe(CS.nivel,l)} W`},
@@ -1076,7 +1077,7 @@ finish=function(w){_carFinish(w);if(MODO!=='carreira')return;
  if(carTipo==='livre'){livreFim(r,add)}
  else if(aband){devolverItens();r.moedas=Math.floor(dist*CAR.moedas.rachaoKm*.8);r.aband=true}
  else if(carTipo==='treino'){CS.treinos++;devolverItens();   // rachão: vale a colocação (não sobe patente)
-  if(w){r.pos=corridaPos();add(CAR.xpPos[Math.min(r.pos,15)-1]*.7,`${r.pos}º lugar no rachão`);r.moedas+=CAR.moedas.pos[Math.min(r.pos,15)-1];
+  if(w){r.pos=corridaPos();add(CAR.xpPos[Math.min(r.pos,15)-1]*.7,`${r.pos}º lugar no rachão`);const ap=(LV&&LV.aposta)||0;r.aposta=ap;r.premio=Math.round(ap*(CAR.aposta.mult[r.pos]||0));r.moedas+=r.premio;
    CS.melhorPos=CS.melhorPos||{};if(!CS.melhorPos[km]||r.pos<CS.melhorPos[km]){CS.melhorPos[km]=r.pos}
    const rec=CS.rec[km];if(rec==null||t<rec){add(CAR.xpRecorde,rec==null?'primeira chegada':'novo recorde pessoal');CS.rec[km]=t}}
   else add(dist*CAR.xpKm,`${Math.floor(dist)} km pedalados`);
@@ -1292,7 +1293,12 @@ function drawMochila(){fundo();tituloGrande('BOLSO',84,66);btnVoltar('VOLTAR',()
  if(MOCH_DEST.t==='corrida')tx('REGULAMENTO DA CORRIDA: água, isotônico e gel. Banana e gel azul ficam em casa.',W/2,640,22,'center','#ffcc00');
  const az=MOCH_DEST.t==='corrida'?0:CS.inv.azul||0;if(MOCH_DEST.t==='corrida'){}else if(az){itemIc('azul',150,590,110);tx(`GEL AZUL: ${az} no estoque · usa 1 nesta pedalada (fica acima do raio)`,210,600,22,'left','#fff')}
  else tx('Gel azul: compre na LOJA (vida extra, 1 por pedalada).',90,600,22,'left','#cfe3f1');
- btn('LOJA',70,680,300,96,()=>{state='loja'},false,40);btn(MOCH_DEST.t==='livre'?'PEDALAR':'LARGAR',W/2-200,680,560,110,()=>correr(MOCH_DEST.t,MOCH_DEST.km),true,54)}
+ if(MOCH_DEST.t==='treino'){const A=CAR.aposta.op;if(!A.includes(CS.aposta))CS.aposta=A[0];tx('APOSTA',830,604,26,'left','#ffd23a');
+  A.forEach((v,i)=>{const x=970+i*170,b={x,y:566,w:150,h:60},ok=CS.moedas>=v;if(ok)btns.push({...b,act:()=>{CS.aposta=v;carSalvar()}});ctx.globalAlpha=ok?1:.4;
+   card(b.x,b.y,b.w,b.h,CS.aposta===v,ok&&hit(b,mx,my));tx(`${v}`,x+75,606,30,'center','#fff');ctx.globalAlpha=1});
+  tx(`1º leva ${CS.aposta*5} · 2º ${CS.aposta*2} · 3º devolve · do 4º para trás perde`,1210,654,20,'center','#cfe3f1')}
+ const semGrana=MOCH_DEST.t==='treino'&&CS.moedas<(CS.aposta||CAR.aposta.op[0]);
+ btn('LOJA',70,680,300,96,()=>{state='loja'},false,40);btn(semGrana?'SEM MOEDAS':MOCH_DEST.t==='livre'?'PEDALAR':MOCH_DEST.t==='treino'?`APOSTAR ${CS.aposta} E LARGAR`:'LARGAR',W/2-200,680,560,110,()=>{if(!semGrana)correr(MOCH_DEST.t,MOCH_DEST.km)},!semGrana,MOCH_DEST.t==='treino'?40:54)}
 function drawPedalar(){fundo();tituloGrande('PEDALAR',84,66);btnVoltar('VOLTAR',toHub);moedasChip();
  const C=[{t:'PEDAL LIVRE',c:'#ffe27a',l:['Estrada sem fim, até quebrar',`Seu recorde: ${f1(CS.recLivre||0)} km`,'Itens, caminhão, furgão e moedas'],a:()=>irMochila('livre')},
   {t:'RACHÃO',c:'#7ee0ff',l:['30 · 50 · 80 · 100 km','Bata seus tempos e ganhe medalhas','Com a galera na estrada'],a:()=>{state='treino'}},
@@ -1328,6 +1334,7 @@ function carOverlay(){const r=carRes,X=588,BW=360;if(CLASSIF&&r.classif){drawCla
  if(r.tipo==='treino'&&won&&!r.pos&&r.med<2){const M=CAR.med[r.km];tx(`Próxima medalha: ${MEDN[r.med+1].toLowerCase()} a ${f1(M[r.med+1])} km/h de média`,W/2,y,22,'center','#cfe3f1');y+=34}
  y+=14;r.linhas.forEach(([s,n])=>{tx(s,W/2-220,y,25,'left','#fff');tx(`+${n} XP`,W/2+220,y,25,'right','#7ee0ff');y+=34});
  tx('TOTAL',W/2-220,y+4,28,'left','#7ee0ff');tx(`+${r.ganho} XP`,W/2+220,y+4,30,'right','#7ee0ff');y+=44;
+ if(r.aposta){tx(`APOSTA ${r.aposta} → ${r.premio?'PRÊMIO '+r.premio:'perdeu'}`,W/2,y,26,'center',r.premio>r.aposta?MN.verde:r.premio?'#fff':'#ff8a80');y+=40}
  if(r.moedas>0){moedaIc(W/2-220,y-28,34);tx('MOEDAS',W/2-178,y,26,'left','#ffd23a');tx(`+${r.moedas}`,W/2+220,y,28,'right','#ffd23a');y+=42}
  if(r.niveis){tx(`NÍVEL ${CS.nivel}!  +${r.niveis} ponto${r.niveis>1?'s':''} de atributo`,W/2,y,30,'center','#ffe27a');y+=40}
  if(r.sobe){tx(`NOVA PATENTE: ${r.sobe}!`,W/2,y,32,'center','#a8ffb4');y+=40;if(r.libera.length){tx(`Treino de ${r.libera.join(', ')} km liberado!`,W/2,y,26,'center','#7ee0ff');y+=36}}
@@ -1468,7 +1475,9 @@ function livreFim(r,add){CS.livres=(CS.livres||0)+1;const rec=CS.recLivre||0,avg
  devolverItens();
  r.encerrou=LV.encerrou;r.itens={...LV.pegos}}
 const _livReset=reset;
-reset=function(){if(LV&&MODO==='carreira'){devolverItens();carSalvar()}_livReset();LV=null;if(MODO==='carreira'){livreNovo(carTipo==='livre');PERFIL=null}};
+reset=function(){if(LV&&MODO==='carreira'){devolverItens();carSalvar()}_livReset();LV=null;if(MODO==='carreira'){livreNovo(carTipo==='livre');PERFIL=null;
+  // Rachão = aposta: paga ao largar (reiniciar = nova largada, nova aposta; a anterior fica perdida)
+  if(carTipo==='treino'){const ap=CS.aposta||CAR.aposta.op[0];LV.aposta=CS.moedas>=ap?ap:0;CS.moedas-=LV.aposta;carSalvar()}}};
 const _livUpdate=update;
 update=function(dt){_livUpdate(dt);if(LV&&state==='run')livrePasso(dt)};
 // ---------- desenho ----------
@@ -1645,6 +1654,8 @@ const FIS={
  encontros:[{t:'recreativo',n:1,p:.16},{t:'recreativo',n:2,p:.07},{t:'intermediario',n:1,p:.13},{t:'intermediario',n:2,p:.09},
   {t:'forte',n:1,p:.10},{t:'forte',n:2,p:.06},{t:'muitoForte',n:1,p:.05},{t:'muitoForte',n:4,p:.06},{t:'elite',n:1,p:.04},{t:'pro',n:1,p:.02},
   {t:'seu',n:1,p:.10},{t:'misto',n:5,p:.12}],
+ // 17/11: no Pedal Livre longo, quem você encontra também já pedalou muito: chance de vir cansado/quebrado cresce com o SEU km
+ cansaco:{km:[20,80],p:[.1,.35],fad:[72,94],extra:8},
  encIntervalo:[4,7],                      // km entre encontros no Pedal Livre (era 3,5–6; 6–10 ficou vazio demais)
  encPrimeiro:[1.5,3],                     // km do 1º encontro sorteado
  encLargada:[1,2],                        // ciclistas tranquilos (solo, "só pedalando") já na estrada à frente quando você sai
@@ -1828,7 +1839,8 @@ function ciclPopular(){
  const E=sorteio(FIS.encontros),n=E.t==='misto'?3+Math.floor(Math.random()*2):E.n===3?2+Math.floor(Math.random()*2):E.n,
   ini=rnd(0,55),feito=ini*1.1,time=Math.floor(Math.random()*KITS.length),kit=()=>E.n>=4&&Math.random()<.6?time:Math.floor(Math.random()*KITS.length);
  const G=[];for(let i=0;i<n;i++){const t=E.t==='misto'?sorteiaL(['recreativo','intermediario','intermediario','forte','forte','muitoForte']):E.t;
-  const ex=Math.random()<.22,r=ciclDoNivel(t,{dist:0,fad:ex?rnd(45,70):ini*rnd(.8,1.2),kmPlano:feito+rnd(30,90),k:kit(),Fend:ex?rnd(104,122):undefined});r.kmFeito=feito;G.push(r)}   // o afoito já vem gastando há tempo
+  const cs=FIS.cansaco,fk=clamp((dist-cs.km[0])/(cs.km[1]-cs.km[0]),0,1),tira=E.t!=='seu'&&Math.random()<(dist<cs.km[0]?cs.p[0]*dist/cs.km[0]:cs.p[0]+(cs.p[1]-cs.p[0])*fk);
+  const ex=Math.random()<.22,r=ciclDoNivel(t,{dist:0,fad:tira?rnd(...cs.fad):ex?rnd(45,70):ini*rnd(.8,1.2)+cs.extra*fk,kmPlano:feito+rnd(30,90),k:kit(),Fend:ex?rnd(104,122):undefined});r.kmFeito=feito;G.push(r)}   // o afoito já vem gastando há tempo
  if(n===1&&E.t!=='seu'&&Math.random()<FIS.passeio)G[0].passeio=true;   // "só pedalando": não quer vácuo de ninguém
  // posição: mais lento que você → aparece à frente; mais rápido → vem de trás
  const ref=G.reduce((a,r)=>a+r.ftp,0)/n,vS=vEq(G[0],ref*.72,0,n>1?.12:0)*3.6,frente=vS<LV.vJ;
@@ -1882,8 +1894,8 @@ update=function(dt){_cicUpd(dt);if(state==='run'&&!(typeof CONT!=='undefined'&&C
    Itens: como sempre, o que você leva no BOLSO sai do seu estoque (regulamento: água, isotônico e gel).
    Salvo em CS.camp (localStorage tt2_car). TODOS OS NÚMEROS NO BLOCO CAMP. */
 const CAMP={
- insc:[100,150,200,280,360,450,600],      // inscrição por patente (Iniciante → Nível Mundial)
- premio:[5,3,2,1,.5],                     // prêmio na geral × inscrição: 1º 5×, 2º 3×, 3º 2×, 4º devolve, 5º metade (16/11: era 10·5·3·1,5·1)
+ insc:[1500,1800,2200,2600,3000,3500,4000],   // inscrição por patente (Iniciante → Nível Mundial) — 17/11: era 100…600
+ premio:[3,1.5,1,.5,.5],                  // prêmio na geral × inscrição: 1º 3×, 2º 1,5×, 3º devolve, 4º e 5º metade (17/11: era 5·3·2·1·0,5)
  devolve:.3,                              // desistir: devolve 30% da inscrição (perde 70%)
  penal:.08,                               // quebrou/abandonou a etapa: tempo do último que chegou + 8% do tempo do vencedor
  xpEt:.6,moedaEt:.5,                      // por etapa: × XP e × moedas da colocação da corrida avulsa (CAR.xpPos, CAR.moedas.pos)

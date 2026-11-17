@@ -264,3 +264,11 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   NPCs cansados no Pedal Livre longo, curva de XP mais lenta.
 - **17/11 — GUARD-RAIL RETO:** o tubo (imagem sem postes, `railPrep`) segue a rampa e os postes são desenhados em pé (`railPostes`,
   desenho.js); tachas da faixa amarela viram pílulas alinhadas à rampa, fora do cisalhamento do trecho (`sensMarcas`).
+- **17/11 — ECONOMIA E NÍVEL (dono aprovou todas as propostas):**
+  · Rachão = APOSTA (`CAR.aposta`): escolhe 100/250/500 no bolso, paga ao largar (reiniciar = nova aposta); 1º 5× · 2º 2× ·
+    3º devolve · resto perde; saiu o prêmio fixo `CAR.moedas.pos` do Rachão. Sem moedas: botão "SEM MOEDAS".
+  · Campeonato: `CAMP.insc` 1.500 → 4.000 por patente; `CAMP.premio` 3 · 1,5 · 1 · 0,5 · 0,5.
+  · Pedal Livre: `FIS.cansaco` — quem você encontra vem cansado/quebrado com chance que cresce com o SEU km (10% no 20 → 35% no 80).
+    Medido (fadiga ≥ 70): km 5 3% · km 40 17% · km 80 35%.
+  · XP: `xpNec = 60 + 20n + 2n²` (era 40 + 15n): 1→2 82 · 10→11 460 · 20→21 1.260 · total até o 25 ≈ 17.240.
+  · metas.py: 12/13 OK; FORA a 10 (Rachão nível 10 com tudo 144% > 140%) — não relacionada a esta mudança, a verificar.

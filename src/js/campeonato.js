@@ -9,8 +9,8 @@
    Itens: como sempre, o que você leva no BOLSO sai do seu estoque (regulamento: água, isotônico e gel).
    Salvo em CS.camp (localStorage tt2_car). TODOS OS NÚMEROS NO BLOCO CAMP. */
 const CAMP={
- insc:[100,150,200,280,360,450,600],      // inscrição por patente (Iniciante → Nível Mundial)
- premio:[5,3,2,1,.5],                     // prêmio na geral × inscrição: 1º 5×, 2º 3×, 3º 2×, 4º devolve, 5º metade (16/11: era 10·5·3·1,5·1)
+ insc:[1500,1800,2200,2600,3000,3500,4000],   // inscrição por patente (Iniciante → Nível Mundial) — 17/11: era 100…600
+ premio:[3,1.5,1,.5,.5],                  // prêmio na geral × inscrição: 1º 3×, 2º 1,5×, 3º devolve, 4º e 5º metade (17/11: era 5·3·2·1·0,5)
  devolve:.3,                              // desistir: devolve 30% da inscrição (perde 70%)
  penal:.08,                               // quebrou/abandonou a etapa: tempo do último que chegou + 8% do tempo do vencedor
  xpEt:.6,moedaEt:.5,                      // por etapa: × XP e × moedas da colocação da corrida avulsa (CAR.xpPos, CAR.moedas.pos)
