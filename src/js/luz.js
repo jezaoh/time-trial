@@ -74,7 +74,7 @@ function luzSombra(x0,x1,r,fase){const S=LUZ_SOMBRA,rx=(x1-x0)/2+r*S.larg,b=Math
  ctx.save();ctx.globalAlpha=S.a;ctx.fillStyle=S.cor;ctx.beginPath();ctx.ellipse((x0+x1)/2,r*S.y,rx*(1+S.resp*b),r*S.alt*(1-S.resp*b),0,0,Math.PI*2);ctx.fill();ctx.restore()}
 function luzSombraDe(id,st,ox,k,fase){const R=RODAS[id]&&RODAS[id][st];if(!R)return;luzSombra(ox+R[0][0]*k,ox+R[1][0]*k,R[0][2]*k,fase)}
 const _luzNpcDes=npcDesenhar;npcDesenhar=function(){
- if(typeof NPCS!=='undefined')for(const n of NPCS){if(n.sentado||(n.ia===false&&!n.f))continue;const x=bikeX+(n.dist-dist)*PX_KM;if(x<WX0-200||x>WX1+200)continue;
+ if(typeof NPCS!=='undefined'&&!LUZ.leve)for(const n of NPCS){if(n.sentado||(n.ia===false&&!n.f))continue;const x=bikeX+(n.dist-dist)*PX_KM;if(x<WX0-200||x>WX1+200)continue;
   const id=FID[n.f];if(!id||!META.pedal[id])continue;const st=npcSt(n),s=segEm(x),ey=s.e+s.m*(x-s.xa),ln=n.lane||0,esc=NPCK.escala-ln*.045,k=KS*esc,pdx=(META.pedalDx[id]||[])[st]||0;
   ctx.save();ctx.translate(x,roadY+NPCK.faixa-ln*17-ey);ctx.rotate(-Math.atan(s.m));luzSombraDe(id,st,-150*esc-pdx*k,k,n.ped%10);ctx.restore()}
  const id=jogadorSkin();if(META.pedal[id]){const st=spriteSt(),pdx=((META.pedalDx||{})[id]||[])[st]||0;
@@ -83,7 +83,7 @@ const _luzNpcDes=npcDesenhar;npcDesenhar=function(){
 // ---------- 1 (fim) + 3 · gradação de cor antes do HUD e linhas de vento seguindo a estrada ----------
 const LZT={t:-1,soma:0,n:0,ruim:0};
 function luzDesempenho(){const t=performance.now();if(LZT.t>0){const d=t-LZT.t;if(d<200){LZT.soma+=d;LZT.n++}}LZT.t=t;
- if(LZT.n>=60){const m=LZT.soma/LZT.n;LZT.soma=0;LZT.n=0;LZT.ruim=m>24?LZT.ruim+1:0;if(LZT.ruim>=4&&!LUZ.leve)LUZ.leve=true}}
+ if(LZT.n>=60){const m=LZT.soma/LZT.n;LZT.soma=0;LZT.n=0;LZT.ruim=m>20?LZT.ruim+1:0;if(LZT.ruim>=4&&!LUZ.leve)LUZ.leve=true}}   // 17/11: modo leve a partir de 20 ms (era 24): também tira sombras e borrão de roda dos NPCs
 const _luzVento=sensVento;   // linhas de vento: as retas originais de sensacao.js (dono preferiu às que seguiam o relevo)
 sensVento=function(){if(state==='run')luzDesempenho();const L=luzPronta();
  if(L.grade)luzCola(LZC.grade,'multiply',L.gradeA);if(!LUZ.leve||L.vinheta)luzCola(LZC.raios,'source-over',1);
@@ -126,3 +126,6 @@ if(typeof veicArte==='function'){const _luzVA=veicArte;veicArte=function(){_luzV
  const d=ctx.createLinearGradient(fx,0,fx+520,0);d.addColorStop(0,'rgba(255,246,210,.38)');d.addColorStop(1,'rgba(255,246,210,0)');
  ctx.fillStyle=d;ctx.beginPath();ctx.moveTo(fx,fy-8);ctx.lineTo(fx+520,fy-60);ctx.lineTo(fx+520,fy+70);ctx.lineTo(fx,fy+8);ctx.closePath();ctx.fill();
  luzFila('b',fx,fy,70,9,1);luzFila('v',tx,ty,50,7,1);ctx.restore()}}
+
+// modo leve (aparelho lento): sem borrão de raio nas rodas dos NPCs (v != null = NPC)
+const _luzSRL=sensRodas;sensRodas=function(id,st,ox,oy,k,v){if(LUZ.leve&&v!=null)return;return _luzSRL(id,st,ox,oy,k,v)};

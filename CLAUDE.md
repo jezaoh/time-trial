@@ -272,3 +272,14 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
     Medido (fadiga ≥ 70): km 5 3% · km 40 17% · km 80 35%.
   · XP: `xpNec = 60 + 20n + 2n²` (era 40 + 15n): 1→2 82 · 10→11 460 · 20→21 1.260 · total até o 25 ≈ 17.240.
   · metas.py: 12/13 OK; FORA a 10 (Rachão nível 10 com tudo 144% > 140%) — não relacionada a esta mudança, a verificar.
+- **17/11 — ENXUGADA + CARREGAMENTO + TROCA ATRÁS DA SUBIDA:**
+  · Tela de carregamento em HTML puro no topo do index (`#carga`, aparece durante o download do arquivo de ~15 MB); o montador
+    coloca o CSS com fontes DEPOIS dela (marcador `<!--CSS-->`); principal.js mostra o % das imagens e remove no fim. 3G simulado: pronto em ~44 s.
+  · Arquivo 18,0 → 15,6 MB: `menu_bg` (940→84 KB, estava sem compressão), `menu_home`, `cen_mar` recomprimidas (q85); músicas
+    game/menu 112/96 → 72 kbps. Removidos (sem uso): logo_start, ic_carreira, bg, bg_bikes, bar, cen_morro*, cen_mar_infinito,
+    rig.js + rig_*.webp, marcha.js (testes FRI; o bloco FRI desligado continua em mecanica.js).
+  · Estrada em trechos de 72 px (era 48: ~1/3 menos desenhos). Modo leve automático (luz.js) a partir de 20 ms/quadro: sem névoa,
+    sem sombras e sem borrão de roda dos NPCs. Medido no headless (software): quadro do Rachão ~20–35 ms (ruído ±8).
+  · Campo ↔ mar (`CEN` em desenho.js): a troca só acontece quando a encosta cobre ≥45% da faixa dos morros (`cenCobre`), em ~1,2 s;
+    sem subida por 10 km, troca lenta (12 s). Provas: orla começa/termina 1,5 km antes da subida mais perto de 40%/60% da prova
+    (Contrarrelógio: trocas no km ~22,9 e ~36,1, cobertura 0,52). Limite: a encosta cobre no máx. ~60% (o lado atrás do ciclista fica à vista).

@@ -99,15 +99,29 @@ function camada(img,off,y,fade){if(!img||!img.width)return;const w=img.width,st=
 // O campo tem a igreja rara (1 tira a cada 5). O mar aparece em trechos, com transição suave (um some, o outro aparece):
 //   Pedal Livre: campo por 10–20 km, mar por 4–8 km, alternando (sorteado a cada pedalada).
 //   Provas (todos os outros modos): começa no campo; a orla vai de 40% a 60% da distância.
-const CEN={trans:1.5,igreja:5,livreCampo:[10,20],livreMar:[4,8],prova:[.4,.6],chao:['#8cc83c','#3fd8d2']};
-let CENZ=null;   // trechos de mar [[início, fim], …] em km
-function cenZonas(){const Z=[];if(GOAL>=9999){let k=0;while(k<3000){const r=(a,b)=>a+Math.random()*(b-a);k+=r(CEN.livreCampo[0],CEN.livreCampo[1]);const m=r(CEN.livreMar[0],CEN.livreMar[1]);Z.push([k,k+m]);k+=m}}
- else Z.push([GOAL*CEN.prova[0],GOAL*CEN.prova[1]]);return Z}
-function cenMar(km){if(!CENZ)CENZ=cenZonas();for(const[a,b]of CENZ){if(km<a-CEN.trans)break;if(km<=b+CEN.trans)return smooth(Math.min((km-a)/CEN.trans+1,(b-km)/CEN.trans+1))}return 0}
-const _cenReset=reset;reset=function(){CENZ=null;_cenReset()};
+const CEN={igreja:5,livreCampo:[10,20],livreMar:[4,8],prova:[.4,.6],chao:['#8cc83c','#3fd8d2'],
+ // 17/11 (dono): a troca campo ↔ mar acontece ESCONDIDA atrás de uma subida grande: só troca quando a encosta cobre o fundo
+ cobre:.45,rapida:1.2,          // cobertura mínima da faixa dos morros (0–1) · duração da troca rápida (s reais)
+ espera:10,lenta:12,            // km esperando subida antes de trocar mesmo assim · duração da troca lenta (s reais)
+ antes:1.5};                    // provas: a orla começa/termina 1,5 km antes da subida mais perto de 40% e 60% da prova
+let CENZ=null,CENF=0,CENP=-1,CENT=-1;   // trechos de mar [[início, fim]] · fração do mar na tela · km em que a troca ficou pendente · último T
+function cenZonas(){const Z=[];const r=(a,b)=>a+Math.random()*(b-a);
+ if(GOAL>=9999){let k=0;while(k<3000){k+=r(CEN.livreCampo[0],CEN.livreCampo[1]);const m=r(CEN.livreMar[0],CEN.livreMar[1]);Z.push([k,k+m]);k+=m}return Z}
+ const perto=(alvo,depois)=>{let m=null;for(const c of climbs)if(c.start>depois&&(!m||Math.abs(c.start-alvo)<Math.abs(m.start-alvo)))m=c;return m};
+ const c1=perto(GOAL*CEN.prova[0],1),c2=c1&&perto(GOAL*CEN.prova[1],c1.start+2);
+ Z.push(c1&&c2?[Math.max(1,c1.start-CEN.antes),c2.start-CEN.antes]:[GOAL*CEN.prova[0],GOAL*CEN.prova[1]]);return Z}
+function cenAlvo(km){if(!CENZ)CENZ=cenZonas();for(const[a,b]of CENZ){if(km<a)break;if(km<b)return 1}return 0}
+// quanto da faixa dos morros (tela, y 372–640) a encosta da estrada está cobrindo agora (0–1)
+function cenCobre(){let s=0,n=0;for(let sx=0;sx<=W;sx+=64){const wx=(sx-BXS)/ZOOM+bikeX,gy=(560-alturaEm(wx)-roadY)*ZOOM+RYS;s+=clamp((640-gy)/268,0,1);n++}return s/n}
+function cenPasso(){const dt=CENT<0?0:clamp(T-CENT,0,.1);CENT=T;const alvo=cenAlvo(dist);
+ if(CENF===alvo){CENP=-1;return}if(CENP<0)CENP=dist;
+ const rapida=cenCobre()>=CEN.cobre,lenta=dist-CENP>CEN.espera;if(!rapida&&!lenta)return;   // espera a subida esconder o fundo
+ CENF=clamp(CENF+Math.sign(alvo-CENF)*dt/(rapida?CEN.rapida:CEN.lenta),0,1)}
+function cenMar(km){return CENF}
+const _cenReset=reset;reset=function(){CENZ=null;CENF=0;CENP=-1;CENT=-1;_cenReset()};
 function cenTiras(A,B,off,base,a){if(a<=0||!A||!A.width)return;const st=A.width,i0=Math.floor(off/st)-1;ctx.globalAlpha=a;
  for(let i=i0;i*st-off<W;i++){const im=B&&(((i%CEN.igreja)+CEN.igreja)%CEN.igreja===2)?B:A;ctx.drawImage(im,Math.floor(i*st-off),base-im.height,im.width+1,im.height)}ctx.globalAlpha=1}
-function morros(off){const f=state==='run'||state==='paused'||state==='over'?cenMar(dist):0;
+function morros(off){if(state==='run'&&SEG.length)cenPasso();const f=state==='run'||state==='paused'||state==='over'?CENF:0;
  cenTiras(IMG.cen_campo,IMG.cen_campo_i,off,640,1-f);cenTiras(IMG.cen_mar,null,off,640,f)}
 // cor do chão por trás dos morros (aparece se a estrada desce muito): grama no campo, água no mar
 function cenChao(){const f=state==='run'||state==='paused'||state==='over'?cenMar(dist):0;if(f<=0)return CEN.chao[0];
@@ -283,7 +297,7 @@ function fimArte(){if(fimT<0)fimT=T;const sk=jogadorSkin(),base=won?'fim_venceu'
 // Grama, grade e asfalto são desenhados pedaço a pedaço (sem recorte); árvores e arbustos inteiros, na inclinação do trecho
 // onde estão. No ciclista a inclinação é a de antes.
 // VIS_INC: inclinação desenhada por 1% de rampa (exagerada de propósito: 7% de rampa ≈ 11° na tela, para a subida parecer o esforço que ela cobra)
-const TRECHO=48,KM_PX=.0015,VIS_INC=.027;let SEG=[];
+const TRECHO=72,KM_PX=.0015,VIS_INC=.027;let SEG=[];
 // Altura desenhada da estrada: perfil FIXO no mundo (integral da inclinação desenhada ao longo do percurso, na mesma escala
 // do chão que rola: 9·3600/SCALE px por km). A estrada não se deforma; só anda e a câmera acompanha a altura do ciclista.
 // vsl(): inclinação desenhada (exagerada, com teto): 3% ≈ 11°, 5% ≈ 18°, 8% ≈ 23°.

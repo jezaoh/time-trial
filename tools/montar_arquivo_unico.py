@@ -24,7 +24,9 @@ html = ler('index.html')
 css = ler('css/style.css').rstrip('\n')
 # fontes embutidas (url(../assets/fontes/X.ttf) -> data URI)
 css = re.sub(r"url\(\.\./assets/fontes/([^)]+)\)", lambda m: 'url(data:font/ttf;base64,' + base64.b64encode(open(os.path.join(SRC, 'assets', 'fontes', m.group(1)), 'rb').read()).decode() + ')', css)
-html = html.replace('<link rel="stylesheet" href="css/style.css">', '<style>\n' + css + '\n</style>')
+# 17/11: o CSS (com as fontes, ~480 KB) vai DEPOIS da tela de carregamento (<!--CSS-->), para ela aparecer logo no início do download
+html = html.replace('<link rel="stylesheet" href="css/style.css">', '')
+html = html.replace('<!--CSS-->', '<style>\n' + css + '\n</style>') if '<!--CSS-->' in html else html.replace('</head>', '<style>\n' + css + '\n</style>\n</head>')
 # carimbo de versão (data e hora da montagem, horário de Brasília) em VERSAO
 import datetime
 VERSAO = (datetime.datetime.utcnow() - datetime.timedelta(hours=3)).strftime('%d/%m/%Y %H:%M')
