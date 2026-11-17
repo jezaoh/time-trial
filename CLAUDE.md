@@ -288,3 +288,10 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   ≥ 1 km, pico ≥ 5%, entre 25% e 85% do caminho, rampa ≥ 3,5%), em 0,6 s; depois de 15 km sem subida grande aceita uma menor
   (≥ 0,5 km, 3%); 30 km sem nenhuma = troca lenta. Provas: só subidas grandes perto de 40%/60%. Contrarrelógio: trocas no
   km 24,1 (subida 23–26,5) e 37,7 (36–42).
+- **17/11 — TESTE: CICLISTA DO AUTOSPRITE (só Contrarrelógio; tecla N alterna; `IA.on=false` desliga):** dono gerou no
+  autosprite.io ("Cyclist 2", 512 px, 49 quadros, 2,33 s). A remoção de fundo do site deixa ~5% dos pixels claros semitransparentes
+  (camisa/capacete "vazados") → recorte próprio a partir do MP4 (fundo cinza 158 liso): `tools/sprite_ia/recorte.py` (só apaga
+  o cinza ligado à borda, ilhas lisas > 90 px, miolo das rodas e sombra do chão; desmistura a cor da borda). Uma volta = 20
+  quadros do vídeo (13–32, 24 fps ≈ 72 rpm); `montar_folha.py` → `ia_sent.webp` (5×4, 363 px, ~1,1 MB; jogo 15,6 → 17,0 MB).
+  `src/js/ia_ciclista.js`: quadro = `pedal×2` (20 por volta), escala pelo raio da roda do sprite atual, roda de trás no mesmo
+  lugar. Falta: poses bravo/em pé/sprint, borrão de roda/sombra com as rodas novas, NPCs/garagem (máscaras).

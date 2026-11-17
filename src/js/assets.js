@@ -57,6 +57,7 @@ const SRC={
  "ic_crono": "assets/imagens/ic_crono.webp",
  "cen_ceu": "assets/imagens/cen_ceu.webp",
  "cen_mont": "assets/imagens/cen_mont.webp",
+ "ia_sent": "assets/imagens/ia_sent.webp",
  "cen_campo_i": "assets/imagens/cen_campo_i.webp",
  "cen_campo": "assets/imagens/cen_campo.webp",
  "cen_mar": "assets/imagens/cen_mar.webp",
