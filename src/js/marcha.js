@@ -1,6 +1,6 @@
 /* ===== MARCHAS, RPM E FC NA TELA — teste só no Contrarrelógio (17/11) =====
    A mecânica está em mecanica.js (bloco MAR). Aqui: HUD e controles.
-   Mão ESQUERDA: marchas (▲ pesada / ▼ leve) e os itens em "bagzinhas". Mão DIREITA: o raio (cada toque = 1 volta do pedal).
+   Mão ESQUERDA: marchas (▲ pesada / ▼ leve) e os itens em "bagzinhas". Mão DIREITA: o raio (cada toque = uma perna, MAR.volta).
    Direita, acima do raio: RPM com a faixa verde, FC com a zona e W' em kJ.
    Setinha: se o RPM ficar fora da faixa por 0,7 s, o botão certo pisca amarelo.
    Teclado: Espaço = pedalada · ↑/↓ = marcha. Controle: A = pedalada · direcional ↑/↓ = marcha. */

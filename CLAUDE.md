@@ -202,3 +202,5 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   Robô (Node, 90 rpm, marcha automática): sem itens ~165 W médios chega (fadiga 82), ~215 W quebra; com itens ~200 W (82),
   ~210 W (91). teste_v2.py não serve mais para o Contrarrelógio (testa o acelerador antigo). Backup: `backup/src_2026-11-17_antes_marchas/`.
   Em aberto: painel CONTROLES ainda descreve o acelerador; subida arcade e marchas nos outros modos só se o teste agradar.
+- 17/11 (depois): dono achou difícil com 1 volta por toque → **cada toque = uma perna** (`MAR.volta` .5: 3 toques/s = 90 rpm;
+  `ivMin` .12, sem tocar por 1 s = roda livre). Para voltar: `MAR.volta=1`.

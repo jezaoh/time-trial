@@ -81,7 +81,8 @@ const AJ={
 };
 // =====================================================================================================================
 // MARCHAS + CADÊNCIA ("MyWhoosh arcade") — TESTE só no Contrarrelógio (17/11). MAR.liga=false volta ao acelerador.
-//   Cada toque no raio = 1 volta do pedivela. O RPM sai do intervalo entre os toques (1/s = 60 rpm · 1,5/s = 90 · 2/s = 120).
+//   Cada toque no raio = uma perna (MAR.volta .5, desde 17/11 à tarde; antes 1 volta). RPM pelo intervalo dos toques:
+//   2 toques/s = 60 rpm · 3/s = 90 · 4/s = 120.
 //   Velocidade-alvo = RPM × desenvolvimento da marcha (coroa/pinhão × 2,1 m). Os watts são o que a física cobra para
 //   chegar/manter essa velocidade na rampa atual (marcha pesada = mais watts por toque). Teto de watts pela stamina;
 //   se o teto não dá, a bike não chega na velocidade e o RPM real cai (fica "pesado").
@@ -91,7 +92,8 @@ const AJ={
 const MAR={liga:true,
  marchas:[[34,30],[34,26],[34,23],[34,20],[34,17],[50,21],[50,19],[50,17],[50,15],[50,14],[50,12],[50,11]],   // 1 (leve) … 12 (pesada)
  roda:2.1,inicial:6,                     // m por volta da roda · começa na 7ª (50×19: 90 rpm ≈ 30 km/h)
- ivMin:.25,ivMax:1.6,ivSuave:.5,         // intervalo entre toques: mínimo (240 rpm) · sem tocar por 1,6 s = roda livre · peso do toque novo
+ volta:.5,                               // quanto do pedivela cada toque gira: .5 = uma perna (90 rpm = 3 toques/s) · 1 = volta completa (1,5/s)
+ ivMin:.12,ivMax:1.0,ivSuave:.5,         // intervalo entre toques: mínimo (250 rpm com .5) · sem tocar por 1 s = roda livre · peso do toque novo
  rpm1:60,                                // 1º toque (sem intervalo ainda) conta como 60 rpm
  alcance:4,acelMax:.4,                   // s (de física) para chegar na velocidade do RPM · o empurrão de aceleração vai no máx. a +40% do FTP
  suave:10,                               // os watts seguem o pedido em ~0,1 s
@@ -113,8 +115,8 @@ function marTroca(d){if(!marOn()||state!=='run')return;marG=clamp(marG+d,0,MAR.m
 function marZera(){marG=MAR.inicial;marIv=0;marUlt=-1;marT=0;marCad=0;marRpm=0;marFC=MAR.fc.rep+25;marDica=0;marForaT=0;marPed=0}
 // potência pedida pela cadência × marcha (antes do teto)
 function marPasso(dt,toque){marT+=dt;
- if(toque){if(marUlt>=0){const iv=clamp(marT-marUlt,MAR.ivMin,MAR.ivMax);marIv=marIv?marIv+(iv-marIv)*MAR.ivSuave:iv}else marIv=60/MAR.rpm1;marUlt=marT}
- const desde=marUlt<0?1e9:marT-marUlt;marCad=desde<MAR.ivMax?60/Math.max(marIv,desde):0;
+ if(toque){if(marUlt>=0){const iv=clamp(marT-marUlt,MAR.ivMin,MAR.ivMax);marIv=marIv?marIv+(iv-marIv)*MAR.ivSuave:iv}else marIv=60*MAR.volta/MAR.rpm1;marUlt=marT}
+ const desde=marUlt<0?1e9:marT-marUlt;marCad=desde<MAR.ivMax?60*MAR.volta/Math.max(marIv,desde):0;
  const v=speed/3.6,dev=marDev(marG),vT=marCad/60*dev;
  const acel=Math.min(FTP*MAR.acelMax,(AJ.peso+AJ.bike)*(vT-v)/MAR.alcance*Math.max(v,AJ.vmin)/AJ.eta);
  marPed=marCad>0?Math.max(0,vT*resist(vT)/AJ.eta+acel):0;
