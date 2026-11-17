@@ -252,3 +252,4 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   pedal no pé, pedivela esticado até ele. Rodas desenhadas (mesmos centros/raio do sprite antigo: sombra, luzes e borrão batem).
   Pose em pé = spriteSt 2/3. Gancho em desenho.js (`ncDesenha`). Em aberto: no ponto mais baixo o sapato desce perto demais
   do chão (o giro do pé nas folhas é maior que o pedivela); luzes da noite/borrão das rodas não aparecem no ciclista novo.
+- 17/11: perna do ciclista novo com **cadência própria** (`NC.rpm`: 60→110 rpm pela força P/FTP, suave; sem força = para), não segue mais o dedo (`pedal`), que girava rápido demais. Ritmo 0,4/0,6 ≈ 74 rpm · sprint 110.

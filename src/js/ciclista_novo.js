@@ -10,8 +10,12 @@
 const NC_D={"sent":{"pes":[[150.3,259.4],[152.8,271.4],[174.0,292.8],[214.6,295.9],[232.9,306.8],[225.5,321.2],[178.4,342.0],[117.6,335.6],[96.8,315.3],[105.1,294.2],[124.5,267.7],[134.6,254.3]],"luvas":[[265.3,193.5],[265.3,193.4],[265.7,193.5],[265.5,193.4],[265.0,193.9],[265.1,193.9],[265.3,193.9],[265.2,194.1],[264.8,193.9],[264.9,193.7],[265.3,193.8],[265.7,193.9]]},"pe":{"pes":[[132.2,257.3],[132.0,279.0],[143.7,301.2],[172.0,307.4],[190.9,312.1],[174.9,320.9],[148.2,331.0],[103.9,312.3],[98.6,303.1],[110.9,274.4],[116.4,255.6],[122.8,239.6]],"luvas":[[262.5,188.0],[261.4,188.1],[262.4,188.2],[261.9,188.3],[262.6,188.1],[262.4,188.2],[262.6,188.0],[262.2,188.0],[262.2,188.1],[262.4,188.0],[262.4,188.4],[262.5,188.0]]},"perna":{"pes":[[151.2,261.0],[153.0,272.8],[173.3,294.2],[214.9,297.6],[231.9,307.4],[225.6,321.7],[177.4,342.3],[119.1,336.1],[95.7,315.5],[106.3,294.2],[124.6,268.5],[136.0,255.0]]},"bike":{"caixa":{"quadro":[726,199,1925,992],"coroa":[119,501,360,826],"pedivela":[250,276,350,477],"pedal":[97,884,239,979],"cassete":[542,212,727,403],"cambio":[463,461,625,663]},"traseira":[750,898],"dianteira":[1788,925],"mc":[1180,955],"selim":[940,222],"manete":[1840,265],"coroa_c":[231,613],"coroa_pedal":[188,798],"pedivela_eixo":[280,455],"pedivela_pedal":[320,305],"pedal_c":[168,931],"cassete_c":[634,307],"cambio_topo":[520,470],"raio_roda":350},"quadril_sent":[110,195]};
 const NC={on:true,C:362,
  roda:{tras:[-86,-61],frente:[88,-61],r:59},   // mesmas rodas do sprite antigo (sombra, luzes e borrão continuam batendo)
- escuro:.38};                                   // perna e pedivela de trás
-const NCW={};   // geometria calculada uma vez
+ escuro:.38,
+ rpm:{min:60,max:110,livre:15,suave:2.5}};   // cadência própria (não segue o dedo): 60 rpm leve → 110 rpm no sprint; sem força = roda livre                                   // perna e pedivela de trás
+const NCW={};let ncTh=0,ncRpm=0;
+// giro da perna: cadência pela força (P/FTP), suave; não usa a pedalada do dedo (pedal), que girava rápido demais
+const _ncUpd=update;update=function(dt){_ncUpd(dt);if(MODO!=='crono'||state!=='run')return;const C=NC.rpm,r=power/FTP,
+ alvo=power<C.livre?0:clamp(C.min+(C.max-C.min)*clamp((r-.4)/1.4,0,1),C.min,C.max);ncRpm+=(alvo-ncRpm)*Math.min(1,dt*C.suave);ncTh+=ncRpm/60*2*Math.PI*dt};   // geometria calculada uma vez
 function ncPrep(){if(NCW.ok)return true;const need=['nc_sent','nc_pe','nc_perna','nc_quadro','nc_coroa','nc_pedivela','nc_pedal','nc_cassete','nc_cambio'];
  if(need.some(k=>!IMG[k]||!IMG[k].width))return false;const B=NC_D.bike,R=NC.roda;
  const dx=B.dianteira[0]-B.traseira[0],dy=B.dianteira[1]-B.traseira[1];NCW.kb=(R.frente[0]-R.tras[0])/Math.hypot(dx,dy);NCW.a=-Math.atan2(dy,dx);
@@ -48,7 +52,7 @@ function ncRoda(cx,cy,r,ang){ctx.save();ctx.translate(cx,cy);
  ctx.beginPath();ctx.arc(0,0,r*.1,0,7);ctx.fillStyle='#2a2d36';ctx.fill();ctx.restore()}
 // chamado no lugar do sprite do jogador (desenho.js), já no sistema do ciclista (chão = 0)
 function ncDesenha(st){if(!NC.on||MODO!=='crono'||!ncPrep())return false;
- const pose=st>=2?'pe':'sent',P=NCW[pose],th=pedal/10*Math.PI*2,iD=ncQuadro(P,th),iT=ncQuadro(P,th+Math.PI),R=NC.roda,B=NC_D.bike,ang=T*speed*.45;
+ const pose=st>=2?'pe':'sent',P=NCW[pose],th=ncTh,iD=ncQuadro(P,th),iT=ncQuadro(P,th+Math.PI),R=NC.roda,B=NC_D.bike,ang=T*speed*.45;
  const peD=ncPe(pose,iD),peT=ncPe(pose,iT);
  // perna esquerda atrás (sentado: folha da perna; em pé: a própria folha em pé, o corpo de trás fica escondido pelo da frente)
  if(pose==='sent')ncFolha(NCW.pernaE,NCW.perna,iT);else ncFolha(NCW.peE,P,iT);
