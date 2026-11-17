@@ -32,7 +32,7 @@ async def caso(pg, nome, padrao):
 async def barra(pg, nome, out):
     """Lê uma linha de pixels da barra: só pode haver verde e vermelho, encostados (sem faixa escura)."""
     png = await pg.screenshot(path=f'{out}/v2_barra_{nome}.png', clip={'x':330,'y':680,'width':880,'height':184})
-    im = Image.open(io.BytesIO(png)).convert('RGB'); y = 780-680; x0, x1 = 421-330, 1121-330
+    im = Image.open(io.BytesIO(png)).convert('RGB'); y = 752-680; x0, x1 = 421-330, 1121-330   # 17/11: meio da barra (780 era a borda escura de baixo)
     tipo = []
     for x in range(x0, x1):
         r, g, b = im.getpixel((x, y))
@@ -40,6 +40,7 @@ async def barra(pg, nome, out):
     s = ''.join(tipo).strip('?')   # bordas do brilho/arredondamento
     trocas = sum(1 for a, b in zip(s, s[1:]) if a != b)
     escuros = s.count('?')
+    if not s: return {'erro': 'barra não encontrada na linha medida'}
     return {'verde_%': round(100*s.count('V')/len(s)), 'vermelho_%': round(100*s.count('R')/len(s)), 'pixels_estranhos': escuros, 'trocas_de_cor': trocas}
 async def main():
     async with async_playwright() as p:
