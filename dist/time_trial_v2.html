@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head>
-<!-- Time Trial V2 · versão 16/11/2026 23:30 --><meta charset="utf-8">
+<!-- Time Trial V2 · versão 16/11/2026 23:43 --><meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#06121c"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Time Trial V2</title>
 <style>
@@ -35,7 +35,7 @@ const META={"idle": {"azul": {"cw": 290, "ch": 388, "sx": 2.311418685121107, "sy
 const $=id=>document.getElementById(id),c=$('game'),ctx=c.getContext('2d',{alpha:false}),W=1536,H=864,SS=W/1672,IMG={},nickEl=$('nick');
 const NUT=[[0,2,99,240],[99,2,100,240],[199,2,99,240],[298,2,99,240],[397,2,100,240],[497,2,100,240],[597,28,121,214]];
 // versão: data e hora da montagem (preenchida por tools/montar_arquivo_unico.py; aparece no canto da tela inicial)
-const VERSAO="16/11/2026 23:30";
+const VERSAO="16/11/2026 23:43";
 // fonte do jogo: Exo 2 itálico (900 títulos e números · 800 textos)
 const FT=(w,s)=>`italic ${w} ${s}px Exo2,system-ui,sans-serif`;
 const ICON={clock:0,flag:1,avg:2,speed:3,up:4,flat:5,down:6};
@@ -148,7 +148,8 @@ const AJ={
 //   · Parou de tocar: a força cai rápido (τ 0,6 s) e a bike vai no embalo.
 //   · Solto: a stamina volta (20/s, menos o W' acima do FTP). Stamina < 5: teto 85% do FTP e fadiga ×1,3.
 // =====================================================================================================================
-const FRI={liga:true,
+const FRI={liga:false,   // 17/11: DESLIGADO a pedido do dono ("o modo antigo ainda é o mais gostoso"): o Contrarrelógio volta ao acelerador dos outros modos
+
  sobe:240,segura:.18,                    // W/s enquanto segura · apertado menos que isso é só toque (marca o ritmo)
  gasto:30,                               // stamina comida por segundo apertado
  ritmo:.7,                               // até isso entre um toque e outro = está pedalando (mantém)

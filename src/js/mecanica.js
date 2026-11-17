@@ -89,7 +89,8 @@ const AJ={
 //   · Parou de tocar: a força cai rápido (τ 0,6 s) e a bike vai no embalo.
 //   · Solto: a stamina volta (20/s, menos o W' acima do FTP). Stamina < 5: teto 85% do FTP e fadiga ×1,3.
 // =====================================================================================================================
-const FRI={liga:true,
+const FRI={liga:false,   // 17/11: DESLIGADO a pedido do dono ("o modo antigo ainda é o mais gostoso"): o Contrarrelógio volta ao acelerador dos outros modos
+
  sobe:240,segura:.18,                    // W/s enquanto segura · apertado menos que isso é só toque (marca o ritmo)
  gasto:30,                               // stamina comida por segundo apertado
  ritmo:.7,                               // até isso entre um toque e outro = está pedalando (mantém)

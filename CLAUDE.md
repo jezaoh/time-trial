@@ -235,3 +235,8 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   Apertado come 30/s de stamina; solto recupera 20/s (menos o W' acima do FTP). Sem RPM e sem avisos; FC e W' à direita.
   Robô (toca 2/s e segura 0,45 s quando cai do alvo): sem itens ~186 W chega (fadiga 79), ~204 W quebra; com itens ~225 W
   chega (83), ~239 W quebra; segura ~1 vez a cada 5 s. Também publicado como página privada no claude.ai (Artifact de src/).
+- **17/11 — TESTES DO BOTÃO DESLIGADOS (`FRI.liga=false`):** dono: "o modo antigo ainda é o mais gostoso" → o Contrarrelógio
+  voltou ao acelerador BRUUM–uuuum (mesmo botão e barra da Carreira/Pedal Livre), com os números PRÓPRIOS dele mantidos
+  (FTP 250 fixo, `empFad` calibrado pelo dono, sem a reescala ×1,5/×ts da Carreira). Também saíram a subida arcade, FC/W' e
+  as bagzinhas (eram do teste). Código do teste guardado. teste_v2.py voltou a valer (erros: nenhum, violações 0).
+  Próximo: o dono quer ajustar só o Contrarrelógio (stamina/FTP), a partir do formato da barra do Pedal Livre.
