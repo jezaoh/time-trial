@@ -306,3 +306,8 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
 - **17/11 — "Ciclista Sentado HQ V2":** ciclista maior no vídeo (49% da altura; rodas [273.5,500.8,70.2]/[494.4,500.7,69.3]),
   fundo 160, volta de 19 quadros (25–43, emenda 1,28) → `ia_normal.webp` com escala .95 (reduz em vez de ampliar: mais nítido),
   367×370, ~1 MB. recorte.py ganhou `HALO` (env HALO no montar_folha; V2 usou 14, padrão 26).
+- **17/11 — CONTRARRELÓGIO "O DEDO É A FORÇA" (só no Contrarrelógio; `CRN.on=false` volta ao acelerador anterior):** bloco `CRN`
+  em mecanica.js (`crnPasso`). Apertado: alvo = 0,8·FTP + 120 W/s segurando (+ sprint depois de 2,5 s, teto 1150 W pela stamina);
+  solto: cai com meia-vida de 3 s abaixo do FTP e 0,6 s acima (soltou o talo, cai rápido). Gasto apertado `CRN.aperta`.
+  Calibrado pelo Strava do dono (Chocolate 0,91 km 4,8% 2:30 ≈ 398 W; Rachão 1 h 251 W). Robô 50 km: toques leves ~172–190 W
+  chegam tranquilos (fadiga 50–71), ~220 W só com itens, ~240 W quebra; segurar ~2 s ≈ 400 W; quebrou → recupera em Z2 com fadiga alta.

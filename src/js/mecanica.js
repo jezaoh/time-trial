@@ -113,6 +113,19 @@ function friPasso(dt){friT+=dt;
 function friDepois(dt){friRpm=power>15?speed/3.6*60/FRI.dev:0;
  const F=FRI.fc,alvo=F.max*curva(F.curva,power/FTP)+F.drift*fatigue;friFC+=(Math.min(F.max,alvo)-friFC)*Math.min(1,dt/F.tau)}
 
+// =====================================================================================================================
+// CONTRARRELÓGIO — "O DEDO É A FORÇA" (17/11, teste só no Contrarrelógio; CRN.on=false volta ao acelerador antigo)
+//   Calibrado pelos pedais do dono (Strava): Chocolate no talo 2:30 ≈ 400 W (160% FTP) · 5:39 ≈ 314 W · Rachão 1 h ≈ 250 W ·
+//   pedal de treino ≈ 170–190 W. Como o tempo é comprimido 75×, 2:30 de prova ≈ 2 s reais.
+//   Apertado: os watts vão até um ALVO que cresce com o tempo segurando (alvo = 80% FTP + 120 W/s; > 2,5 s acelera = sprint).
+//   Solto: abaixo do FTP os watts caem devagar (meia-vida 3 s, embalo da perna); acima, rápido (0,6 s). Toques curtos ≈ 170 W · toques longos ≈ 250 W ·
+//   segurar 2 s ≈ 400 W. Stamina e fadiga continuam as mesmas do Contrarrelógio (empFad, empWp, teto pela stamina).
+// =====================================================================================================================
+const CRN={on:true,base:.8,porSeg:120,sprintApos:2.5,sprintAcel:500,chega:10,meiaVida:3,meiaVidaAlta:.6,   // meia-vida acima do FTP: solta e cai rápido
+ aperta:[[.6,4],[.9,8],[1.1,14],[2,12],[4.6,4]]};   // stamina/s apertado (antes 24/s fixo até o FTP: toque leve já secava a barra)
+function crnPasso(dt,active,livre){const alvo=FTP*CRN.base+CRN.porSeg*holdT+(holdT>CRN.sprintApos?CRN.sprintAcel*(holdT-CRN.sprintApos)**1.5:0);
+ if(active&&power<alvo)power+=(alvo-power)*Math.min(1,dt*CRN.chega);
+ else power=livre+(power-livre)*Math.exp(-dt*Math.LN2/(power>FTP?CRN.meiaVidaAlta:CRN.meiaVida))}
 let climbs=[{start:8,end:9.5,peak:5.5,descentEnd:11.5},{start:23,end:26.5,peak:6.5,descentEnd:29.5},{start:36,end:42,peak:7.5,descentEnd:45}];
 const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)},lerp=(a,b,t)=>a+(b-a)*t,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // rampas: trechos livres {a,b,g} (km, km, %), só no Pedal Livre; nos outros modos a lista é vazia
@@ -154,6 +167,7 @@ function update(dt){
  if(active)holdT+=dt;else holdT=0;
  const sprint=!emp&&active&&holdT>=AJ.tapSegura;
  if(mar)friPasso(dt);
+ else if(emp&&MODO==='crono'&&CRN.on){pTap=0;crnPasso(dt,active,Math.min(base,FTP*AJ.empLivre))}
  else if(emp){pTap=0;const livre=Math.min(base,FTP*AJ.empLivre);   // sem apertar: sem pedalar
   if(active)power=Math.max(power,livre)+AJ.empSobe*(1+AJ.empAcel*Math.max(0,holdT-AJ.empSegura))*dt;   // mesmo ritmo = mesmos watts no plano e na subida (na subida a física é que pesa)
   else power+=(livre-power)*Math.min(1,dt*AJ.empSolta)}
@@ -178,7 +192,7 @@ function update(dt){
  // 3) stamina: pressionado gasta conforme a intensidade; solto recupera na hora; teto 100 − fadiga
  // Contrarrelógio: apertado gasta (por intensidade), solto recupera; acima do FTP a bateria de explosão desconta sempre
  if(mar){const wp=Math.max(0,power-FTP)/AJ.empWp*100;stamina=clamp(stamina+((friSeg?-FRI.gasto:FRI.recupera)-wp)*dt,0,cap)}   // fricção: segurando come a stamina; solto recupera
- else if(emp){const wp=Math.max(0,power-FTP)/AJ.empWp*100;stamina=clamp(stamina+((active?(holdT<AJ.empSegura?-curva(AJ.empAperta,r):0):AJ.empRecupera)-wp)*dt,0,cap)}   // no sprint (segurando > empSegura) só a bateria gasta
+ else if(emp){const wp=Math.max(0,power-FTP)/AJ.empWp*100;const ap=MODO==='crono'&&CRN.on?curva(CRN.aperta,r):curva(AJ.empAperta,r);stamina=clamp(stamina+((active?(holdT<AJ.empSegura?-ap:0):AJ.empRecupera)-wp)*dt,0,cap)}   // no sprint (segurando > empSegura) só a bateria gasta
  else if(!emp)stamina=sprint?Math.max(0,stamina-curva(AJ.staGasto,r)*dt):active?stamina:Math.min(cap,stamina+AJ.staRecupera*dt);stamina=Math.min(stamina,cap);
  if(fatigue>=99.9){finish(false);return}
  // 4) física (velocidade com inércia): m·dv/dt = η·P/v − resistências (integrada em dt·kin, 4 subpassos)
