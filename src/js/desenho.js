@@ -186,7 +186,7 @@ function hud(){
  // rampa
  pilula(1160,38,346,108);pilula(1250,154,256,52);tx(`▲ ${Math.round(elevG)} m`,1488,192,30,'right','#fff');tx('ELEV.',1272,190,20,'left','#fff');const gi=grade>1?'up':grade<-1?'down':'flat';ic(gi,1180,52,82);tx(`${grade<0?'−':''}${f1(Math.abs(grade))}%`,1488,118,56,'right',grade>1?'#ffe16c':'#fff');
  // itens (esquerda, embaixo)
- const SL=slotsHUD(),R={};SL.forEach((id,i)=>{R[id]=itemHUD(id,22+i*86,820)});
+ const SL=slotsHUD(),R={},mrc=typeof marTela==='function'&&marTela();SL.forEach((id,i)=>{R[id]=itemHUD(id,mrc?marSlotX(i):22+i*86,820)});   // marchas (marcha.js): itens nas bagzinhas, à direita da coluna das marchas
  // gel azul acima do raio
  const azul=typeof LV!=='undefined'&&LV&&LV.azul>0&&!LV.azulUsou;
  // 16/11: maior (118 → 165) e mais alto, com folga de ~50 px até o raio (que começa em y≈564)

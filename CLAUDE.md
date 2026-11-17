@@ -191,3 +191,14 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   `npcDesenhar` (sombras de todos antes dos ciclistas), `sensVento` (gradação multiply + raios/vinheta antes do HUD, e as linhas de
   vento seguindo o relevo com `alturaEm`). Camadas fixas guardadas em `LZC` por período. Dono: sol só com brilho, sem disco.
   Dono NÃO quer mexer na perna agora (decidiu refazer os ciclistas depois, em camadas — ver PENDENCIAS).
+- **17/11 — MARCHAS + RPM + FC só no Contrarrelógio (TESTE, "MyWhoosh arcade"; o dono ainda não testou):** bloco `MAR` em
+  mecanica.js (`MAR.liga=false` volta ao acelerador) + `src/js/marcha.js` (HUD e controles). Cada toque no raio = 1 volta
+  (1,5 toque/s = 90 rpm); 12 marchas 34×30…50×11 (roda 2,1 m); watts = o que a física cobra para a velocidade RPM×marcha
+  (empurrão de aceleração ≤ +40% FTP); stamina = W' (gasta só acima do FTP, recupera abaixo); stamina < 5 → teto 85% FTP e
+  fadiga ×1,3; RPM < 60 = mais fadiga, > 100 = mais stamina; subida "arcade" (gravidade ×0,7 só na subida, só com marchas).
+  Mão esquerda: ▲ PESADA / ▼ LEVE + itens em "bagzinhas"; setinha amarela se o RPM fica fora de 72–105 por 0,7 s.
+  Direita: RPM (faixa verde 75–100), FC (55/190 padrão, atraso 1,5 s, drift pela fadiga, zonas Z1–Z5), W' em kJ (100% = 20 kJ).
+  Teclado ↑/↓ (ou W/S), controle direcional ↑/↓. Perna gira no RPM real (pedalada.js). Ranking: dono disse "não se preocupe".
+  Robô (Node, 90 rpm, marcha automática): sem itens ~165 W médios chega (fadiga 82), ~215 W quebra; com itens ~200 W (82),
+  ~210 W (91). teste_v2.py não serve mais para o Contrarrelógio (testa o acelerador antigo). Backup: `backup/src_2026-11-17_antes_marchas/`.
+  Em aberto: painel CONTROLES ainda descreve o acelerador; subida arcade e marchas nos outros modos só se o teste agradar.
