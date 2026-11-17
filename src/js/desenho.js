@@ -316,19 +316,33 @@ function objetos(img,items,period,off,base,h){const o=off%period,w=h*img.width/i
   {const a=Math.min(alturaEm(x+w*sc*.3),alturaEm(x+w*sc*.5),alturaEm(x+w*sc*.7));ctx.drawImage(img,x,base+18-h*sc-a,w*sc,h*sc)}}}
 // Estrada no estilo da referência: árvores e arbustos atrás · guard-rail de trás na borda de cima do asfalto · asfalto ·
 // guard-rail da frente na borda de baixo · logo abaixo, o mato (veg_topo) acompanhando a inclinação · e o aterro preso ao chão.
+// ---------- GUARD-RAIL COM POSTES EM PÉ (17/11) ----------
+// A imagem do guard-rail (tubo + postes) era inclinada inteira com o trecho: nas rampas os postes ficavam "em itálico".
+// Agora o tubo (sem os postes) segue a inclinação e os postes são desenhados sempre em pé, na altura da estrada.
+const RAILP={xs:[[101,153],[362,412],[621,672],[882,932],[1141,1193]],corpo:96,tubo:200,w:1287,h:114};
+let RAILC=null;
+function railPrep(){const im=IMG.rail;if(RAILC||!im||!im.width)return RAILC;const T=document.createElement('canvas');T.width=im.width;T.height=im.height;const g=T.getContext('2d');g.drawImage(im,0,0);
+ for(const[a,b]of RAILP.xs){g.clearRect(a-1,0,b-a+2,RAILP.corpo);g.drawImage(im,RAILP.tubo,0,1,RAILP.corpo,a-1,0,b-a+2,RAILP.corpo)}   // tapa o poste com o tubo
+ const[a,b]=RAILP.xs[0],P=document.createElement('canvas');P.width=b-a+6;P.height=RAILP.corpo+6;P.getContext('2d').drawImage(im,a-3,0,P.width,P.height,0,0,P.width,P.height);
+ return RAILC={tubo:T,poste:P}}
+function railPostes(y){const C=railPrep();if(!C)return;const im=IMG.rail,k=RAILP.w/im.width,ky=RAILP.h/im.height,i0=Math.floor((scroll+WX0)/RAILP.w)-1;
+ for(let i=i0;i*RAILP.w-scroll<WX1+60;i++){const tx=i*RAILP.w-scroll;
+  for(const[a,b]of RAILP.xs){const xc=tx+(a+b)/2*k;if(xc<WX0-60||xc>WX1+60)continue;const w=C.poste.width*k;ctx.drawImage(C.poste,xc-w/2,y-alturaEm(xc),w,C.poste.height*ky)}}}
+const railImg=()=>railPrep()?RAILC.tubo:IMG.rail;
 function pistaCurva(){curvaCalc();const vis=SEG.filter(s=>s.xb>=WX0&&s.xa<=WX1);
  for(const s of vis)noTrecho(s,()=>{ctx.fillStyle='#7cbd33';ctx.fillRect(s.xa,560,s.xb-s.xa+1,300)});
  objetos(IMG.bigtree,[[110,1],[1650,1]],3072,scroll*.8,600,430);
  objetos(IMG.smalltree,[[780,1],[1180,1],[2330,1],[2790,1]],3072,scroll*.8,600,300);
  objetosInc(IMG.bush,[[300,1],[950,.8],[1700,1],[2250,.85]],2574,scroll,612,95);
- for(const s of vis)noTrecho(s,()=>tiraTrecho(IMG.rail,scroll,522,1287,114,false,0,s.xa,s.xb));
+ for(const s of vis)noTrecho(s,()=>tiraTrecho(railImg(),scroll,522,1287,114,false,0,s.xa,s.xb));railPostes(522);
  aterro(vis);
  for(const s of vis)noTrecho(s,()=>tiraTrecho(IMG.asph,scroll,628,555,185,true,0,s.xa,s.xb));
  if(typeof sensMarcas==='function')sensMarcas(vis);   // tachas e remendos (sensacao.js)
  const vt=IMG.veg_topo,vh=170,vw=vt&&vt.width?vt.width*vh/vt.height:0;
  }
 function pistaFrente(){const vis=SEG.filter(s=>s.xb>=WX0&&s.xa<=WX1),vt=IMG.veg_topo,vh=170,vw=vt&&vt.width?vt.width*vh/vt.height:0;
- for(const s of vis)noTrecho(s,()=>{tiraTrecho(IMG.rail,scroll,706,1287,114,false,0,s.xa,s.xb);if(vw)tiraTrecho(vt,scroll,800,vw,vh,true,0,s.xa,s.xb)})}
+ for(const s of vis)noTrecho(s,()=>tiraTrecho(railImg(),scroll,706,1287,114,false,0,s.xa,s.xb));railPostes(706);
+ if(vw)for(const s of vis)noTrecho(s,()=>tiraTrecho(vt,scroll,800,vw,vh,true,0,s.xa,s.xb))}
 // arbustos baixos: inclinam junto com a estrada
 function objetosInc(img,items,period,off,base,h){const o=off%period,w=h*img.width/img.height;
  for(const it of items)for(let k=-1;k<3;k++){const sc=it[1]||1,x=it[0]-o+k*period;if(x+w*sc>WX0-40&&x<WX1+40)

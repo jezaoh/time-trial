@@ -262,3 +262,5 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   seguia a regra do dono (espaço na garrafa = +1 gole; cheia = efeito de 1 gole na hora). Barra: raio e fogo FORA da barra
   (`staminaBar`); bolso menor (`itemHUD` h 104, passo 74). Em discussão (não feito): Rachão como aposta, campeonato 2k,
   NPCs cansados no Pedal Livre longo, curva de XP mais lenta.
+- **17/11 — GUARD-RAIL RETO:** o tubo (imagem sem postes, `railPrep`) segue a rampa e os postes são desenhados em pé (`railPostes`,
+  desenho.js); tachas da faixa amarela viram pílulas alinhadas à rampa, fora do cisalhamento do trecho (`sensMarcas`).

@@ -121,8 +121,11 @@ function sensMarcas(vis){if(!vis||!vis.length)return;const P=SENS.tachaP,R=SENS.
   // bueiros (16/11: no lugar dos remendos retangulares — "n toda hora"): tampa de ferro vista de lado, só em ~40% dos períodos
   for(let i=Math.floor((scroll+s.xa)/R)-1;i*R-scroll<s.xb;i++){if(hashN(i+11)>SENS.bueiroChance)continue;
    const x=i*R-scroll+hashN(i)*R*.6;if(x<s.xa||x>=s.xb)continue;bueiro(x,hashN(i+5)<.5?660:704)}
-  // tachas (olho de gato) entre as duas faixas amarelas
-  ctx.fillStyle='#f7f3e6';for(let i=Math.floor((scroll+s.xa)/P);i*P-scroll<s.xb;i++){const x=i*P-scroll;if(x<s.xa||x>=s.xb)continue;ctx.fillRect(Math.round(x),684,22,6)}})}
+  })
+ // tachas (olho de gato) entre as faixas amarelas: pílulas alinhadas à rampa, fora do "cisalhamento" do trecho (17/11: antes saíam em itálico)
+ ctx.fillStyle='#f7f3e6';const v0=vis[0].xa,v1=vis[vis.length-1].xb;
+ for(let i=Math.floor((scroll+v0)/P);i*P-scroll<v1;i++){const x=i*P-scroll+11;if(x<v0||x>=v1)continue;const s=segEm(x);
+  ctx.save();ctx.translate(x,687-alturaEm(x));ctx.rotate(Math.atan(-s.m));rr(-11,-3,22,6,3);ctx.fill();ctx.restore()}}
 // ---------- 1 · raio com mola + 8 · brilho pronto ----------
 const RAIO_BR={img:null,cv:null},RAIO_PAD=60,RAIO_REF=212;
 function raioBrilho(img){if(!img||!img.width)return null;if(RAIO_BR.img===img)return RAIO_BR.cv;
