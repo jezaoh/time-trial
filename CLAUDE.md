@@ -299,3 +299,7 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   [272,501,71]/[495,501,70], 25 quadros 28–52, escala .94) = rosto tranquilo; `ia_bravo.webp` (ex-`ia_sent`, "Cyclist 2") = rosto
   bravo. spriteSt 0 → normal · 1 e 2 → bravo (não há arte em pé) · 3 sprint → bravo + cisalhamento para a frente (`IA.sprint.inclina`)
   + 2 cópias de rastro. Fusão de 0,15 s entre poses. `montar_folha.py` aceita as rodas do vídeo como 6º argumento. Jogo: 18,7 MB.
+- **17/11 (tarde) — PERSONAGEM REFEITO ("Ciclista sentado HQ"):** vídeo fundo cinza 188, ciclista pequeno no quadro (rodas no
+  vídeo [301,472,53]/[469,471,53]), volta muito limpa (23 quadros 27–49, emenda 0,63) → `ia_normal.webp` (escala 1,26, 368×373,
+  ~1 MB) em TODAS as poses. `ia_bravo` (personagem antigo) removido. Efeito de sprint (inclinação/rastro) removido: dono prefere
+  só o vento. recorte.py: ilhas cinza internas aceitas até dm < 11 (o triângulo do quadro ficava cinza). Jogo: 16,9 MB.

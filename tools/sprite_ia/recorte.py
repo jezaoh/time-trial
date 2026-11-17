@@ -11,7 +11,7 @@ def recorta(a,rodas=RODAS_V):
   area=ndi.sum(cand,lab,range(1,k+1));dm=ndi.mean(d,lab,range(1,k+1))
   fundo=np.zeros_like(cand)
   for i in range(1,k+1):
-    if i in borda_lab or (area[i-1]>90 and dm[i-1]<8):fundo|=lab==i
+    if i in borda_lab or (area[i-1]>90 and dm[i-1]<11):fundo|=lab==i
   # dentro das rodas: todo cinza neutro do fundo é fundo (os raios são escuros e ficam)
   yy0,xx0=np.mgrid[0:H,0:W]
   for cx,cy,r in rodas:fundo|=cand&(np.hypot(xx0-cx,yy0-cy)<r*.88)
