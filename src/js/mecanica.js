@@ -80,23 +80,20 @@ const AJ={
  vmax:80                                 // km/h, teto de segurança
 };
 // =====================================================================================================================
-// FRICÇÃO NA BARRA DE STAMINA — TESTE só no Contrarrelógio (17/11; FRI.liga=false volta ao acelerador BRUUM–uuuum)
-//   Testados e descartados no mesmo dia: marchas (12, toque = pedalada) e ritmo por toques/embalo — estão no histórico do Git.
-//   Segurar o raio = empurrar o "carrinho de fricção": come a stamina (a ponta do verde anda para a esquerda), os watts
-//   sobem e a fadiga cresce pela potência. Na barra há uma JANELA logo à esquerda da ponta do verde: soltou com a ponta
-//   dentro dela = PERFEITA (o volante guarda a força mais tempo, fadiga ×0,95); antes = FRACA; depois = GÁS (mais força,
-//   mais stamina); longe demais ou stamina zerada = PATINOU (perde 45% da força, +3 de fadiga).
-//   A janela é mais funda quanto mais rápido (ir rápido pede empurrada maior) e encolhe com pouca stamina.
-//   Solto: a stamina volta (20/s, menos o W' acima do FTP) e a força cai devagar. Stamina < 5: teto 85% do FTP.
+// FEELING NA BARRA DE STAMINA — TESTE só no Contrarrelógio (17/11; FRI.liga=false volta ao acelerador BRUUM–uuuum)
+//   Testados e descartados no mesmo dia (estão no histórico do Git): marchas, ritmo por toques/embalo e a "janela" na barra.
+//   Uma barra só (ideia do dono, como no jogo Peak), sem alvo: é no feeling.
+//   · SEGURAR (mais de 0,18 s) = acelerar: os watts sobem (240 W/s) e a stamina é comida (30/s enquanto apertado).
+//   · TOCAR no ritmo (até ~0,7 s entre toques) = MANTER: a força cai bem devagar (τ 15 s), não importa se o toque foi mais
+//     curto ou mais longo. Cada toque é uma perna. Para manter um nível alto, de vez em quando segura um pouco e volta a tocar.
+//   · Parou de tocar: a força cai rápido (τ 0,6 s) e a bike vai no embalo.
+//   · Solto: a stamina volta (20/s, menos o W' acima do FTP). Stamina < 5: teto 85% do FTP e fadiga ×1,3.
 // =====================================================================================================================
 const FRI={liga:true,
- gasto:30,                               // stamina comida por segundo segurando
- sobe:240,                               // W/s somados enquanto segura
- janela:{v0:20,v1:50,a0:9,a1:18,larg:6}, // a janela começa depois de 9 de stamina comida (20 km/h) → 18 (50 km/h); largura 6
- laranja:12,                             // depois da janela, mais 12 = gás; além disso = patinou
- tau:{fraca:.5,perfeita:1.4,gas:.9,patinou:.4},   // s reais para a força guardada cair ~63% depois de soltar
- fad:{fraca:1,perfeita:.95,gas:1.1,patinou:1.3},  // fadiga pela última empurrada
- patina:{perde:.45,fad:3},
+ sobe:240,segura:.18,                    // W/s enquanto segura · apertado menos que isso é só toque (marca o ritmo)
+ gasto:30,                               // stamina comida por segundo apertado
+ ritmo:.7,                               // até isso entre um toque e outro = está pedalando (mantém)
+ tauMantem:15,tauSolto:.6,                // s reais para a força cair ~63%: pedalando no ritmo · parado
  recupera:20,                            // stamina por segundo solto (menos o W' acima do FTP)
  tetoZero:.85,zona:5,exausto:1.3,        // stamina < 5: teto vai a 85% do FTP; fadiga ×1,3
  gravSub:.7,                             // subida "arcade": a gravidade conta 70% na subida
@@ -105,19 +102,13 @@ const FRI={liga:true,
   curva:[[0,.33],[.5,.58],[.75,.72],[.9,.82],[1,.88],[1.2,.95],[1.5,1]],   // %FCmáx pela intensidade (P/FTP)
   drift:.12},                            // +0,12 bpm por ponto de fadiga
  wpKJ:20};                               // W' mostrado no HUD: stamina 100% = 20 kJ
-let friS0=100,friG=0,friSeg=false,friTrava=false,friTau=1,friZ='',friZT=-9,friSeq=0,friT=0,friRpm=0,friFC=FRI.fc.rep;
+let friSeg=false,friUlt=-9,friT=0,friRpm=0,friFC=FRI.fc.rep;
 const friOn=()=>FRI.liga&&MODO==='crono';
-function friZera(){friS0=100;friG=0;friSeg=false;friTrava=false;friTau=1;friZ='';friZT=-9;friSeq=0;friT=0;friRpm=0;friFC=FRI.fc.rep+25}
-// janela (em stamina comida nesta empurrada), a partir da stamina do começo da empurrada
-function friJanela(s0){const J=FRI.janela,a=J.a0+(J.a1-J.a0)*clamp((speed-J.v0)/(J.v1-J.v0),0,1);return[Math.min(a,s0*.55),Math.min(J.larg,s0*.3)]}
-function friZona(g,s0){const[a,l]=friJanela(s0);return g<a?'fraca':g<=a+l?'perfeita':g<=a+l+FRI.laranja?'gas':'patinou'}
-function friSolta(z){friSeg=false;friZ=z;friZT=friT;friTau=FRI.tau[z];friSeq=z==='perfeita'?friSeq+1:0;
- if(z==='patinou'){power*=1-FRI.patina.perde;fatigue=Math.min(100,fatigue+FRI.patina.fad)}}
+function friZera(){friSeg=false;friUlt=-9;friT=0;friRpm=0;friFC=FRI.fc.rep+25}
+const friPedalando=()=>friSeg||friT-friUlt<FRI.ritmo;
 function friPasso(dt){friT+=dt;
- if(boost&&!friTrava){if(!friSeg){friSeg=true;friS0=stamina;friG=0}
-  friG+=FRI.gasto*dt;power+=FRI.sobe*dt;
-  if(stamina<=.5||friZona(friG,friS0)==='patinou'&&friG>friJanela(friS0)[0]+friJanela(friS0)[1]+FRI.laranja+8){friSolta('patinou');friTrava=true}}   // passou muito do ponto: patina sozinho
- else{if(!boost)friTrava=false;if(friSeg)friSolta(friZona(friG,friS0));power*=Math.exp(-dt/friTau)}}
+ if(boost){if(!friSeg){friSeg=true;friUlt=friT}if(friT-friUlt>FRI.segura)power+=FRI.sobe*dt}   // apertou = mais uma pedalada; segurando, acelera
+ else{friSeg=false;power*=Math.exp(-dt/(friPedalando()?FRI.tauMantem:FRI.tauSolto))}}
 function friDepois(dt){friRpm=power>15?speed/3.6*60/FRI.dev:0;
  const F=FRI.fc,alvo=F.max*curva(F.curva,power/FTP)+F.drift*fatigue;friFC+=(Math.min(F.max,alvo)-friFC)*Math.min(1,dt/F.tau)}
 
@@ -178,7 +169,7 @@ function update(dt){
  const r=power/FTP;pSoma+=power*dt;pTempo+=dt;
  // 2) fadiga: resistência (sempre) + esforço pela potência real × tanque + insistir exausto; só água e gel reduzem
  const tanque=1+AJ.fadTanque*Math.pow(1-clamp(stamina/100,0,1),AJ.fadTanqueExp);
- let df=(mar?curva(AJ.empFad,r)*(FRI.fad[friZ]||1)*(stamina<FRI.zona?FRI.exausto:1)
+ let df=(mar?curva(AJ.empFad,r)*(stamina<FRI.zona?FRI.exausto:1)
   :(emp?curva(AJ.empFad,r):AJ.fadResist+curva(AJ.fadInt,r)*tanque)+(boost&&stamina<4?AJ.fadExausto:0))*dt;
  if(waterEffect>0){const q=Math.min(aguaResta,AJ.aguaFad/AJ.aguaSeg*dt);aguaResta-=q;df-=q;waterEffect=Math.max(0,waterEffect-dt)}
  fatigue=clamp(fatigue+df,0,100);

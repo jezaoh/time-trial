@@ -229,3 +229,9 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   ×0,95, ×N em sequência); antes = FRACA; laranja = GÁS; além disso ou stamina zerada = PATINOU (−45% da força, +3 fadiga,
   trava até soltar). Solto: stamina +20/s menos o W' acima do FTP. Sem RPM; FC e W' à direita; itens nas bagzinhas.
   Robô (perfeitas): sem itens ~175 W chega (fadiga 81), mais que isso a barra seca; com itens ~219 W folgado, ~235 W no limite.
+- **17/11 (madrugada) — FEELING NA BARRA (versão atual; a "janela" na barra saiu, dono: "uma barra só, como no Peak"):**
+  bloco `FRI`: toque = uma perna e só marca o ritmo (até 0,7 s entre toques = pedalando: a força cai devagar, τ 15 s,
+  não importa a duração do toque); SEGURAR mais de 0,18 s = os watts sobem 240 W/s; parou de tocar = τ 0,6 s.
+  Apertado come 30/s de stamina; solto recupera 20/s (menos o W' acima do FTP). Sem RPM e sem avisos; FC e W' à direita.
+  Robô (toca 2/s e segura 0,45 s quando cai do alvo): sem itens ~186 W chega (fadiga 79), ~204 W quebra; com itens ~225 W
+  chega (83), ~239 W quebra; segura ~1 vez a cada 5 s. Também publicado como página privada no claude.ai (Artifact de src/).
