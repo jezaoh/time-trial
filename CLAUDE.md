@@ -245,3 +245,10 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   exige nome = chave). As tiras emendam sem sobreposição (`cenTiras`, sem o fade de 150 px que fazia as árvores fantasmas).
   Bloco `CEN` em desenho.js: Pedal Livre alterna campo 10–20 km / mar 4–8 km (sorteado por pedalada); provas: orla de 40% a 60%
   da distância; transição de 1,5 km (um some, o outro aparece); o chão de trás vira água no mar. `cen_morro*` não são mais usados.
+- **17/11 — CICLISTA NOVO EM CAMADAS (TESTE só no Contrarrelógio; tecla N alterna; `NC.on=false` desliga):** arte do dono
+  (folhas 4×3 de 362 px: sentado = corpo + perna direita, em pé, perna esquerda; folha da bike com peças soltas), preparada por
+  `tools/ciclista_novo/preparar.py` → `nc_*.webp` + `src/assets/nc.json` (embutido em `src/js/ciclista_novo.js`). O corpo é fixo
+  em todos os quadros (luvas paradas); o pé de cada quadro manda: quadro escolhido pelo ângulo mais perto do pedivela (`pedal`),
+  pedal no pé, pedivela esticado até ele. Rodas desenhadas (mesmos centros/raio do sprite antigo: sombra, luzes e borrão batem).
+  Pose em pé = spriteSt 2/3. Gancho em desenho.js (`ncDesenha`). Em aberto: no ponto mais baixo o sapato desce perto demais
+  do chão (o giro do pé nas folhas é maior que o pedivela); luzes da noite/borrão das rodas não aparecem no ciclista novo.
