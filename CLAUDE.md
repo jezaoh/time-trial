@@ -221,3 +221,11 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   O verde sobe com a velocidade (.38 a 20 km/h → .70 a 50 km/h). Vibração em pulsos crescentes (Android) e som de fricção
   (dente de serra, Web Audio, em `audioTick`). HUD: RPM pela velocidade (50×17), FC e W'. Robô: ~0,7 empurrada/s, segurando
   ~40%: ~181 W chega sem itens (fadiga 81) · ~213 W só com itens · só no laranja ~234 W chega no limite com itens.
+- **17/11 (noite) — FRICÇÃO NA BARRA DE STAMINA (versão atual do teste; marchas, RPM e toques REMOVIDOS do código):**
+  bloco `FRI` em mecanica.js (`FRI.liga=false` volta ao acelerador) + `src/js/marcha.js` (só HUD/vibração/som; o nome ficou).
+  Segurar = come a stamina (30/s, a ponta do verde anda para a esquerda), watts sobem 240 W/s, fadiga pela potência.
+  Na barra: JANELA branca à esquerda da ponta do verde (começa depois de 9 de stamina comida a 20 km/h → 18 a 50 km/h,
+  largura 6; encolhe com pouca stamina) e faixa laranja (GÁS, +12) antes dela. Soltou na janela = PERFEITA (τ 1,4 s, fadiga
+  ×0,95, ×N em sequência); antes = FRACA; laranja = GÁS; além disso ou stamina zerada = PATINOU (−45% da força, +3 fadiga,
+  trava até soltar). Solto: stamina +20/s menos o W' acima do FTP. Sem RPM; FC e W' à direita; itens nas bagzinhas.
+  Robô (perfeitas): sem itens ~175 W chega (fadiga 81), mais que isso a barra seca; com itens ~219 W folgado, ~235 W no limite.

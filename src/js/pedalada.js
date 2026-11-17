@@ -18,8 +18,8 @@ function pedalCrono(){return state==='run'}   // desde 16/11 vale em todos os mo
 const _pdUpdate=update;
 update=function(dt){
  if(!pedalCrono()){_pdUpdate(dt);pdAnt=boost;pdAlvo=pedal;return}
- // marchas (17/11, Contrarrelógio): a perna gira no RPM de verdade (10 quadros por volta), sem tranco
- if(typeof marOn==='function'&&marOn()){pdAnt=boost;_pdUpdate(dt);if(state==='run')pedal+=marRpm/60*10*dt;pdAlvo=pedal;return}
+ // fricção (17/11, Contrarrelógio): a perna gira pela velocidade numa marcha só (10 quadros por volta), sem tranco
+ if(typeof friOn==='function'&&friOn()){pdAnt=boost;_pdUpdate(dt);if(state==='run')pedal+=friRpm/60*10*dt;pdAlvo=pedal;return}
  const toque=boost&&!pdAnt&&stamina>.5&&!(typeof CONT!=='undefined'&&CONT>0);pdAnt=boost;
  _pdUpdate(dt);if(!pedalCrono())return;
  const g0=speed*dt*.5,sprint=boost&&stamina>.5&&holdT>=PEDK.segura;

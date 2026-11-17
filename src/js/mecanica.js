@@ -80,88 +80,46 @@ const AJ={
  vmax:80                                 // km/h, teto de segurança
 };
 // =====================================================================================================================
-// MARCHAS + CADÊNCIA ("MyWhoosh arcade") — TESTE só no Contrarrelógio (17/11). MAR.liga=false volta ao acelerador.
-//   Cada toque no raio = uma perna (MAR.volta .5, desde 17/11 à tarde; antes 1 volta). RPM pelo intervalo dos toques:
-//   2 toques/s = 60 rpm · 3/s = 90 · 4/s = 120.
-//   Velocidade-alvo = RPM × desenvolvimento da marcha (coroa/pinhão × 2,1 m). Os watts são o que a física cobra para
-//   chegar/manter essa velocidade na rampa atual (marcha pesada = mais watts por toque). Teto de watts pela stamina;
-//   se o teto não dá, a bike não chega na velocidade e o RPM real cai (fica "pesado").
-//   Stamina = W' (só esvazia acima do FTP; abaixo recupera, mais quanto mais leve). Stamina zerada: ainda pedala,
-//   limitado a 85% do FTP e com fadiga mais rápida. Fora da faixa verde de RPM: mais fadiga (perna) ou mais stamina (fôlego).
+// FRICÇÃO NA BARRA DE STAMINA — TESTE só no Contrarrelógio (17/11; FRI.liga=false volta ao acelerador BRUUM–uuuum)
+//   Testados e descartados no mesmo dia: marchas (12, toque = pedalada) e ritmo por toques/embalo — estão no histórico do Git.
+//   Segurar o raio = empurrar o "carrinho de fricção": come a stamina (a ponta do verde anda para a esquerda), os watts
+//   sobem e a fadiga cresce pela potência. Na barra há uma JANELA logo à esquerda da ponta do verde: soltou com a ponta
+//   dentro dela = PERFEITA (o volante guarda a força mais tempo, fadiga ×0,95); antes = FRACA; depois = GÁS (mais força,
+//   mais stamina); longe demais ou stamina zerada = PATINOU (perde 45% da força, +3 de fadiga).
+//   A janela é mais funda quanto mais rápido (ir rápido pede empurrada maior) e encolhe com pouca stamina.
+//   Solto: a stamina volta (20/s, menos o W' acima do FTP) e a força cai devagar. Stamina < 5: teto 85% do FTP.
 // =====================================================================================================================
-// 17/11 (noite): dono achou as marchas difíceis → MAR.modo 'ritmo' (proposta A, sem marchas): o RITMO dos toques define os
-//   watts por zonas de RPM — verde 65–85 (70–90% do FTP, "pedalada perfeita": fadiga ×0,9), amarela até 105 (ataque, até
-//   140%), vermelha acima (sprint). Gás = bater mais rápido. MAR.modo='marcha' volta às marchas (código guardado).
-// 17/11 (noite, 2): dono quer SEGURAR, como o carrinho de fricção → MAR.modo 'friccao' (uma marcha só, sem toques):
-//   segurar = empurrar: o medidor de pressão enche (0→1 em tCheio) e os watts sobem; soltar = o "volante" guarda a força,
-//   que cai devagar (τ pela zona onde soltou). Zonas do medidor: cinza (cedo, fraca) · VERDE (perfeita: cai mais devagar e
-//   fadiga ×0,85) · laranja (gás: mais força, gasta W') · vermelho (patinou: perde 45% da força, −10 stamina, +3 fadiga).
-//   O verde sobe com a velocidade: ir mais rápido pede mais pressão. Volta: MAR.modo='ritmo' ou 'marcha'.
-const MAR={liga:true,modo:'friccao',
- fric:{tCheio:1.1,sobe:240,               // s segurando para encher o medidor · W/s somados enquanto segura
-  verde:{v0:20,v1:50,c0:.38,c1:.7,larg:.16},   // centro do verde: .38 a 20 km/h → .70 a 50 km/h; largura .16
-  laranja:.9,                              // do fim do verde até .9 = laranja; acima = vermelho
-  tau:{cinza:.5,verde:1.4,laranja:.9,vermelho:.4},   // s reais para o volante perder ~63% da força depois de soltar
-  fad:{cinza:1,verde:.85,laranja:1.1,vermelho:1.3},  // fadiga pela última pedalada
-  patina:{perde:.45,sta:10,fad:3},
-  dev:6.18},                               // uma marcha só (50×17): só para o RPM mostrado e a perna
- ritmo:{verde:[65,85],amarela:105,
-  W:[[0,0],[40,.4],[65,.7],[85,.9],[105,1.4],[130,2.5],[160,4.6]],   // watts (× FTP) pelo RPM
-  fad:[[0,1],[64,1],[65,.9],[85,.9],[86,1],[300,1]],                 // na faixa verde a fadiga é ×0,9 (pedalada perfeita)
-  suave:4,                                                            // os watts seguem o ritmo em ~0,25 s
-  segura:.25,embTau:24},   // EMBALO (17/11): segurou > 0,25 s com ritmo = o RPM fica (no máx. o topo do verde) e cai devagar
-                           //   (τ 24 s: do meio do verde até sair dele ~3,5 s). Soltou = segue daí. Gás continua sendo bater rápido.
- marchas:[[34,30],[34,26],[34,23],[34,20],[34,17],[50,21],[50,19],[50,17],[50,15],[50,14],[50,12],[50,11]],   // 1 (leve) … 12 (pesada)
- roda:2.1,inicial:6,                     // m por volta da roda · começa na 7ª (50×19: 90 rpm ≈ 30 km/h)
- volta:.5,                               // quanto do pedivela cada toque gira: .5 = uma perna (90 rpm = 3 toques/s) · 1 = volta completa (1,5/s)
- ivMin:.12,ivMax:1.0,ivSuave:.5,         // intervalo entre toques: mínimo (250 rpm com .5) · sem tocar por 1 s = roda livre · peso do toque novo
- rpm1:60,                                // 1º toque (sem intervalo ainda) conta como 60 rpm
- alcance:4,acelMax:.4,                   // s (de física) para chegar na velocidade do RPM · o empurrão de aceleração vai no máx. a +40% do FTP
- suave:10,                               // os watts seguem o pedido em ~0,1 s
- faixa:[75,100],                         // faixa verde de RPM
- fadRpm:[[30,1.45],[60,1.3],[75,1],[100,1],[200,1]],   // perna: RPM baixo (marcha pesada demais) = mais fadiga
- staRpm:[[0,1],[100,1],[115,1.1],[130,1.3],[180,1.7]], // fôlego: RPM alto = W' gasta mais e recupera menos
- recupera:20,recCheio:.4,                // stamina/s abaixo do FTP: 20/s até 40% do FTP, cai a 0 no FTP
+const FRI={liga:true,
+ gasto:30,                               // stamina comida por segundo segurando
+ sobe:240,                               // W/s somados enquanto segura
+ janela:{v0:20,v1:50,a0:9,a1:18,larg:6}, // a janela começa depois de 9 de stamina comida (20 km/h) → 18 (50 km/h); largura 6
+ laranja:12,                             // depois da janela, mais 12 = gás; além disso = patinou
+ tau:{fraca:.5,perfeita:1.4,gas:.9,patinou:.4},   // s reais para a força guardada cair ~63% depois de soltar
+ fad:{fraca:1,perfeita:.95,gas:1.1,patinou:1.3},  // fadiga pela última empurrada
+ patina:{perde:.45,fad:3},
+ recupera:20,                            // stamina por segundo solto (menos o W' acima do FTP)
  tetoZero:.85,zona:5,exausto:1.3,        // stamina < 5: teto vai a 85% do FTP; fadiga ×1,3
- gravSub:.7,                             // subida "arcade": a gravidade conta 70% na subida (5% rende como 3,5%)
+ gravSub:.7,                             // subida "arcade": a gravidade conta 70% na subida
+ dev:6.18,                               // uma marcha só (50×17): só para a perna girar
  fc:{rep:55,max:190,tau:1.5,             // FC (só informação): repouso, máxima, atraso (s reais)
   curva:[[0,.33],[.5,.58],[.75,.72],[.9,.82],[1,.88],[1.2,.95],[1.5,1]],   // %FCmáx pela intensidade (P/FTP)
-  drift:.12,rpmAlto:8},                  // +0,12 bpm por ponto de fadiga · +8 bpm girando acima de 115 rpm
- wpKJ:20,                                // W' mostrado no HUD: stamina 100% = 20 kJ
- dica:{baixo:72,alto:105,seg:.7}};       // setinha: RPM fora disso por 0,7 s
-let friQ=0,friSeg=false,friTau=1,friZ='',friZT=-9,friSeq=0,marEmb=false,marPosEmb=false,marCadE=0,marG=MAR.inicial,marIv=0,marUlt=-1,marT=0,marCad=0,marRpm=0,marFC=MAR.fc.rep,marDica=0,marForaT=0,marPed=0;
-const marOn=()=>MAR.liga&&MODO==='crono';
-const marDev=i=>MAR.marchas[i][0]/MAR.marchas[i][1]*MAR.roda;
-function marTroca(d){if(!marOn()||MAR.modo!=='marcha'||state!=='run')return;marG=clamp(marG+d,0,MAR.marchas.length-1)}
-function marZera(){friQ=0;friSeg=false;friTau=1;friZ='';friZT=-9;friSeq=0;marEmb=false;marPosEmb=false;marCadE=0;marG=MAR.inicial;marIv=0;marUlt=-1;marT=0;marCad=0;marRpm=0;marFC=MAR.fc.rep+25;marDica=0;marForaT=0;marPed=0}
-// potência pedida pela cadência × marcha (antes do teto)
-// FRICÇÃO: zona do medidor
-function friVerde(){const V=MAR.fric.verde,c=V.c0+(V.c1-V.c0)*clamp((speed-V.v0)/(V.v1-V.v0),0,1);return[c-V.larg/2,c+V.larg/2]}
-function friZona(q){const g=friVerde();return q<g[0]?'cinza':q<=g[1]?'verde':q<=MAR.fric.laranja?'laranja':'vermelho'}
-function friPasso(dt){const F=MAR.fric;marT+=dt;
- if(boost){if(!friSeg){friSeg=true;friQ=0}friQ=Math.min(1,friQ+dt/F.tCheio);power+=F.sobe*dt}
- else{if(friSeg){friSeg=false;const z=friZona(friQ);friZ=z;friZT=marT;friTau=F.tau[z];friSeq=z==='verde'?friSeq+1:0;
-   if(z==='vermelho'){power*=1-F.patina.perde;stamina=Math.max(0,stamina-F.patina.sta);fatigue=Math.min(100,fatigue+F.patina.fad)}}
-  power*=Math.exp(-dt/friTau)}}
-function marPasso(dt,toque,segura){marT+=dt;
- if(toque&&marPosEmb){marPosEmb=false;marUlt=marT}   // 1º toque depois do embalo: só continua o ritmo (não conta como pedalada rápida)
- else if(toque){if(marUlt>=0){const iv=clamp(marT-marUlt,MAR.ivMin,MAR.ivMax);marIv=marIv?marIv+(iv-marIv)*MAR.ivSuave:iv}else marIv=60*MAR.volta/MAR.rpm1;marUlt=marT}
- const desde=marUlt<0?1e9:marT-marUlt;marCad=desde<MAR.ivMax?60*MAR.volta/Math.max(marIv,desde):0;
- if(MAR.modo==='ritmo'){const Rt=MAR.ritmo;   // ritmo: os watts saem só do RPM
-  if(segura&&(marEmb||marCad>0)){if(!marEmb){marEmb=true;marCadE=Math.min(marCad,Rt.verde[1])}else marCadE*=Math.exp(-dt/Rt.embTau);
-   if(marCadE<20)marCadE=0;marCad=marCadE;if(marCad>0){marIv=60*MAR.volta/marCad;marUlt=marT}}   // ao soltar, o ritmo continua daqui
-  else if(marEmb){marEmb=false;marPosEmb=true}
-  return marPed=FTP*curva(Rt.W,marCad)}
- const v=speed/3.6,dev=marDev(marG),vT=marCad/60*dev;
- const acel=Math.min(FTP*MAR.acelMax,(AJ.peso+AJ.bike)*(vT-v)/MAR.alcance*Math.max(v,AJ.vmin)/AJ.eta);
- marPed=marCad>0?Math.max(0,vT*resist(vT)/AJ.eta+acel):0;
- return marPed}
-// depois do teto: RPM real (a perna presa na roda), setinha e FC
-function marDepois(dt){const v=speed/3.6,dev=marDev(marG);marRpm=MAR.modo==='friccao'?(power>15?v*60/MAR.fric.dev:0):MAR.modo==='ritmo'?marCad:marCad>0?Math.min(marCad,60*v/dev):0;
- const fora=marCad>0?(marRpm<MAR.dica.baixo?-1:marRpm>MAR.dica.alto?1:0):0;marForaT=fora&&fora===Math.sign(marForaT||fora)?marForaT+fora*dt:fora*dt;
- marDica=MAR.modo==='marcha'&&Math.abs(marForaT)>=MAR.dica.seg?Math.sign(marForaT):0;
- const F=MAR.fc,alvo=F.max*curva(F.curva,power/FTP)+F.drift*fatigue+(marRpm>115?F.rpmAlto:0);
- marFC+=(Math.min(F.max,alvo)-marFC)*Math.min(1,dt/F.tau)}
+  drift:.12},                            // +0,12 bpm por ponto de fadiga
+ wpKJ:20};                               // W' mostrado no HUD: stamina 100% = 20 kJ
+let friS0=100,friG=0,friSeg=false,friTrava=false,friTau=1,friZ='',friZT=-9,friSeq=0,friT=0,friRpm=0,friFC=FRI.fc.rep;
+const friOn=()=>FRI.liga&&MODO==='crono';
+function friZera(){friS0=100;friG=0;friSeg=false;friTrava=false;friTau=1;friZ='';friZT=-9;friSeq=0;friT=0;friRpm=0;friFC=FRI.fc.rep+25}
+// janela (em stamina comida nesta empurrada), a partir da stamina do começo da empurrada
+function friJanela(s0){const J=FRI.janela,a=J.a0+(J.a1-J.a0)*clamp((speed-J.v0)/(J.v1-J.v0),0,1);return[Math.min(a,s0*.55),Math.min(J.larg,s0*.3)]}
+function friZona(g,s0){const[a,l]=friJanela(s0);return g<a?'fraca':g<=a+l?'perfeita':g<=a+l+FRI.laranja?'gas':'patinou'}
+function friSolta(z){friSeg=false;friZ=z;friZT=friT;friTau=FRI.tau[z];friSeq=z==='perfeita'?friSeq+1:0;
+ if(z==='patinou'){power*=1-FRI.patina.perde;fatigue=Math.min(100,fatigue+FRI.patina.fad)}}
+function friPasso(dt){friT+=dt;
+ if(boost&&!friTrava){if(!friSeg){friSeg=true;friS0=stamina;friG=0}
+  friG+=FRI.gasto*dt;power+=FRI.sobe*dt;
+  if(stamina<=.5||friZona(friG,friS0)==='patinou'&&friG>friJanela(friS0)[0]+friJanela(friS0)[1]+FRI.laranja+8){friSolta('patinou');friTrava=true}}   // passou muito do ponto: patina sozinho
+ else{if(!boost)friTrava=false;if(friSeg)friSolta(friZona(friG,friS0));power*=Math.exp(-dt/friTau)}}
+function friDepois(dt){friRpm=power>15?speed/3.6*60/FRI.dev:0;
+ const F=FRI.fc,alvo=F.max*curva(F.curva,power/FTP)+F.drift*fatigue;friFC+=(Math.min(F.max,alvo)-friFC)*Math.min(1,dt/F.tau)}
 
 let climbs=[{start:8,end:9.5,peak:5.5,descentEnd:11.5},{start:23,end:26.5,peak:6.5,descentEnd:29.5},{start:36,end:42,peak:7.5,descentEnd:45}];
 const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)},lerp=(a,b,t)=>a+(b-a)*t,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -184,12 +142,12 @@ let sel=0,state='title',stamina=100,fatigue=0,water=5,gel=1,speed=0,dist=0,elaps
 let power=0,pShow=0,holdT=0,aguaResta=0,pTap=0,boostAnt=false;
 let vacuo=0,wHud=0,elevG=0,elevD=0,pSoma=0,pTempo=0;   // pSoma/pTempo: potência média do pedal (W), mostrada no HUD;   // elevG: subida acumulada (m)   // 0–0,4: fração do arrasto aerodinâmico poupada atrás de outro ciclista (calculada em npc.js)   // power = W atuais; pShow = suavizado p/ HUD e sprite; aguaResta = fadiga que a água ainda vai tirar
 function cruiseW(){const k=clamp((grade-AJ.coastB)/(AJ.coastA-AJ.coastB),0,1);return FTP*AJ.cruise*k*(stamina<1.5?AJ.cruiseExausto:1)}
-function resist(v){const th=Math.atan(grade/100),m=AJ.peso+AJ.bike,gs=grade>0&&marOn()?MAR.gravSub:1;   // marchas: subida "arcade"
+function resist(v){const th=Math.atan(grade/100),m=AJ.peso+AJ.bike,gs=grade>0&&friOn()?FRI.gravSub:1;   // fricção: subida "arcade"
  return m*AJ.g*(Math.sin(th)*gs+AJ.crr*Math.cos(th))+.5*AJ.rho*AJ.cda*(1-vacuo)*v*v}
 function vEq(P,gr){const g0=grade;grade=gr;let lo=.3,hi=40;for(let i=0;i<60;i++){const v=(lo+hi)/2;if(AJ.eta*P>v*resist(v))lo=v;else hi=v}grade=g0;return lo*3.6}
 
 function reset(){RK.res=null;if(MODO==='crono')rkStart();stamina=100;fatigue=0;water=AJ.aguaQtd;gel=AJ.gelQtd;speed=21;dist=0;elapsed=0;scroll=0;boost=false;waterEffect=0;grade=0;won=false;
- holdT=0;aguaResta=0;pTap=0;boostAnt=false;pSoma=0;pTempo=0;power=FTP*AJ.cruise;pShow=power;state='run';marZera();if(marOn()){power=0;pShow=0}}
+ holdT=0;aguaResta=0;pTap=0;boostAnt=false;pSoma=0;pTempo=0;power=FTP*AJ.cruise;pShow=power;state='run';friZera();if(friOn()){power=0;pShow=0}}
 function finish(w){won=w;state='over';boost=false;speed=0;power=0;pShow=0;if(w&&MODO==='crono')rkSend(Math.floor(elapsed*SCALE),CH[sel].id)}
 // água: só abre outra garrafa quando a anterior terminou o efeito (evita recuperação exagerada em sequência)
 function drink(){if(state==='run'&&water>0&&waterEffect<=0){water--;waterEffect=AJ.aguaSeg;aguaResta=AJ.aguaFad}}
@@ -199,12 +157,11 @@ function update(dt){
  elapsed+=dt;
  grade=lerp(grade,terrain(dist),Math.min(1,dt*1.4));
  // 1) botão → potência: contínua, sempre a partir do valor atual; responde no mesmo quadro em que o botão muda
- const mar=marOn(),active=boost&&(mar||stamina>.5),base=cruiseW(),emp=!mar;   // emp: acelerador BRUUM–uuuum em TODOS os modos (16/11; antes só no Contrarrelógio — o código de toque/sprint abaixo ficou sem uso)
+ const mar=friOn(),active=boost&&(mar||stamina>.5),base=cruiseW(),emp=!mar;   // emp: acelerador BRUUM–uuuum em TODOS os modos (16/11; antes só no Contrarrelógio — o código de toque/sprint abaixo ficou sem uso)
  const toque=boost&&!boostAnt&&(mar||stamina>.5);boostAnt=boost;   // cada novo toque = uma pedalada
  if(active)holdT+=dt;else holdT=0;
  const sprint=!emp&&active&&holdT>=AJ.tapSegura;
- if(mar&&MAR.modo==='friccao')friPasso(dt);
- else if(mar){power+=(marPasso(dt,toque,boost&&holdT>=MAR.ritmo.segura)-power)*Math.min(1,dt*(MAR.modo==='ritmo'?MAR.ritmo.suave:MAR.suave))}
+ if(mar)friPasso(dt);
  else if(emp){pTap=0;const livre=Math.min(base,FTP*AJ.empLivre);   // sem apertar: sem pedalar
   if(active)power=Math.max(power,livre)+AJ.empSobe*(1+AJ.empAcel*Math.max(0,holdT-AJ.empSegura))*dt;   // mesmo ritmo = mesmos watts no plano e na subida (na subida a física é que pesa)
   else power+=(livre-power)*Math.min(1,dt*AJ.empSolta)}
@@ -215,27 +172,27 @@ function update(dt){
  else{pTap*=Math.exp(-dt/AJ.tapTau);power+=(base+pTap-power)*Math.min(1,dt*AJ.tapSuave)}}
  power=clamp(power,0,AJ.pMax);
  if(emp||mar){const t0=FTP*AJ.empTetoMin;let teto=t0+(AJ.pMax-t0)*Math.pow(clamp(stamina/AJ.empTetoCheia,0,1),AJ.empTetoExp);
-  if(mar&&stamina<MAR.zona)teto=lerp(FTP*MAR.tetoZero,teto,stamina/MAR.zona);   // stamina zerada: ainda pedala, a 85% do FTP
+  if(mar&&stamina<FRI.zona)teto=lerp(FTP*FRI.tetoZero,teto,stamina/FRI.zona);   // stamina zerada: ainda pedala, a 85% do FTP
   power=Math.min(power,mar?teto:Math.max(Math.min(base,FTP*AJ.empLivre),teto))}
  pShow=lerp(pShow,power,Math.min(1,dt*AJ.hudSuave));wHud=lerp(wHud,power,Math.min(1,dt*3.5));   // número de watts do HUD: mais suave, dá para segurar um valor
  const r=power/FTP;pSoma+=power*dt;pTempo+=dt;
  // 2) fadiga: resistência (sempre) + esforço pela potência real × tanque + insistir exausto; só água e gel reduzem
  const tanque=1+AJ.fadTanque*Math.pow(1-clamp(stamina/100,0,1),AJ.fadTanqueExp);
- let df=(mar?curva(AJ.empFad,r)*(MAR.modo==='friccao'?(MAR.fric.fad[friZ]||1):MAR.modo==='ritmo'?curva(MAR.ritmo.fad,marRpm):curva(MAR.fadRpm,marCad>0?marRpm:75))*(stamina<MAR.zona?MAR.exausto:1)
+ let df=(mar?curva(AJ.empFad,r)*(FRI.fad[friZ]||1)*(stamina<FRI.zona?FRI.exausto:1)
   :(emp?curva(AJ.empFad,r):AJ.fadResist+curva(AJ.fadInt,r)*tanque)+(boost&&stamina<4?AJ.fadExausto:0))*dt;
  if(waterEffect>0){const q=Math.min(aguaResta,AJ.aguaFad/AJ.aguaSeg*dt);aguaResta-=q;df-=q;waterEffect=Math.max(0,waterEffect-dt)}
  fatigue=clamp(fatigue+df,0,100);
  const cap=100-fatigue;
  // 3) stamina: pressionado gasta conforme a intensidade; solto recupera na hora; teto 100 − fadiga
  // Contrarrelógio: apertado gasta (por intensidade), solto recupera; acima do FTP a bateria de explosão desconta sempre
- if(mar){const k=MAR.modo!=='marcha'?1:curva(MAR.staRpm,marRpm),wp=Math.max(0,power-FTP)/AJ.empWp*100*k,rec=MAR.recupera*clamp((1-r)/(1-MAR.recCheio),0,1)/k;stamina=clamp(stamina+(rec-wp)*dt,0,cap)}
+ if(mar){const wp=Math.max(0,power-FTP)/AJ.empWp*100;stamina=clamp(stamina+((friSeg?-FRI.gasto:FRI.recupera)-wp)*dt,0,cap)}   // fricção: segurando come a stamina; solto recupera
  else if(emp){const wp=Math.max(0,power-FTP)/AJ.empWp*100;stamina=clamp(stamina+((active?(holdT<AJ.empSegura?-curva(AJ.empAperta,r):0):AJ.empRecupera)-wp)*dt,0,cap)}   // no sprint (segurando > empSegura) só a bateria gasta
  else if(!emp)stamina=sprint?Math.max(0,stamina-curva(AJ.staGasto,r)*dt):active?stamina:Math.min(cap,stamina+AJ.staRecupera*dt);stamina=Math.min(stamina,cap);
  if(fatigue>=99.9){finish(false);return}
  // 4) física (velocidade com inércia): m·dv/dt = η·P/v − resistências (integrada em dt·kin, 4 subpassos)
  const m=AJ.peso+AJ.bike,h=dt*AJ.kin/4;let v=speed/3.6;
  for(let i=0;i<4;i++){const a=(AJ.eta*power/Math.max(v,AJ.vmin)-resist(v))/m;v=clamp(v+a*h,1.1,AJ.vmax/3.6)}
- speed=v*3.6;if(mar)marDepois(dt);
+ speed=v*3.6;if(mar)friDepois(dt);
  // 5) distância (tempo de jogo)
  {const d0=dist;dist+=speed*dt/3600*SCALE;if(grade>0&&dist>0)elevG+=grade/100*(dist-Math.max(0,d0))*1000}if(dist>=GOAL){dist=GOAL;finish(true)}
 }

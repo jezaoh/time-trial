@@ -25,7 +25,6 @@ function gpPasso(){requestAnimationFrame(gpPasso);const agora=performance.now(),
   if(borda(GP.B)&&typeof comerBanana==='function')comerBanana();
   if(borda(GP.RB))eat();
   if(borda(GP.LB)&&typeof gelAzul==='function')gelAzul();
-  if(typeof marTroca==='function'){if(borda(GP.CIMA))marTroca(1);if(borda(GP.BAIXO))marTroca(-1)}   // marchas (Contrarrelógio)
   if(borda(GP.START))togglePause()}
  else{if(gpBoost){boost=false;gpBoost=false}
   // cursor: analógico esquerdo + direcional

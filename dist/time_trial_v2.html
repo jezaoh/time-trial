@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head>
-<!-- Time Trial V2 · versão 16/11/2026 23:04 --><meta charset="utf-8">
+<!-- Time Trial V2 · versão 16/11/2026 23:16 --><meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#06121c"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Time Trial V2</title>
 <style>
@@ -35,7 +35,7 @@ const META={"idle": {"azul": {"cw": 290, "ch": 388, "sx": 2.311418685121107, "sy
 const $=id=>document.getElementById(id),c=$('game'),ctx=c.getContext('2d',{alpha:false}),W=1536,H=864,SS=W/1672,IMG={},nickEl=$('nick');
 const NUT=[[0,2,99,240],[99,2,100,240],[199,2,99,240],[298,2,99,240],[397,2,100,240],[497,2,100,240],[597,28,121,214]];
 // versão: data e hora da montagem (preenchida por tools/montar_arquivo_unico.py; aparece no canto da tela inicial)
-const VERSAO="16/11/2026 23:04";
+const VERSAO="16/11/2026 23:16";
 // fonte do jogo: Exo 2 itálico (900 títulos e números · 800 textos)
 const FT=(w,s)=>`italic ${w} ${s}px Exo2,system-ui,sans-serif`;
 const ICON={clock:0,flag:1,avg:2,speed:3,up:4,flat:5,down:6};
@@ -139,88 +139,46 @@ const AJ={
  vmax:80                                 // km/h, teto de segurança
 };
 // =====================================================================================================================
-// MARCHAS + CADÊNCIA ("MyWhoosh arcade") — TESTE só no Contrarrelógio (17/11). MAR.liga=false volta ao acelerador.
-//   Cada toque no raio = uma perna (MAR.volta .5, desde 17/11 à tarde; antes 1 volta). RPM pelo intervalo dos toques:
-//   2 toques/s = 60 rpm · 3/s = 90 · 4/s = 120.
-//   Velocidade-alvo = RPM × desenvolvimento da marcha (coroa/pinhão × 2,1 m). Os watts são o que a física cobra para
-//   chegar/manter essa velocidade na rampa atual (marcha pesada = mais watts por toque). Teto de watts pela stamina;
-//   se o teto não dá, a bike não chega na velocidade e o RPM real cai (fica "pesado").
-//   Stamina = W' (só esvazia acima do FTP; abaixo recupera, mais quanto mais leve). Stamina zerada: ainda pedala,
-//   limitado a 85% do FTP e com fadiga mais rápida. Fora da faixa verde de RPM: mais fadiga (perna) ou mais stamina (fôlego).
+// FRICÇÃO NA BARRA DE STAMINA — TESTE só no Contrarrelógio (17/11; FRI.liga=false volta ao acelerador BRUUM–uuuum)
+//   Testados e descartados no mesmo dia: marchas (12, toque = pedalada) e ritmo por toques/embalo — estão no histórico do Git.
+//   Segurar o raio = empurrar o "carrinho de fricção": come a stamina (a ponta do verde anda para a esquerda), os watts
+//   sobem e a fadiga cresce pela potência. Na barra há uma JANELA logo à esquerda da ponta do verde: soltou com a ponta
+//   dentro dela = PERFEITA (o volante guarda a força mais tempo, fadiga ×0,95); antes = FRACA; depois = GÁS (mais força,
+//   mais stamina); longe demais ou stamina zerada = PATINOU (perde 45% da força, +3 de fadiga).
+//   A janela é mais funda quanto mais rápido (ir rápido pede empurrada maior) e encolhe com pouca stamina.
+//   Solto: a stamina volta (20/s, menos o W' acima do FTP) e a força cai devagar. Stamina < 5: teto 85% do FTP.
 // =====================================================================================================================
-// 17/11 (noite): dono achou as marchas difíceis → MAR.modo 'ritmo' (proposta A, sem marchas): o RITMO dos toques define os
-//   watts por zonas de RPM — verde 65–85 (70–90% do FTP, "pedalada perfeita": fadiga ×0,9), amarela até 105 (ataque, até
-//   140%), vermelha acima (sprint). Gás = bater mais rápido. MAR.modo='marcha' volta às marchas (código guardado).
-// 17/11 (noite, 2): dono quer SEGURAR, como o carrinho de fricção → MAR.modo 'friccao' (uma marcha só, sem toques):
-//   segurar = empurrar: o medidor de pressão enche (0→1 em tCheio) e os watts sobem; soltar = o "volante" guarda a força,
-//   que cai devagar (τ pela zona onde soltou). Zonas do medidor: cinza (cedo, fraca) · VERDE (perfeita: cai mais devagar e
-//   fadiga ×0,85) · laranja (gás: mais força, gasta W') · vermelho (patinou: perde 45% da força, −10 stamina, +3 fadiga).
-//   O verde sobe com a velocidade: ir mais rápido pede mais pressão. Volta: MAR.modo='ritmo' ou 'marcha'.
-const MAR={liga:true,modo:'friccao',
- fric:{tCheio:1.1,sobe:240,               // s segurando para encher o medidor · W/s somados enquanto segura
-  verde:{v0:20,v1:50,c0:.38,c1:.7,larg:.16},   // centro do verde: .38 a 20 km/h → .70 a 50 km/h; largura .16
-  laranja:.9,                              // do fim do verde até .9 = laranja; acima = vermelho
-  tau:{cinza:.5,verde:1.4,laranja:.9,vermelho:.4},   // s reais para o volante perder ~63% da força depois de soltar
-  fad:{cinza:1,verde:.85,laranja:1.1,vermelho:1.3},  // fadiga pela última pedalada
-  patina:{perde:.45,sta:10,fad:3},
-  dev:6.18},                               // uma marcha só (50×17): só para o RPM mostrado e a perna
- ritmo:{verde:[65,85],amarela:105,
-  W:[[0,0],[40,.4],[65,.7],[85,.9],[105,1.4],[130,2.5],[160,4.6]],   // watts (× FTP) pelo RPM
-  fad:[[0,1],[64,1],[65,.9],[85,.9],[86,1],[300,1]],                 // na faixa verde a fadiga é ×0,9 (pedalada perfeita)
-  suave:4,                                                            // os watts seguem o ritmo em ~0,25 s
-  segura:.25,embTau:24},   // EMBALO (17/11): segurou > 0,25 s com ritmo = o RPM fica (no máx. o topo do verde) e cai devagar
-                           //   (τ 24 s: do meio do verde até sair dele ~3,5 s). Soltou = segue daí. Gás continua sendo bater rápido.
- marchas:[[34,30],[34,26],[34,23],[34,20],[34,17],[50,21],[50,19],[50,17],[50,15],[50,14],[50,12],[50,11]],   // 1 (leve) … 12 (pesada)
- roda:2.1,inicial:6,                     // m por volta da roda · começa na 7ª (50×19: 90 rpm ≈ 30 km/h)
- volta:.5,                               // quanto do pedivela cada toque gira: .5 = uma perna (90 rpm = 3 toques/s) · 1 = volta completa (1,5/s)
- ivMin:.12,ivMax:1.0,ivSuave:.5,         // intervalo entre toques: mínimo (250 rpm com .5) · sem tocar por 1 s = roda livre · peso do toque novo
- rpm1:60,                                // 1º toque (sem intervalo ainda) conta como 60 rpm
- alcance:4,acelMax:.4,                   // s (de física) para chegar na velocidade do RPM · o empurrão de aceleração vai no máx. a +40% do FTP
- suave:10,                               // os watts seguem o pedido em ~0,1 s
- faixa:[75,100],                         // faixa verde de RPM
- fadRpm:[[30,1.45],[60,1.3],[75,1],[100,1],[200,1]],   // perna: RPM baixo (marcha pesada demais) = mais fadiga
- staRpm:[[0,1],[100,1],[115,1.1],[130,1.3],[180,1.7]], // fôlego: RPM alto = W' gasta mais e recupera menos
- recupera:20,recCheio:.4,                // stamina/s abaixo do FTP: 20/s até 40% do FTP, cai a 0 no FTP
+const FRI={liga:true,
+ gasto:30,                               // stamina comida por segundo segurando
+ sobe:240,                               // W/s somados enquanto segura
+ janela:{v0:20,v1:50,a0:9,a1:18,larg:6}, // a janela começa depois de 9 de stamina comida (20 km/h) → 18 (50 km/h); largura 6
+ laranja:12,                             // depois da janela, mais 12 = gás; além disso = patinou
+ tau:{fraca:.5,perfeita:1.4,gas:.9,patinou:.4},   // s reais para a força guardada cair ~63% depois de soltar
+ fad:{fraca:1,perfeita:.95,gas:1.1,patinou:1.3},  // fadiga pela última empurrada
+ patina:{perde:.45,fad:3},
+ recupera:20,                            // stamina por segundo solto (menos o W' acima do FTP)
  tetoZero:.85,zona:5,exausto:1.3,        // stamina < 5: teto vai a 85% do FTP; fadiga ×1,3
- gravSub:.7,                             // subida "arcade": a gravidade conta 70% na subida (5% rende como 3,5%)
+ gravSub:.7,                             // subida "arcade": a gravidade conta 70% na subida
+ dev:6.18,                               // uma marcha só (50×17): só para a perna girar
  fc:{rep:55,max:190,tau:1.5,             // FC (só informação): repouso, máxima, atraso (s reais)
   curva:[[0,.33],[.5,.58],[.75,.72],[.9,.82],[1,.88],[1.2,.95],[1.5,1]],   // %FCmáx pela intensidade (P/FTP)
-  drift:.12,rpmAlto:8},                  // +0,12 bpm por ponto de fadiga · +8 bpm girando acima de 115 rpm
- wpKJ:20,                                // W' mostrado no HUD: stamina 100% = 20 kJ
- dica:{baixo:72,alto:105,seg:.7}};       // setinha: RPM fora disso por 0,7 s
-let friQ=0,friSeg=false,friTau=1,friZ='',friZT=-9,friSeq=0,marEmb=false,marPosEmb=false,marCadE=0,marG=MAR.inicial,marIv=0,marUlt=-1,marT=0,marCad=0,marRpm=0,marFC=MAR.fc.rep,marDica=0,marForaT=0,marPed=0;
-const marOn=()=>MAR.liga&&MODO==='crono';
-const marDev=i=>MAR.marchas[i][0]/MAR.marchas[i][1]*MAR.roda;
-function marTroca(d){if(!marOn()||MAR.modo!=='marcha'||state!=='run')return;marG=clamp(marG+d,0,MAR.marchas.length-1)}
-function marZera(){friQ=0;friSeg=false;friTau=1;friZ='';friZT=-9;friSeq=0;marEmb=false;marPosEmb=false;marCadE=0;marG=MAR.inicial;marIv=0;marUlt=-1;marT=0;marCad=0;marRpm=0;marFC=MAR.fc.rep+25;marDica=0;marForaT=0;marPed=0}
-// potência pedida pela cadência × marcha (antes do teto)
-// FRICÇÃO: zona do medidor
-function friVerde(){const V=MAR.fric.verde,c=V.c0+(V.c1-V.c0)*clamp((speed-V.v0)/(V.v1-V.v0),0,1);return[c-V.larg/2,c+V.larg/2]}
-function friZona(q){const g=friVerde();return q<g[0]?'cinza':q<=g[1]?'verde':q<=MAR.fric.laranja?'laranja':'vermelho'}
-function friPasso(dt){const F=MAR.fric;marT+=dt;
- if(boost){if(!friSeg){friSeg=true;friQ=0}friQ=Math.min(1,friQ+dt/F.tCheio);power+=F.sobe*dt}
- else{if(friSeg){friSeg=false;const z=friZona(friQ);friZ=z;friZT=marT;friTau=F.tau[z];friSeq=z==='verde'?friSeq+1:0;
-   if(z==='vermelho'){power*=1-F.patina.perde;stamina=Math.max(0,stamina-F.patina.sta);fatigue=Math.min(100,fatigue+F.patina.fad)}}
-  power*=Math.exp(-dt/friTau)}}
-function marPasso(dt,toque,segura){marT+=dt;
- if(toque&&marPosEmb){marPosEmb=false;marUlt=marT}   // 1º toque depois do embalo: só continua o ritmo (não conta como pedalada rápida)
- else if(toque){if(marUlt>=0){const iv=clamp(marT-marUlt,MAR.ivMin,MAR.ivMax);marIv=marIv?marIv+(iv-marIv)*MAR.ivSuave:iv}else marIv=60*MAR.volta/MAR.rpm1;marUlt=marT}
- const desde=marUlt<0?1e9:marT-marUlt;marCad=desde<MAR.ivMax?60*MAR.volta/Math.max(marIv,desde):0;
- if(MAR.modo==='ritmo'){const Rt=MAR.ritmo;   // ritmo: os watts saem só do RPM
-  if(segura&&(marEmb||marCad>0)){if(!marEmb){marEmb=true;marCadE=Math.min(marCad,Rt.verde[1])}else marCadE*=Math.exp(-dt/Rt.embTau);
-   if(marCadE<20)marCadE=0;marCad=marCadE;if(marCad>0){marIv=60*MAR.volta/marCad;marUlt=marT}}   // ao soltar, o ritmo continua daqui
-  else if(marEmb){marEmb=false;marPosEmb=true}
-  return marPed=FTP*curva(Rt.W,marCad)}
- const v=speed/3.6,dev=marDev(marG),vT=marCad/60*dev;
- const acel=Math.min(FTP*MAR.acelMax,(AJ.peso+AJ.bike)*(vT-v)/MAR.alcance*Math.max(v,AJ.vmin)/AJ.eta);
- marPed=marCad>0?Math.max(0,vT*resist(vT)/AJ.eta+acel):0;
- return marPed}
-// depois do teto: RPM real (a perna presa na roda), setinha e FC
-function marDepois(dt){const v=speed/3.6,dev=marDev(marG);marRpm=MAR.modo==='friccao'?(power>15?v*60/MAR.fric.dev:0):MAR.modo==='ritmo'?marCad:marCad>0?Math.min(marCad,60*v/dev):0;
- const fora=marCad>0?(marRpm<MAR.dica.baixo?-1:marRpm>MAR.dica.alto?1:0):0;marForaT=fora&&fora===Math.sign(marForaT||fora)?marForaT+fora*dt:fora*dt;
- marDica=MAR.modo==='marcha'&&Math.abs(marForaT)>=MAR.dica.seg?Math.sign(marForaT):0;
- const F=MAR.fc,alvo=F.max*curva(F.curva,power/FTP)+F.drift*fatigue+(marRpm>115?F.rpmAlto:0);
- marFC+=(Math.min(F.max,alvo)-marFC)*Math.min(1,dt/F.tau)}
+  drift:.12},                            // +0,12 bpm por ponto de fadiga
+ wpKJ:20};                               // W' mostrado no HUD: stamina 100% = 20 kJ
+let friS0=100,friG=0,friSeg=false,friTrava=false,friTau=1,friZ='',friZT=-9,friSeq=0,friT=0,friRpm=0,friFC=FRI.fc.rep;
+const friOn=()=>FRI.liga&&MODO==='crono';
+function friZera(){friS0=100;friG=0;friSeg=false;friTrava=false;friTau=1;friZ='';friZT=-9;friSeq=0;friT=0;friRpm=0;friFC=FRI.fc.rep+25}
+// janela (em stamina comida nesta empurrada), a partir da stamina do começo da empurrada
+function friJanela(s0){const J=FRI.janela,a=J.a0+(J.a1-J.a0)*clamp((speed-J.v0)/(J.v1-J.v0),0,1);return[Math.min(a,s0*.55),Math.min(J.larg,s0*.3)]}
+function friZona(g,s0){const[a,l]=friJanela(s0);return g<a?'fraca':g<=a+l?'perfeita':g<=a+l+FRI.laranja?'gas':'patinou'}
+function friSolta(z){friSeg=false;friZ=z;friZT=friT;friTau=FRI.tau[z];friSeq=z==='perfeita'?friSeq+1:0;
+ if(z==='patinou'){power*=1-FRI.patina.perde;fatigue=Math.min(100,fatigue+FRI.patina.fad)}}
+function friPasso(dt){friT+=dt;
+ if(boost&&!friTrava){if(!friSeg){friSeg=true;friS0=stamina;friG=0}
+  friG+=FRI.gasto*dt;power+=FRI.sobe*dt;
+  if(stamina<=.5||friZona(friG,friS0)==='patinou'&&friG>friJanela(friS0)[0]+friJanela(friS0)[1]+FRI.laranja+8){friSolta('patinou');friTrava=true}}   // passou muito do ponto: patina sozinho
+ else{if(!boost)friTrava=false;if(friSeg)friSolta(friZona(friG,friS0));power*=Math.exp(-dt/friTau)}}
+function friDepois(dt){friRpm=power>15?speed/3.6*60/FRI.dev:0;
+ const F=FRI.fc,alvo=F.max*curva(F.curva,power/FTP)+F.drift*fatigue;friFC+=(Math.min(F.max,alvo)-friFC)*Math.min(1,dt/F.tau)}
 
 let climbs=[{start:8,end:9.5,peak:5.5,descentEnd:11.5},{start:23,end:26.5,peak:6.5,descentEnd:29.5},{start:36,end:42,peak:7.5,descentEnd:45}];
 const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t)},lerp=(a,b,t)=>a+(b-a)*t,clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -243,12 +201,12 @@ let sel=0,state='title',stamina=100,fatigue=0,water=5,gel=1,speed=0,dist=0,elaps
 let power=0,pShow=0,holdT=0,aguaResta=0,pTap=0,boostAnt=false;
 let vacuo=0,wHud=0,elevG=0,elevD=0,pSoma=0,pTempo=0;   // pSoma/pTempo: potência média do pedal (W), mostrada no HUD;   // elevG: subida acumulada (m)   // 0–0,4: fração do arrasto aerodinâmico poupada atrás de outro ciclista (calculada em npc.js)   // power = W atuais; pShow = suavizado p/ HUD e sprite; aguaResta = fadiga que a água ainda vai tirar
 function cruiseW(){const k=clamp((grade-AJ.coastB)/(AJ.coastA-AJ.coastB),0,1);return FTP*AJ.cruise*k*(stamina<1.5?AJ.cruiseExausto:1)}
-function resist(v){const th=Math.atan(grade/100),m=AJ.peso+AJ.bike,gs=grade>0&&marOn()?MAR.gravSub:1;   // marchas: subida "arcade"
+function resist(v){const th=Math.atan(grade/100),m=AJ.peso+AJ.bike,gs=grade>0&&friOn()?FRI.gravSub:1;   // fricção: subida "arcade"
  return m*AJ.g*(Math.sin(th)*gs+AJ.crr*Math.cos(th))+.5*AJ.rho*AJ.cda*(1-vacuo)*v*v}
 function vEq(P,gr){const g0=grade;grade=gr;let lo=.3,hi=40;for(let i=0;i<60;i++){const v=(lo+hi)/2;if(AJ.eta*P>v*resist(v))lo=v;else hi=v}grade=g0;return lo*3.6}
 
 function reset(){RK.res=null;if(MODO==='crono')rkStart();stamina=100;fatigue=0;water=AJ.aguaQtd;gel=AJ.gelQtd;speed=21;dist=0;elapsed=0;scroll=0;boost=false;waterEffect=0;grade=0;won=false;
- holdT=0;aguaResta=0;pTap=0;boostAnt=false;pSoma=0;pTempo=0;power=FTP*AJ.cruise;pShow=power;state='run';marZera();if(marOn()){power=0;pShow=0}}
+ holdT=0;aguaResta=0;pTap=0;boostAnt=false;pSoma=0;pTempo=0;power=FTP*AJ.cruise;pShow=power;state='run';friZera();if(friOn()){power=0;pShow=0}}
 function finish(w){won=w;state='over';boost=false;speed=0;power=0;pShow=0;if(w&&MODO==='crono')rkSend(Math.floor(elapsed*SCALE),CH[sel].id)}
 // água: só abre outra garrafa quando a anterior terminou o efeito (evita recuperação exagerada em sequência)
 function drink(){if(state==='run'&&water>0&&waterEffect<=0){water--;waterEffect=AJ.aguaSeg;aguaResta=AJ.aguaFad}}
@@ -258,12 +216,11 @@ function update(dt){
  elapsed+=dt;
  grade=lerp(grade,terrain(dist),Math.min(1,dt*1.4));
  // 1) botão → potência: contínua, sempre a partir do valor atual; responde no mesmo quadro em que o botão muda
- const mar=marOn(),active=boost&&(mar||stamina>.5),base=cruiseW(),emp=!mar;   // emp: acelerador BRUUM–uuuum em TODOS os modos (16/11; antes só no Contrarrelógio — o código de toque/sprint abaixo ficou sem uso)
+ const mar=friOn(),active=boost&&(mar||stamina>.5),base=cruiseW(),emp=!mar;   // emp: acelerador BRUUM–uuuum em TODOS os modos (16/11; antes só no Contrarrelógio — o código de toque/sprint abaixo ficou sem uso)
  const toque=boost&&!boostAnt&&(mar||stamina>.5);boostAnt=boost;   // cada novo toque = uma pedalada
  if(active)holdT+=dt;else holdT=0;
  const sprint=!emp&&active&&holdT>=AJ.tapSegura;
- if(mar&&MAR.modo==='friccao')friPasso(dt);
- else if(mar){power+=(marPasso(dt,toque,boost&&holdT>=MAR.ritmo.segura)-power)*Math.min(1,dt*(MAR.modo==='ritmo'?MAR.ritmo.suave:MAR.suave))}
+ if(mar)friPasso(dt);
  else if(emp){pTap=0;const livre=Math.min(base,FTP*AJ.empLivre);   // sem apertar: sem pedalar
   if(active)power=Math.max(power,livre)+AJ.empSobe*(1+AJ.empAcel*Math.max(0,holdT-AJ.empSegura))*dt;   // mesmo ritmo = mesmos watts no plano e na subida (na subida a física é que pesa)
   else power+=(livre-power)*Math.min(1,dt*AJ.empSolta)}
@@ -274,27 +231,27 @@ function update(dt){
  else{pTap*=Math.exp(-dt/AJ.tapTau);power+=(base+pTap-power)*Math.min(1,dt*AJ.tapSuave)}}
  power=clamp(power,0,AJ.pMax);
  if(emp||mar){const t0=FTP*AJ.empTetoMin;let teto=t0+(AJ.pMax-t0)*Math.pow(clamp(stamina/AJ.empTetoCheia,0,1),AJ.empTetoExp);
-  if(mar&&stamina<MAR.zona)teto=lerp(FTP*MAR.tetoZero,teto,stamina/MAR.zona);   // stamina zerada: ainda pedala, a 85% do FTP
+  if(mar&&stamina<FRI.zona)teto=lerp(FTP*FRI.tetoZero,teto,stamina/FRI.zona);   // stamina zerada: ainda pedala, a 85% do FTP
   power=Math.min(power,mar?teto:Math.max(Math.min(base,FTP*AJ.empLivre),teto))}
  pShow=lerp(pShow,power,Math.min(1,dt*AJ.hudSuave));wHud=lerp(wHud,power,Math.min(1,dt*3.5));   // número de watts do HUD: mais suave, dá para segurar um valor
  const r=power/FTP;pSoma+=power*dt;pTempo+=dt;
  // 2) fadiga: resistência (sempre) + esforço pela potência real × tanque + insistir exausto; só água e gel reduzem
  const tanque=1+AJ.fadTanque*Math.pow(1-clamp(stamina/100,0,1),AJ.fadTanqueExp);
- let df=(mar?curva(AJ.empFad,r)*(MAR.modo==='friccao'?(MAR.fric.fad[friZ]||1):MAR.modo==='ritmo'?curva(MAR.ritmo.fad,marRpm):curva(MAR.fadRpm,marCad>0?marRpm:75))*(stamina<MAR.zona?MAR.exausto:1)
+ let df=(mar?curva(AJ.empFad,r)*(FRI.fad[friZ]||1)*(stamina<FRI.zona?FRI.exausto:1)
   :(emp?curva(AJ.empFad,r):AJ.fadResist+curva(AJ.fadInt,r)*tanque)+(boost&&stamina<4?AJ.fadExausto:0))*dt;
  if(waterEffect>0){const q=Math.min(aguaResta,AJ.aguaFad/AJ.aguaSeg*dt);aguaResta-=q;df-=q;waterEffect=Math.max(0,waterEffect-dt)}
  fatigue=clamp(fatigue+df,0,100);
  const cap=100-fatigue;
  // 3) stamina: pressionado gasta conforme a intensidade; solto recupera na hora; teto 100 − fadiga
  // Contrarrelógio: apertado gasta (por intensidade), solto recupera; acima do FTP a bateria de explosão desconta sempre
- if(mar){const k=MAR.modo!=='marcha'?1:curva(MAR.staRpm,marRpm),wp=Math.max(0,power-FTP)/AJ.empWp*100*k,rec=MAR.recupera*clamp((1-r)/(1-MAR.recCheio),0,1)/k;stamina=clamp(stamina+(rec-wp)*dt,0,cap)}
+ if(mar){const wp=Math.max(0,power-FTP)/AJ.empWp*100;stamina=clamp(stamina+((friSeg?-FRI.gasto:FRI.recupera)-wp)*dt,0,cap)}   // fricção: segurando come a stamina; solto recupera
  else if(emp){const wp=Math.max(0,power-FTP)/AJ.empWp*100;stamina=clamp(stamina+((active?(holdT<AJ.empSegura?-curva(AJ.empAperta,r):0):AJ.empRecupera)-wp)*dt,0,cap)}   // no sprint (segurando > empSegura) só a bateria gasta
  else if(!emp)stamina=sprint?Math.max(0,stamina-curva(AJ.staGasto,r)*dt):active?stamina:Math.min(cap,stamina+AJ.staRecupera*dt);stamina=Math.min(stamina,cap);
  if(fatigue>=99.9){finish(false);return}
  // 4) física (velocidade com inércia): m·dv/dt = η·P/v − resistências (integrada em dt·kin, 4 subpassos)
  const m=AJ.peso+AJ.bike,h=dt*AJ.kin/4;let v=speed/3.6;
  for(let i=0;i<4;i++){const a=(AJ.eta*power/Math.max(v,AJ.vmin)-resist(v))/m;v=clamp(v+a*h,1.1,AJ.vmax/3.6)}
- speed=v*3.6;if(mar)marDepois(dt);
+ speed=v*3.6;if(mar)friDepois(dt);
  // 5) distância (tempo de jogo)
  {const d0=dist;dist+=speed*dt/3600*SCALE;if(grade>0&&dist>0)elevG+=grade/100*(dist-Math.max(0,d0))*1000}if(dist>=GOAL){dist=GOAL;finish(true)}
 }
@@ -2358,8 +2315,8 @@ function pedalCrono(){return state==='run'}   // desde 16/11 vale em todos os mo
 const _pdUpdate=update;
 update=function(dt){
  if(!pedalCrono()){_pdUpdate(dt);pdAnt=boost;pdAlvo=pedal;return}
- // marchas (17/11, Contrarrelógio): a perna gira no RPM de verdade (10 quadros por volta), sem tranco
- if(typeof marOn==='function'&&marOn()){pdAnt=boost;_pdUpdate(dt);if(state==='run')pedal+=marRpm/60*10*dt;pdAlvo=pedal;return}
+ // fricção (17/11, Contrarrelógio): a perna gira pela velocidade numa marcha só (10 quadros por volta), sem tranco
+ if(typeof friOn==='function'&&friOn()){pdAnt=boost;_pdUpdate(dt);if(state==='run')pedal+=friRpm/60*10*dt;pdAlvo=pedal;return}
  const toque=boost&&!pdAnt&&stamina>.5&&!(typeof CONT!=='undefined'&&CONT>0);pdAnt=boost;
  _pdUpdate(dt);if(!pedalCrono())return;
  const g0=speed*dt*.5,sprint=boost&&stamina>.5&&holdT>=PEDK.segura;
@@ -2931,96 +2888,56 @@ if(typeof veicArte==='function'){const _luzVA=veicArte;veicArte=function(){_luzV
  ctx.fillStyle=d;ctx.beginPath();ctx.moveTo(fx,fy-8);ctx.lineTo(fx+520,fy-60);ctx.lineTo(fx+520,fy+70);ctx.lineTo(fx,fy+8);ctx.closePath();ctx.fill();
  luzFila('b',fx,fy,70,9,1);luzFila('v',tx,ty,50,7,1);ctx.restore()}}
 
-/* ===== RITMO (ou MARCHAS), RPM E FC NA TELA — teste só no Contrarrelógio (17/11) =====
-   MAR.modo 'ritmo' (atual): sem marchas; a régua de RPM tem as zonas verde (PERFEITO), amarela (ATAQUE) e vermelha (SPRINT);
-   na verde o quadro do RPM brilha. Itens nas bagzinhas no canto esquerdo. O texto abaixo vale para MAR.modo 'marcha'.
-   A mecânica está em mecanica.js (bloco MAR). Aqui: HUD e controles.
-   Mão ESQUERDA: marchas (▲ pesada / ▼ leve) e os itens em "bagzinhas". Mão DIREITA: o raio (cada toque = uma perna, MAR.volta).
-   Direita, acima do raio: RPM com a faixa verde, FC com a zona e W' em kJ.
-   Setinha: se o RPM ficar fora da faixa por 0,7 s, o botão certo pisca amarelo.
-   Teclado: Espaço = pedalada · ↑/↓ = marcha. Controle: A = pedalada · direcional ↑/↓ = marcha. */
-const MARH={
- sobe:{x:18,y:470,w:136,h:118},meio:{x:18,y:596,w:136,h:82},desce:{x:18,y:686,w:136,h:118},   // coluna das marchas
- slotX:172,slotPasso:104,                                        // bagzinhas dos itens
- rpm:{x:1160,y:224,w:346,h:96,min:30,max:140},fc:{x:1160,y:328,w:346,h:64},wp:{x:1160,y:400,w:346,h:50},
- zonas:[[.6,'#9fb3c8','Z1'],[.7,'#4fc3ff','Z2'],[.8,'#35f21c','Z3'],[.9,'#ffd83a','Z4'],[9,'#ff3b2a','Z5']]};
-HB_IDS.push('m_sobe','m_desce');   // somem junto com os botões dos itens fora da prova
-const marSlotX=i=>(MAR.modo==='marcha'?MARH.slotX:36)+i*MARH.slotPasso;
-const friOn=()=>MAR.modo==='friccao';
-const marTela=()=>marOn()&&(state==='run'||state==='paused');
-// botões de toque (DOM, por cima do canvas, como os dos itens)
-(function(){const st=$('stage');if(!st)return;[['m_sobe',1],['m_desce',-1]].forEach(([id,d])=>{const b=document.createElement('button');
- b.id=id;b.setAttribute('aria-label',d>0?'Marcha mais pesada':'Marcha mais leve');b.style.display='none';st.appendChild(b);
- b.addEventListener('pointerdown',e=>{marTroca(d);e.preventDefault()})})})();
-addEventListener('keydown',e=>{if(state!=='run'||!marOn()||e.target===nickEl)return;
- if(e.code==='ArrowUp'||e.code==='KeyW'){marTroca(1);e.preventDefault()}else if(e.code==='ArrowDown'||e.code==='KeyS'){marTroca(-1);e.preventDefault()}});
-function marBotao(r,d,alerta){const pul=alerta?.5+.5*Math.sin(T*12):0;
- rr(r.x,r.y,r.w,r.h,22);ctx.fillStyle=alerta?`rgba(255,216,58,${.25+.25*pul})`:'rgba(10,26,44,.72)';ctx.fill();
- ctx.lineWidth=alerta?6:4;ctx.strokeStyle=alerta?'#ffd83a':'rgba(207,216,225,.85)';ctx.stroke();
- const cx=r.x+r.w/2,cy=r.y+r.h/2-12,s=30;ctx.beginPath();if(d>0){ctx.moveTo(cx,cy-s);ctx.lineTo(cx+s*1.1,cy+s*.7);ctx.lineTo(cx-s*1.1,cy+s*.7)}else{ctx.moveTo(cx,cy+s);ctx.lineTo(cx+s*1.1,cy-s*.7);ctx.lineTo(cx-s*1.1,cy-s*.7)}
- ctx.closePath();ctx.fillStyle=alerta?'#ffd83a':'#fff';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='#06121e';ctx.stroke();
- tx(d>0?'PESADA':'LEVE',cx,r.y+r.h-14,20,'center',alerta?'#ffd83a':'#fff')}
-function marHud(){const H0=MARH,[co,pi]=MAR.marchas[marG],rit=MAR.modo==='ritmo';
- if(friOn())friHud();
- // coluna das marchas (só no modo marcha)
- if(!rit){marBotao(H0.sobe,1,marDica>0);marBotao(H0.desce,-1,marDica<0);
- const m=H0.meio;rr(m.x,m.y,m.w,m.h,18);ctx.fillStyle='rgba(222,240,255,.82)';ctx.fill();
- tx(`${marG+1}`,m.x+m.w/2,m.y+46,44,'center','#fff');tx(`${co}×${pi}`,m.x+m.w/2,m.y+72,20,'center','#fff');
- if(marDica&&state==='run')tx(marDica>0?'TROQUE ▲':'TROQUE ▼',H0.sobe.x+H0.sobe.w/2,H0.sobe.y-14,22,'center','#ffd83a')}
- // RPM: número + régua com a faixa verde
- if(friOn()){const R=H0.rpm;pilula(R.x,R.y,R.w,R.h);tx('RPM',R.x+24,R.y+40,22,'left','#fff');tx('50×17',R.x+24,R.y+70,20,'left','#fff');tx(`${Math.round(marRpm)}`,R.x+R.w-24,R.y+62,56,'right','#fff')}
- else{const R=H0.rpm,rv=Math.round(marRpm),G=rit?MAR.ritmo.verde:MAR.faixa,A=MAR.ritmo.amarela,dentro=rv>=G[0]&&rv<=G[1];
- const zn=!rv?['','#fff']:rv<G[0]?['FRACO','#9fb3c8']:dentro?[marEmb?'EMBALO':'PERFEITO','#35f21c']:rit&&rv<=A?['ATAQUE','#ffd83a']:rit?['SPRINT','#ff3b2a']:['','#ffd83a'];
- pilula(R.x,R.y,R.w,R.h);
- if(dentro&&state==='run'){rr(R.x-3,R.y-3,R.w+6,R.h+6,(R.h+6)/2);ctx.lineWidth=5;ctx.strokeStyle=`rgba(53,242,28,${.55+.45*Math.sin(T*10)})`;ctx.stroke()}
- tx('RPM',R.x+24,R.y+34,22,'left','#fff');if(rit&&zn[0])tx(zn[0],R.x+24,R.y+58,20,'left',zn[1]);
- tx(`${rv}`,R.x+R.w-24,R.y+50,50,'right',zn[1]);
- const bx=R.x+24,bw=R.w-48,by=R.y+66,bh=16,X=v=>bx+bw*clamp((v-R.min)/(R.max-R.min),0,1);
- rr(bx,by,bw,bh,8);ctx.fillStyle='#0a1a2c';ctx.fill();
- if(rit){ctx.fillStyle='#ffd83a';rr(X(G[1]),by+2,X(A)-X(G[1]),bh-4,4);ctx.fill();ctx.fillStyle='#ff3b2a';rr(X(A),by+2,X(R.max)-X(A)-2,bh-4,4);ctx.fill()}
- ctx.fillStyle='#35f21c';rr(X(G[0]),by+2,X(G[1])-X(G[0]),bh-4,6);ctx.fill();
- if(rv>0){const x=X(rv);ctx.beginPath();ctx.moveTo(x,by-2);ctx.lineTo(x-9,by-14);ctx.lineTo(x+9,by-14);ctx.closePath();ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='#06121e';ctx.stroke();ctx.fillStyle='#fff';ctx.fillRect(x-2,by,4,bh)}}
-
+/* ===== FRICÇÃO NA BARRA DE STAMINA — HUD, vibração e som (teste só no Contrarrelógio, 17/11) =====
+   A mecânica está em mecanica.js (bloco FRI). Uma barra só: a de STAMINA/FADIGA.
+   Na barra: a JANELA branca (onde soltar = PERFEITA) fica logo à esquerda da ponta do verde; a faixa laranja depois dela é o
+   GÁS. Segurando, a ponta do verde anda para a esquerda até a janela. Aviso da empurrada logo acima da barra.
+   Direita: FC com a zona e W' em kJ. Itens nas bagzinhas no canto esquerdo.
+   (O nome do arquivo ficou do teste das marchas, que saiu; o <script> no index.html continua o mesmo.) */
+const MARH={slotX:36,slotPasso:104,                              // bagzinhas dos itens
+ fc:{x:1160,y:224,w:346,h:64},wp:{x:1160,y:296,w:346,h:50},
+ zonas:[[.6,'#9fb3c8','Z1'],[.7,'#4fc3ff','Z2'],[.8,'#35f21c','Z3'],[.9,'#ffd83a','Z4'],[9,'#ff3b2a','Z5']],
+ cor:{fraca:'#cfd8e1',perfeita:'#35f21c',gas:'#ff9a1f',patinou:'#ff3b2a'},
+ txt:{fraca:'FRACA',perfeita:'PERFEITA!',gas:'GÁS!',patinou:'PATINOU!'},
+ barra:[386,728,763]};                                           // mesma posição de staminaBar() no hud()
+const marSlotX=i=>MARH.slotX+i*MARH.slotPasso;
+const marTela=()=>friOn()&&(state==='run'||state==='paused');
+// miolo da barra de stamina (mesma conta de staminaBar em desenho.js)
+function friBarra(){const A=IMG.st_aro;if(!A||!A.width)return null;const[x,y,w]=MARH.barra,k=w/A.width;return{ix:x+14*k,iy:y+24*k,iw:1172*k,ih:62*k,x,y,w,h:A.height*k}}
+function friHud(){const B=friBarra();if(!B)return;const s0=friSeg?friS0:stamina,[a,l]=friJanela(s0),X=v=>B.ix+B.iw*clamp(v,0,100)/100;
+ const p1=s0-a,p0=p1-l,g0=p0-FRI.laranja,dentro=friSeg&&stamina<=p1&&stamina>=p0;
+ ctx.save();rr(B.ix,B.iy,B.iw,B.ih,B.ih/2);ctx.clip();
+ // gás (laranja) entre o fim da janela e o limite; a janela (branca) onde soltar
+ if(p0>0){ctx.fillStyle='rgba(255,154,31,.55)';ctx.fillRect(X(g0),B.iy,X(p0)-X(g0),B.ih)}
+ const jx=X(p0),jw=Math.max(6,X(p1)-X(p0));ctx.fillStyle=dentro?`rgba(255,255,255,${.55+.35*Math.sin(T*30)})`:'rgba(255,255,255,.35)';ctx.fillRect(jx,B.iy,jw,B.ih);
+ ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.strokeRect(jx+2,B.iy+2,jw-4,B.ih-4);
+ ctx.restore();
+ // aviso da última empurrada (sobe e some em 0,9 s)
+ const dt=friT-friZT;if(friZ&&dt<.9){ctx.globalAlpha=clamp(1.6-dt*1.8,0,1);const t=MARH.txt[friZ]+(friZ==='perfeita'&&friSeq>1?` ×${friSeq}`:'');
+  tx(t,B.x+B.w/2,B.y-14-dt*40,friZ==='perfeita'?36:30,'center',MARH.cor[friZ]);ctx.globalAlpha=1}
  // FC com a zona
- const F=H0.fc,fc=Math.round(marFC),pz=fc/MAR.fc.max,z=H0.zonas.find(q=>pz<q[0]);pilula(F.x,F.y,F.w,F.h);
+ const H0=MARH,F=H0.fc,fc=Math.round(friFC),pz=fc/FRI.fc.max,z=H0.zonas.find(q=>pz<q[0]);pilula(F.x,F.y,F.w,F.h);
  tx('♥',F.x+24,F.y+46,34,'left','#ff3b5c');tx(`${fc}`,F.x+70,F.y+47,40,'left','#fff');tx('bpm',F.x+70+ctx.measureText(`${fc}`).width+8,F.y+46,20,'left','#fff');
  rr(F.x+F.w-82,F.y+12,62,40,12);ctx.fillStyle=z[1];ctx.fill();ctx.font=FT(900,26);ctx.textAlign='center';ctx.fillStyle='#06121e';ctx.fillText(z[2],F.x+F.w-51,F.y+42);
  // W' em kJ (a stamina em energia)
- const P=H0.wp;pilula(P.x,P.y,P.w,P.h);tx("W'",P.x+24,P.y+35,22,'left','#fff');tx(`${(stamina/100*MAR.wpKJ).toFixed(1).replace('.',',')} kJ`,P.x+P.w-24,P.y+36,28,'right','#fff')}
+ const P=H0.wp;pilula(P.x,P.y,P.w,P.h);tx("W'",P.x+24,P.y+35,22,'left','#fff');tx(`${(stamina/100*FRI.wpKJ).toFixed(1).replace('.',',')} kJ`,P.x+P.w-24,P.y+36,28,'right','#fff')}
 // bagzinhas dos itens (atrás das garrafas)
 function marBags(){const n=slotsHUD().length;for(let i=0;i<n;i++){const x=marSlotX(i);rr(x-14,676,104,156,18);ctx.fillStyle='rgba(10,26,44,.55)';ctx.fill();ctx.lineWidth=3;ctx.strokeStyle='rgba(207,216,225,.7)';ctx.stroke()}}
-const _marHud=hud;hud=function(){const on=marTela();if(on)marBags();_marHud();
- if(on)marHud();
- const vis=on&&state==='run'&&MAR.modo==='marcha';botaoDOM('m_sobe',vis?MARH.sobe:null);botaoDOM('m_desce',vis?MARH.desce:null)};
-
-// ===== FRICÇÃO: medidor de pressão em volta do raio, aviso da pedalada, vibração e som de "carrinho de fricção" =====
-const FRIH={cx:1346,cy:678,r:136,lw:16,a0:Math.PI*.75,a1:Math.PI*2.25,   // arco de 270°, começando embaixo à esquerda
- cor:{cinza:'#4a5b6e',verde:'#35f21c',laranja:'#ff9a1f',vermelho:'#ff3b2a'},
- txt:{cinza:'FRACA',verde:'PERFEITA!',laranja:'GÁS!',vermelho:'PATINOU!'}};
-function friArco(q0,q1,cor,lw){const F=FRIH,a=q=>F.a0+(F.a1-F.a0)*q;ctx.beginPath();ctx.arc(F.cx,F.cy,F.r,a(q0),a(q1));ctx.strokeStyle=cor;ctx.lineWidth=lw;ctx.lineCap='butt';ctx.stroke()}
-function friHud(){const F=FRIH,g=friVerde(),M=MAR.fric;ctx.save();
- friArco(0,1,'rgba(6,18,30,.75)',F.lw+8);
- friArco(0,g[0],F.cor.cinza,F.lw);friArco(g[0],g[1],F.cor.verde,F.lw);friArco(g[1],M.laranja,F.cor.laranja,F.lw);friArco(M.laranja,1,F.cor.vermelho,F.lw);
- if(friSeg||friQ>0&&marT-friZT<.25){const q=friQ,z=friZona(q),a=F.a0+(F.a1-F.a0)*q;friArco(0,q,'#fff',F.lw*.45);
-  ctx.beginPath();ctx.arc(F.cx+Math.cos(a)*F.r,F.cy+Math.sin(a)*F.r,13,0,7);ctx.fillStyle=F.cor[z];ctx.fill();ctx.lineWidth=4;ctx.strokeStyle='#fff';ctx.stroke()}
- ctx.restore();
- // aviso da última pedalada (sobe e some em 0,9 s)
- const dt=marT-friZT;if(friZ&&dt<.9){ctx.globalAlpha=clamp(1.6-dt*1.8,0,1);const t=F.txt[friZ]+(friZ==='verde'&&friSeq>1?` ×${friSeq}`:'');
-  tx(t,F.cx,F.cy-F.r-26-dt*40,friZ==='verde'?34:28,'center',F.cor[friZ]);ctx.globalAlpha=1}}
-// vibração: pulsos cada vez mais fortes enquanto segura; um "toc" ao soltar no verde (só Android)
+// vibração: pulsos cada vez mais fortes enquanto segura; um "toc" ao soltar na janela (só Android)
 let friVibT=0,friVibZ=-9;
+function friPressao(){const[a,l]=friJanela(friS0);return clamp(friG/(a+l+FRI.laranja),0,1)}
 function friVibra(){if(!friOn()||state!=='run'||typeof vibrar!=='function')return;
- if(friSeg&&marT-friVibT>.11){friVibT=marT;vibrar(Math.round(6+22*friQ))}
- if(friZT!==friVibZ){friVibZ=friZT;if(friZ==='verde')vibrar(35);else if(friZ==='vermelho')vibrar(70)}}
+ if(friSeg&&friT-friVibT>.11){friVibT=friT;vibrar(Math.round(6+22*friPressao()))}
+ if(friZT!==friVibZ){friVibZ=friZT;if(friZ==='perfeita')vibrar(35);else if(friZ==='patinou')vibrar(70)}}
 // som: motor de fricção (dente de serra filtrado) — sobe de tom com a pressão enquanto segura; solto, zumbe pela velocidade
 let FRS=null;
 function friSom(){if(typeof AC==='undefined'||!AC||!gSfx)return;
  if(!FRS){try{const o=AC.createOscillator(),f=AC.createBiquadFilter(),g=AC.createGain();o.type='sawtooth';f.type='lowpass';f.frequency.value=900;g.gain.value=0;
   o.connect(f);f.connect(g);g.connect(gSfx);o.start();FRS={o,f,g}}catch(e){return}}
- const t=AC.currentTime,on=friOn()&&marTela()&&state==='run',hz=on?(friSeg?140+420*friQ:90+speed*4.5):80,
-  vol=on?(friSeg?.05+.07*friQ:clamp(power/600,0,.05)):0;
+ const t=AC.currentTime,on=marTela()&&state==='run',q=friSeg?friPressao():0,hz=on?(friSeg?140+420*q:90+speed*4.5):80,
+  vol=on?(friSeg?.05+.07*q:clamp(power/600,0,.05)):0;
  FRS.o.frequency.setTargetAtTime(hz,t,.05);FRS.f.frequency.setTargetAtTime(500+hz*2,t,.08);FRS.g.gain.setTargetAtTime(vol,t,.06)}
-const _friHud=hud;hud=function(){_friHud();friVibra()};
+const _marHud=hud;hud=function(){const on=marTela();if(on)marBags();_marHud();if(on)friHud();friVibra()};
 // o som é atualizado em todo quadro (também nos menus, para calar)
 const _friAud=audioTick;audioTick=function(dt){_friAud(dt);friSom()};
 
@@ -3051,7 +2968,6 @@ function gpPasso(){requestAnimationFrame(gpPasso);const agora=performance.now(),
   if(borda(GP.B)&&typeof comerBanana==='function')comerBanana();
   if(borda(GP.RB))eat();
   if(borda(GP.LB)&&typeof gelAzul==='function')gelAzul();
-  if(typeof marTroca==='function'){if(borda(GP.CIMA))marTroca(1);if(borda(GP.BAIXO))marTroca(-1)}   // marchas (Contrarrelógio)
   if(borda(GP.START))togglePause()}
  else{if(gpBoost){boost=false;gpBoost=false}
   // cursor: analógico esquerdo + direcional
