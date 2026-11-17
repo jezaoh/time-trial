@@ -100,22 +100,31 @@ function camada(img,off,y,fade){if(!img||!img.width)return;const w=img.width,st=
 //   Pedal Livre: campo por 10–20 km, mar por 4–8 km, alternando (sorteado a cada pedalada).
 //   Provas (todos os outros modos): começa no campo; a orla vai de 40% a 60% da distância.
 const CEN={igreja:5,livreCampo:[10,20],livreMar:[4,8],prova:[.4,.6],chao:['#8cc83c','#3fd8d2'],
- // 17/11 (dono): a troca campo ↔ mar acontece ESCONDIDA atrás de uma subida grande: só troca quando a encosta cobre o fundo
- cobre:.45,rapida:1.2,          // cobertura mínima da faixa dos morros (0–1) · duração da troca rápida (s reais)
- espera:10,lenta:12,            // km esperando subida antes de trocar mesmo assim · duração da troca lenta (s reais)
- antes:1.5};                    // provas: a orla começa/termina 1,5 km antes da subida mais perto de 40% e 60% da prova
+ // 17/11 (dono): a troca campo ↔ mar acontece NO MEIO DE UMA SUBIDA GRANDE ("subi a serra e lá embaixo está o mar"):
+ //   só enquanto você sobe (25%–85% do caminho, rampa ≥ 3,5%), rápida. No plano/na base nunca.
+ serra:{km:1,pico:5,de:.25,ate:.85,rampa:3.5},   // subida "grande": ≥ 1 km e pico ≥ 5%
+ menor:{km:.5,pico:3},          // depois de `espera` km sem subida grande, aceita uma menor
+ rapida:.6,espera:15,           // duração da troca (s reais) · km esperando subida grande
+ desiste:30,lenta:12,           // sem subida nenhuma por 30 km: troca lenta (s reais)
+ antes:.3};                     // provas: o desejo de trocar começa 0,3 km antes da subida escolhida
 let CENZ=null,CENF=0,CENP=-1,CENT=-1;   // trechos de mar [[início, fim]] · fração do mar na tela · km em que a troca ficou pendente · último T
 function cenZonas(){const Z=[];const r=(a,b)=>a+Math.random()*(b-a);
  if(GOAL>=9999){let k=0;while(k<3000){k+=r(CEN.livreCampo[0],CEN.livreCampo[1]);const m=r(CEN.livreMar[0],CEN.livreMar[1]);Z.push([k,k+m]);k+=m}return Z}
- const perto=(alvo,depois)=>{let m=null;for(const c of climbs)if(c.start>depois&&(!m||Math.abs(c.start-alvo)<Math.abs(m.start-alvo)))m=c;return m};
+ const S=CEN.serra,grande=c=>c.end-c.start>=S.km&&c.peak>=S.pico;
+ const perto=(alvo,depois)=>{let m=null;for(const c of climbs)if(grande(c)&&c.start>depois&&(!m||Math.abs(c.start-alvo)<Math.abs(m.start-alvo)))m=c;return m};
  const c1=perto(GOAL*CEN.prova[0],1),c2=c1&&perto(GOAL*CEN.prova[1],c1.start+2);
  Z.push(c1&&c2?[Math.max(1,c1.start-CEN.antes),c2.start-CEN.antes]:[GOAL*CEN.prova[0],GOAL*CEN.prova[1]]);return Z}
 function cenAlvo(km){if(!CENZ)CENZ=cenZonas();for(const[a,b]of CENZ){if(km<a)break;if(km<b)return 1}return 0}
-// quanto da faixa dos morros (tela, y 372–640) a encosta da estrada está cobrindo agora (0–1)
-function cenCobre(){let s=0,n=0;for(let sx=0;sx<=W;sx+=64){const wx=(sx-BXS)/ZOOM+bikeX,gy=(560-alturaEm(wx)-roadY)*ZOOM+RYS;s+=clamp((640-gy)/268,0,1);n++}return s/n}
+// você está no meio de uma subida (grande ou, se `menor`, qualquer uma com ≥ 0,5 km e 3%)? provas: climbs; Pedal Livre: rampas
+function cenNaSerra(menor){const L=menor?CEN.menor:CEN.serra,S=CEN.serra;if(grade<S.rampa)return false;
+ const ok=(a,b,pico)=>b-a>=L.km&&pico>=L.pico&&dist>=a+(b-a)*S.de&&dist<=a+(b-a)*S.ate;
+ for(const c of climbs)if(ok(c.start,c.end,c.peak))return true;
+ for(const r of rampas)if(r.g>0&&ok(r.a,r.b,r.g))return true;
+ // Pedal Livre: rampas seguidas (duas elevações) contam como uma subida só
+ return false}
 function cenPasso(){const dt=CENT<0?0:clamp(T-CENT,0,.1);CENT=T;const alvo=cenAlvo(dist);
  if(CENF===alvo){CENP=-1;return}if(CENP<0)CENP=dist;
- const rapida=cenCobre()>=CEN.cobre,lenta=dist-CENP>CEN.espera;if(!rapida&&!lenta)return;   // espera a subida esconder o fundo
+ const esp=dist-CENP,rapida=cenNaSerra(esp>CEN.espera),lenta=esp>CEN.desiste;if(!rapida&&!lenta)return;   // espera estar no meio da subida
  CENF=clamp(CENF+Math.sign(alvo-CENF)*dt/(rapida?CEN.rapida:CEN.lenta),0,1)}
 function cenMar(km){return CENF}
 const _cenReset=reset;reset=function(){CENZ=null;CENF=0;CENP=-1;CENT=-1;_cenReset()};

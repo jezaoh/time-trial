@@ -283,3 +283,8 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   · Campo ↔ mar (`CEN` em desenho.js): a troca só acontece quando a encosta cobre ≥45% da faixa dos morros (`cenCobre`), em ~1,2 s;
     sem subida por 10 km, troca lenta (12 s). Provas: orla começa/termina 1,5 km antes da subida mais perto de 40%/60% da prova
     (Contrarrelógio: trocas no km ~22,9 e ~36,1, cobertura 0,52). Limite: a encosta cobre no máx. ~60% (o lado atrás do ciclista fica à vista).
+- **17/11 — TROCA NA SERRA (dono: "subi a serra e lá embaixo está o mar"):** a troca campo ↔ mar não usa mais a cobertura
+  (`cenCobre` saiu: na base da subida ela já trocava, ainda no plano). Agora só no MEIO de uma subida grande (`CEN.serra`:
+  ≥ 1 km, pico ≥ 5%, entre 25% e 85% do caminho, rampa ≥ 3,5%), em 0,6 s; depois de 15 km sem subida grande aceita uma menor
+  (≥ 0,5 km, 3%); 30 km sem nenhuma = troca lenta. Provas: só subidas grandes perto de 40%/60%. Contrarrelógio: trocas no
+  km 24,1 (subida 23–26,5) e 37,7 (36–42).
