@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head>
-<!-- Time Trial V2 · versão 17/11/2026 01:46 --><meta charset="utf-8">
+<!-- Time Trial V2 · versão 17/11/2026 07:49 --><meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#06121c"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Time Trial V2</title>
 <style>
@@ -35,7 +35,7 @@ const META={"idle": {"azul": {"cw": 290, "ch": 388, "sx": 2.311418685121107, "sy
 const $=id=>document.getElementById(id),c=$('game'),ctx=c.getContext('2d',{alpha:false}),W=1536,H=864,SS=W/1672,IMG={},nickEl=$('nick');
 const NUT=[[0,2,99,240],[99,2,100,240],[199,2,99,240],[298,2,99,240],[397,2,100,240],[497,2,100,240],[597,28,121,214]];
 // versão: data e hora da montagem (preenchida por tools/montar_arquivo_unico.py; aparece no canto da tela inicial)
-const VERSAO="17/11/2026 01:46";
+const VERSAO="17/11/2026 07:49";
 // fonte do jogo: Exo 2 itálico (900 títulos e números · 800 textos)
 const FT=(w,s)=>`italic ${w} ${s}px Exo2,system-ui,sans-serif`;
 const ICON={clock:0,flag:1,avg:2,speed:3,up:4,flat:5,down:6};
@@ -503,13 +503,13 @@ function velocimetro(cx,cy,r){const f=IMG.vel_face;if(!f||!f.width)return;ctx.dr
 // itens da fileira de baixo (só os que existem no modo); devolve os retângulos de toque
 function slotsHUD(){const L=[],lv=typeof LV!=='undefined'&&LV;
  if(!lv){L.push('agua','gel');return L}L.push('agua');if(LV.a7Lev)L.push('agua7');if(LV.isoLev)L.push('iso');if(LV.gLev||gel>0)L.push('gel');if(LV.bLev||LV.banana>0)L.push('banana');return L}
-function itemHUD(id,x,yb){const h=124;let n=0,on=true;
+function itemHUD(id,x,yb){const h=104;   // 17/11: bolso menor (era 124)let n=0,on=true;
  if(id==='agua'){const nb=NUT[clamp(Math.round(5-water/AJ.aguaQtd*5),0,5)],s=h/nb[3];ctx.drawImage(IMG.nutr,nb[0],nb[1],nb[2],nb[3],x,yb-h,nb[2]*s,h);n=water}
  else if(id==='agua7'){const hh=h*1.12,nb=NUT[clamp(Math.round(5-LV.agua7/7*5),0,5)],s=hh/nb[3];ctx.globalAlpha=LV.agua7?1:.35;ctx.drawImage(IMG.nutr,nb[0],nb[1],nb[2],nb[3],x,yb-hh,nb[2]*s,hh);n=LV.agua7}
  else if(id==='iso'){const nb=NUT[clamp(Math.round(5-LV.iso/isoCap()*5),0,5)],s=h/nb[3];ctx.globalAlpha=LV.iso?1:.35;ctx.drawImage(IMG.iso,nb[0],nb[1],nb[2],nb[3],x,yb-h,nb[2]*s,h);n=LV.iso}
  else if(id==='gel'){const ng=NUT[6],s=h*.92/ng[3];ctx.globalAlpha=gel?1:.35;ctx.drawImage(IMG.nutr,ng[0],ng[1],ng[2],ng[3],x-2,yb-h*.92,ng[2]*s,h*.92);n=gel}
  else if(id==='banana'){const b=IMG.it_banana,bh=h*.82;ctx.globalAlpha=LV.banana?1:.35;ctx.drawImage(b,x-6,yb-bh,bh*b.width/b.height,bh);n=LV.banana}
- ctx.globalAlpha=1;badge(x+62,yb-h+4,n);return{x:x-8,y:yb-h-10,w:86,h:h+20}}
+ ctx.globalAlpha=1;badge(x+52,yb-h+4,n);return{x:x-8,y:yb-h-10,w:74,h:h+20}}
 const HB_IDS=['water','gel','b_iso','b_banana','b_azul','b_agua7'],HB_DOM={agua:'water',gel:'gel',iso:'b_iso',banana:'b_banana',azul:'b_azul',agua7:'b_agua7'};let HB_CACHE={};
 function botaoDOM(id,r){const e=$(id);if(!e)return;const k=r?`${r.x|0},${r.y|0},${r.w|0},${r.h|0}`:'off';if(HB_CACHE[id]===k)return;HB_CACHE[id]=k;
  if(!r){e.style.display='none';return}e.style.display='block';e.style.left=(r.x/W*100)+'%';e.style.top=(r.y/H*100)+'%';e.style.width=(r.w/W*100)+'%';e.style.height=(r.h/H*100)+'%'}
@@ -537,7 +537,7 @@ function hud(){
  // rampa
  pilula(1160,38,346,108);pilula(1250,154,256,52);tx(`▲ ${Math.round(elevG)} m`,1488,192,30,'right','#fff');tx('ELEV.',1272,190,20,'left','#fff');const gi=grade>1?'up':grade<-1?'down':'flat';ic(gi,1180,52,82);tx(`${grade<0?'−':''}${f1(Math.abs(grade))}%`,1488,118,56,'right',grade>1?'#ffe16c':'#fff');
  // itens (esquerda, embaixo)
- const SL=slotsHUD(),R={},mrc=typeof marTela==='function'&&marTela();SL.forEach((id,i)=>{R[id]=itemHUD(id,mrc?marSlotX(i):22+i*86,820)});   // marchas (marcha.js): itens nas bagzinhas, à direita da coluna das marchas
+ const SL=slotsHUD(),R={},mrc=typeof marTela==='function'&&marTela();SL.forEach((id,i)=>{R[id]=itemHUD(id,mrc?marSlotX(i):22+i*74,820)});   // marchas (marcha.js): itens nas bagzinhas, à direita da coluna das marchas
  // gel azul acima do raio
  const azul=typeof LV!=='undefined'&&LV&&LV.azul>0&&!LV.azulUsou;
  // 16/11: maior (118 → 165) e mais alto, com folga de ~50 px até o raio (que começa em y≈564)
@@ -554,9 +554,10 @@ function staminaBar(x,y,w){const A=IMG.st_aro;if(!A||!A.width)return;const k=w/A
  ctx.save();rr(ix,iy,iw,ih,ih/2);ctx.clip();ctx.drawImage(IMG.st_vermelha,ix,iy,iw,ih);if(gw>0)ctx.drawImage(IMG.st_verde,0,0,IMG.st_verde.width*gw/iw,IMG.st_verde.height,ix,iy,gw,ih);
  if(waterEffect>0&&state==='run'){const fl=ix+gw,a=Math.min(1,waterEffect*2)*(.6+.4*Math.sin(T*14)),g=ctx.createLinearGradient(fl-26,0,fl+26,0);g.addColorStop(0,'#4fc3ff00');g.addColorStop(.5,'#8fe0ff');g.addColorStop(1,'#4fc3ff00');ctx.globalAlpha=a;ctx.fillStyle=g;ctx.fillRect(fl-26,iy,52,ih);ctx.globalAlpha=1}
  ctx.restore();ctx.drawImage(A,x,y,w,h);
- const r=IMG.st_raio,rh=h*1.02;ctx.drawImage(r,x+6,y+h/2-rh/2,rh*r.width/r.height,rh);
- const f=IMG.st_fogo,fh=h*1.1;ctx.drawImage(f,x+w-fh*f.width/f.height-4,y+h/2-fh*.58,fh*f.width/f.height,fh);
- tx('STAMINA',x+62,y+h/2+11,30);tx('FADIGA',x+w-62,y+h/2+10,26,'right')}
+ // 17/11: raio e fogo FORA da barra (antes ficavam por cima e escondiam as pontas)
+ const r=IMG.st_raio,rh=h*.95,rw=rh*r.width/r.height;ctx.drawImage(r,x-rw+10,y+h/2-rh/2,rw,rh);
+ const f=IMG.st_fogo,fh=h*1.02,fw2=fh*f.width/f.height;ctx.drawImage(f,x+w-8,y+h/2-fh*.58,fw2,fh);
+ tx('STAMINA',x+30,y+h/2+11,30);tx('FADIGA',x+w-30,y+h/2+10,26,'right')}
 function badge(x,y,n){ctx.beginPath();ctx.arc(x,y,17,0,7);ctx.fillStyle='#0a1a2c';ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle='#fff';ctx.stroke();ctx.fillStyle='#fff';ctx.font='italic 800 20px Exo2,system-ui,sans-serif';ctx.textAlign='center';ctx.fillText(n,x,y+7)}
 // botão no estilo novo: amarelo (principal), verde (compartilhar) ou branco; contorno preto, texto escuro
 function btn(label,x,y,w,h,act,primary,size=36,list=btns){list.push({x,y,w,h,act});const hv=hit({x,y,w,h},mx,my);ctx.save();
@@ -1074,8 +1075,9 @@ finish=function(w){_carFinish(w);if(MODO!=='carreira')return;
  if(carTipo!=='livre'&&CORR.riders.length){r.classif=classifMontar(!!w&&!aband,aband);const v=r.classif[0];if(v&&!v.eu&&v.t!=null)r.venc=`${v.nome} (${v.tipo})`}CLASSIF=false;   // vencedor de verdade (a prova termina mesmo se você quebrou)
  r.niveis=ganharXP(r.ganho);CS.moedas+=r.moedas;carSalvar();carRes=r};
 // ---------- navegação ----------
-function toModo(){corridaParar();state='modo';boost=false;speed=0;grade=0;nickEl.blur()}
-function toHub(){corridaParar();state='carreira';boost=false;speed=0;grade=0;carZerar=0;nickEl.blur()}
+function devolverSaindo(){if(typeof LV!=='undefined'&&LV&&typeof devolverItens==='function'){devolverItens();carSalvar()}}   // saiu no meio da prova: itens não usados voltam
+function toModo(){devolverSaindo();corridaParar();state='modo';boost=false;speed=0;grade=0;nickEl.blur()}
+function toHub(){devolverSaindo();corridaParar();state='carreira';boost=false;speed=0;grade=0;carZerar=0;nickEl.blur()}
 const _carToSelect=toSelect;
 toSelect=function(){if(state==='title'){toModo();return}if(MODO==='carreira'){toHub();return}_carToSelect()};
 function escolherModo(m){if(m===0){MODO='crono';_carToSelect()}else{MODO='carreira';if(CS.nome)toHub();else editarNome()}}
@@ -1362,7 +1364,8 @@ banana:tem('banana')?Math.min(I.banana,MOCH.banana):0,gel:tem('gel')?Math.min(I.
   iso:lev.iso?5:0,isoLev:lev.iso,agua7:lev.agua7?7:0,a7Lev:lev.agua7,isoUsou:false,isoT:0,isoResta:0,banana:lev.banana,bLev:lev.banana>0,gLev:lev.gel>0,azul:corr?0:Math.min(1,I.azul||0),azulUsou:false,geis:0};
  gel=lev.gel;LV.livre=livre;LV.eventos=livre||carTipo==='treino';if(livre){climbs=[];rampas=[];gerarSubidas();ciclInicio()}}
 // o que sobrou na mochila volta pro estoque (bananas, géis); gel azul usado sai do estoque
-function devolverItens(){if(!LV)return;CS.inv.gel=(CS.inv.gel||0)+gel;CS.inv.banana=(CS.inv.banana||0)+LV.banana;if(LV.azulUsou)CS.inv.azul=Math.max(0,(CS.inv.azul||0)-1);gel=0;LV.banana=0;LV.azulUsou=false}
+// 17/11 (dono): o que não foi usado nunca se perde — volta também ao REINICIAR ou SAIR no meio; isotônico intacto (5 goles) volta inteiro
+function devolverItens(){if(!LV)return;CS.inv.gel=(CS.inv.gel||0)+gel;CS.inv.banana=(CS.inv.banana||0)+LV.banana;if(LV.isoLev&&LV.iso>=isoCap()){CS.inv.iso=(CS.inv.iso||0)+1;LV.iso=0;LV.isoLev=false}if(LV.azulUsou)CS.inv.azul=Math.max(0,(CS.inv.azul||0)-1);gel=0;LV.banana=0;LV.azulUsou=false}
 // subidas: começam suaves e vão ficando mais longas e íngremes conforme a distância
 // relevo variado (rampas {a,b,g}): subida curta e forte, subida longa, duas elevações seguidas, descida em degraus.
 // Vai ficando mais duro com a distância (f). Cada trecho volta a 0% suavemente nas pontas.
@@ -1451,7 +1454,7 @@ function livreFim(r,add){CS.livres=(CS.livres||0)+1;const rec=CS.recLivre||0,avg
  devolverItens();
  r.encerrou=LV.encerrou;r.itens={...LV.pegos}}
 const _livReset=reset;
-reset=function(){_livReset();LV=null;if(MODO==='carreira'){livreNovo(carTipo==='livre');PERFIL=null}};
+reset=function(){if(LV&&MODO==='carreira'){devolverItens();carSalvar()}_livReset();LV=null;if(MODO==='carreira'){livreNovo(carTipo==='livre');PERFIL=null}};
 const _livUpdate=update;
 update=function(dt){_livUpdate(dt);if(LV&&state==='run')livrePasso(dt)};
 // ---------- desenho ----------

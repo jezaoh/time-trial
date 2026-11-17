@@ -96,8 +96,9 @@ finish=function(w){_carFinish(w);if(MODO!=='carreira')return;
  if(carTipo!=='livre'&&CORR.riders.length){r.classif=classifMontar(!!w&&!aband,aband);const v=r.classif[0];if(v&&!v.eu&&v.t!=null)r.venc=`${v.nome} (${v.tipo})`}CLASSIF=false;   // vencedor de verdade (a prova termina mesmo se você quebrou)
  r.niveis=ganharXP(r.ganho);CS.moedas+=r.moedas;carSalvar();carRes=r};
 // ---------- navegação ----------
-function toModo(){corridaParar();state='modo';boost=false;speed=0;grade=0;nickEl.blur()}
-function toHub(){corridaParar();state='carreira';boost=false;speed=0;grade=0;carZerar=0;nickEl.blur()}
+function devolverSaindo(){if(typeof LV!=='undefined'&&LV&&typeof devolverItens==='function'){devolverItens();carSalvar()}}   // saiu no meio da prova: itens não usados voltam
+function toModo(){devolverSaindo();corridaParar();state='modo';boost=false;speed=0;grade=0;nickEl.blur()}
+function toHub(){devolverSaindo();corridaParar();state='carreira';boost=false;speed=0;grade=0;carZerar=0;nickEl.blur()}
 const _carToSelect=toSelect;
 toSelect=function(){if(state==='title'){toModo();return}if(MODO==='carreira'){toHub();return}_carToSelect()};
 function escolherModo(m){if(m===0){MODO='crono';_carToSelect()}else{MODO='carreira';if(CS.nome)toHub();else editarNome()}}

@@ -257,3 +257,8 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   **PEDALADA ARCADE EM TODO O JOGO** (`pedalada.js`, bloco `PEDK`): a perna não segue mais o dedo; cadência própria pela força
   (60 rpm → 110 no sprint, `(P/FTP − 0,4)/1,4`, suave τ 0,4 s; < 15 W = para). Ritmo 0,4/0,6 ≈ 73 rpm · sprint 110.
   ⚠️ `pedalCrono()` é usada por principal.js — não apagar.
+- **17/11 — ITENS E HUD:** itens do bolso não usados voltam ao estoque também ao REINICIAR (wrapper de `reset` em livre.js) e ao
+  SAIR no meio (`devolverSaindo()` em toHub/toModo); isotônico intacto (5 goles) volta inteiro (`devolverItens`). Torcedor já
+  seguia a regra do dono (espaço na garrafa = +1 gole; cheia = efeito de 1 gole na hora). Barra: raio e fogo FORA da barra
+  (`staminaBar`); bolso menor (`itemHUD` h 104, passo 74). Em discussão (não feito): Rachão como aposta, campeonato 2k,
+  NPCs cansados no Pedal Livre longo, curva de XP mais lenta.

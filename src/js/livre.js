@@ -41,7 +41,8 @@ banana:tem('banana')?Math.min(I.banana,MOCH.banana):0,gel:tem('gel')?Math.min(I.
   iso:lev.iso?5:0,isoLev:lev.iso,agua7:lev.agua7?7:0,a7Lev:lev.agua7,isoUsou:false,isoT:0,isoResta:0,banana:lev.banana,bLev:lev.banana>0,gLev:lev.gel>0,azul:corr?0:Math.min(1,I.azul||0),azulUsou:false,geis:0};
  gel=lev.gel;LV.livre=livre;LV.eventos=livre||carTipo==='treino';if(livre){climbs=[];rampas=[];gerarSubidas();ciclInicio()}}
 // o que sobrou na mochila volta pro estoque (bananas, géis); gel azul usado sai do estoque
-function devolverItens(){if(!LV)return;CS.inv.gel=(CS.inv.gel||0)+gel;CS.inv.banana=(CS.inv.banana||0)+LV.banana;if(LV.azulUsou)CS.inv.azul=Math.max(0,(CS.inv.azul||0)-1);gel=0;LV.banana=0;LV.azulUsou=false}
+// 17/11 (dono): o que não foi usado nunca se perde — volta também ao REINICIAR ou SAIR no meio; isotônico intacto (5 goles) volta inteiro
+function devolverItens(){if(!LV)return;CS.inv.gel=(CS.inv.gel||0)+gel;CS.inv.banana=(CS.inv.banana||0)+LV.banana;if(LV.isoLev&&LV.iso>=isoCap()){CS.inv.iso=(CS.inv.iso||0)+1;LV.iso=0;LV.isoLev=false}if(LV.azulUsou)CS.inv.azul=Math.max(0,(CS.inv.azul||0)-1);gel=0;LV.banana=0;LV.azulUsou=false}
 // subidas: começam suaves e vão ficando mais longas e íngremes conforme a distância
 // relevo variado (rampas {a,b,g}): subida curta e forte, subida longa, duas elevações seguidas, descida em degraus.
 // Vai ficando mais duro com a distância (f). Cada trecho volta a 0% suavemente nas pontas.
@@ -130,7 +131,7 @@ function livreFim(r,add){CS.livres=(CS.livres||0)+1;const rec=CS.recLivre||0,avg
  devolverItens();
  r.encerrou=LV.encerrou;r.itens={...LV.pegos}}
 const _livReset=reset;
-reset=function(){_livReset();LV=null;if(MODO==='carreira'){livreNovo(carTipo==='livre');PERFIL=null}};
+reset=function(){if(LV&&MODO==='carreira'){devolverItens();carSalvar()}_livReset();LV=null;if(MODO==='carreira'){livreNovo(carTipo==='livre');PERFIL=null}};
 const _livUpdate=update;
 update=function(dt){_livUpdate(dt);if(LV&&state==='run')livrePasso(dt)};
 // ---------- desenho ----------

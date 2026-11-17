@@ -167,13 +167,13 @@ function velocimetro(cx,cy,r){const f=IMG.vel_face;if(!f||!f.width)return;ctx.dr
 // itens da fileira de baixo (só os que existem no modo); devolve os retângulos de toque
 function slotsHUD(){const L=[],lv=typeof LV!=='undefined'&&LV;
  if(!lv){L.push('agua','gel');return L}L.push('agua');if(LV.a7Lev)L.push('agua7');if(LV.isoLev)L.push('iso');if(LV.gLev||gel>0)L.push('gel');if(LV.bLev||LV.banana>0)L.push('banana');return L}
-function itemHUD(id,x,yb){const h=124;let n=0,on=true;
+function itemHUD(id,x,yb){const h=104;   // 17/11: bolso menor (era 124)let n=0,on=true;
  if(id==='agua'){const nb=NUT[clamp(Math.round(5-water/AJ.aguaQtd*5),0,5)],s=h/nb[3];ctx.drawImage(IMG.nutr,nb[0],nb[1],nb[2],nb[3],x,yb-h,nb[2]*s,h);n=water}
  else if(id==='agua7'){const hh=h*1.12,nb=NUT[clamp(Math.round(5-LV.agua7/7*5),0,5)],s=hh/nb[3];ctx.globalAlpha=LV.agua7?1:.35;ctx.drawImage(IMG.nutr,nb[0],nb[1],nb[2],nb[3],x,yb-hh,nb[2]*s,hh);n=LV.agua7}
  else if(id==='iso'){const nb=NUT[clamp(Math.round(5-LV.iso/isoCap()*5),0,5)],s=h/nb[3];ctx.globalAlpha=LV.iso?1:.35;ctx.drawImage(IMG.iso,nb[0],nb[1],nb[2],nb[3],x,yb-h,nb[2]*s,h);n=LV.iso}
  else if(id==='gel'){const ng=NUT[6],s=h*.92/ng[3];ctx.globalAlpha=gel?1:.35;ctx.drawImage(IMG.nutr,ng[0],ng[1],ng[2],ng[3],x-2,yb-h*.92,ng[2]*s,h*.92);n=gel}
  else if(id==='banana'){const b=IMG.it_banana,bh=h*.82;ctx.globalAlpha=LV.banana?1:.35;ctx.drawImage(b,x-6,yb-bh,bh*b.width/b.height,bh);n=LV.banana}
- ctx.globalAlpha=1;badge(x+62,yb-h+4,n);return{x:x-8,y:yb-h-10,w:86,h:h+20}}
+ ctx.globalAlpha=1;badge(x+52,yb-h+4,n);return{x:x-8,y:yb-h-10,w:74,h:h+20}}
 const HB_IDS=['water','gel','b_iso','b_banana','b_azul','b_agua7'],HB_DOM={agua:'water',gel:'gel',iso:'b_iso',banana:'b_banana',azul:'b_azul',agua7:'b_agua7'};let HB_CACHE={};
 function botaoDOM(id,r){const e=$(id);if(!e)return;const k=r?`${r.x|0},${r.y|0},${r.w|0},${r.h|0}`:'off';if(HB_CACHE[id]===k)return;HB_CACHE[id]=k;
  if(!r){e.style.display='none';return}e.style.display='block';e.style.left=(r.x/W*100)+'%';e.style.top=(r.y/H*100)+'%';e.style.width=(r.w/W*100)+'%';e.style.height=(r.h/H*100)+'%'}
@@ -201,7 +201,7 @@ function hud(){
  // rampa
  pilula(1160,38,346,108);pilula(1250,154,256,52);tx(`▲ ${Math.round(elevG)} m`,1488,192,30,'right','#fff');tx('ELEV.',1272,190,20,'left','#fff');const gi=grade>1?'up':grade<-1?'down':'flat';ic(gi,1180,52,82);tx(`${grade<0?'−':''}${f1(Math.abs(grade))}%`,1488,118,56,'right',grade>1?'#ffe16c':'#fff');
  // itens (esquerda, embaixo)
- const SL=slotsHUD(),R={},mrc=typeof marTela==='function'&&marTela();SL.forEach((id,i)=>{R[id]=itemHUD(id,mrc?marSlotX(i):22+i*86,820)});   // marchas (marcha.js): itens nas bagzinhas, à direita da coluna das marchas
+ const SL=slotsHUD(),R={},mrc=typeof marTela==='function'&&marTela();SL.forEach((id,i)=>{R[id]=itemHUD(id,mrc?marSlotX(i):22+i*74,820)});   // marchas (marcha.js): itens nas bagzinhas, à direita da coluna das marchas
  // gel azul acima do raio
  const azul=typeof LV!=='undefined'&&LV&&LV.azul>0&&!LV.azulUsou;
  // 16/11: maior (118 → 165) e mais alto, com folga de ~50 px até o raio (que começa em y≈564)
@@ -218,9 +218,10 @@ function staminaBar(x,y,w){const A=IMG.st_aro;if(!A||!A.width)return;const k=w/A
  ctx.save();rr(ix,iy,iw,ih,ih/2);ctx.clip();ctx.drawImage(IMG.st_vermelha,ix,iy,iw,ih);if(gw>0)ctx.drawImage(IMG.st_verde,0,0,IMG.st_verde.width*gw/iw,IMG.st_verde.height,ix,iy,gw,ih);
  if(waterEffect>0&&state==='run'){const fl=ix+gw,a=Math.min(1,waterEffect*2)*(.6+.4*Math.sin(T*14)),g=ctx.createLinearGradient(fl-26,0,fl+26,0);g.addColorStop(0,'#4fc3ff00');g.addColorStop(.5,'#8fe0ff');g.addColorStop(1,'#4fc3ff00');ctx.globalAlpha=a;ctx.fillStyle=g;ctx.fillRect(fl-26,iy,52,ih);ctx.globalAlpha=1}
  ctx.restore();ctx.drawImage(A,x,y,w,h);
- const r=IMG.st_raio,rh=h*1.02;ctx.drawImage(r,x+6,y+h/2-rh/2,rh*r.width/r.height,rh);
- const f=IMG.st_fogo,fh=h*1.1;ctx.drawImage(f,x+w-fh*f.width/f.height-4,y+h/2-fh*.58,fh*f.width/f.height,fh);
- tx('STAMINA',x+62,y+h/2+11,30);tx('FADIGA',x+w-62,y+h/2+10,26,'right')}
+ // 17/11: raio e fogo FORA da barra (antes ficavam por cima e escondiam as pontas)
+ const r=IMG.st_raio,rh=h*.95,rw=rh*r.width/r.height;ctx.drawImage(r,x-rw+10,y+h/2-rh/2,rw,rh);
+ const f=IMG.st_fogo,fh=h*1.02,fw2=fh*f.width/f.height;ctx.drawImage(f,x+w-8,y+h/2-fh*.58,fw2,fh);
+ tx('STAMINA',x+30,y+h/2+11,30);tx('FADIGA',x+w-30,y+h/2+10,26,'right')}
 function badge(x,y,n){ctx.beginPath();ctx.arc(x,y,17,0,7);ctx.fillStyle='#0a1a2c';ctx.fill();ctx.lineWidth=2.5;ctx.strokeStyle='#fff';ctx.stroke();ctx.fillStyle='#fff';ctx.font='italic 800 20px Exo2,system-ui,sans-serif';ctx.textAlign='center';ctx.fillText(n,x,y+7)}
 // botão no estilo novo: amarelo (principal), verde (compartilhar) ou branco; contorno preto, texto escuro
 function btn(label,x,y,w,h,act,primary,size=36,list=btns){list.push({x,y,w,h,act});const hv=hit({x,y,w,h},mx,my);ctx.save();
