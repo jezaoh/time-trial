@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head>
-<!-- Time Trial V2 · versão 16/11/2026 22:43 --><meta charset="utf-8">
+<!-- Time Trial V2 · versão 16/11/2026 22:52 --><meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#06121c"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Time Trial V2</title>
 <style>
@@ -35,7 +35,7 @@ const META={"idle": {"azul": {"cw": 290, "ch": 388, "sx": 2.311418685121107, "sy
 const $=id=>document.getElementById(id),c=$('game'),ctx=c.getContext('2d',{alpha:false}),W=1536,H=864,SS=W/1672,IMG={},nickEl=$('nick');
 const NUT=[[0,2,99,240],[99,2,100,240],[199,2,99,240],[298,2,99,240],[397,2,100,240],[497,2,100,240],[597,28,121,214]];
 // versão: data e hora da montagem (preenchida por tools/montar_arquivo_unico.py; aparece no canto da tela inicial)
-const VERSAO="16/11/2026 22:43";
+const VERSAO="16/11/2026 22:52";
 // fonte do jogo: Exo 2 itálico (900 títulos e números · 800 textos)
 const FT=(w,s)=>`italic ${w} ${s}px Exo2,system-ui,sans-serif`;
 const ICON={clock:0,flag:1,avg:2,speed:3,up:4,flat:5,down:6};
@@ -155,7 +155,9 @@ const MAR={liga:true,modo:'ritmo',
  ritmo:{verde:[65,85],amarela:105,
   W:[[0,0],[40,.4],[65,.7],[85,.9],[105,1.4],[130,2.5],[160,4.6]],   // watts (× FTP) pelo RPM
   fad:[[0,1],[64,1],[65,.9],[85,.9],[86,1],[300,1]],                 // na faixa verde a fadiga é ×0,9 (pedalada perfeita)
-  suave:4},                                                           // os watts seguem o ritmo em ~0,25 s
+  suave:4,                                                            // os watts seguem o ritmo em ~0,25 s
+  segura:.25,embTau:24},   // EMBALO (17/11): segurou > 0,25 s com ritmo = o RPM fica (no máx. o topo do verde) e cai devagar
+                           //   (τ 24 s: do meio do verde até sair dele ~3,5 s). Soltou = segue daí. Gás continua sendo bater rápido.
  marchas:[[34,30],[34,26],[34,23],[34,20],[34,17],[50,21],[50,19],[50,17],[50,15],[50,14],[50,12],[50,11]],   // 1 (leve) … 12 (pesada)
  roda:2.1,inicial:6,                     // m por volta da roda · começa na 7ª (50×19: 90 rpm ≈ 30 km/h)
  volta:.5,                               // quanto do pedivela cada toque gira: .5 = uma perna (90 rpm = 3 toques/s) · 1 = volta completa (1,5/s)
@@ -174,16 +176,21 @@ const MAR={liga:true,modo:'ritmo',
   drift:.12,rpmAlto:8},                  // +0,12 bpm por ponto de fadiga · +8 bpm girando acima de 115 rpm
  wpKJ:20,                                // W' mostrado no HUD: stamina 100% = 20 kJ
  dica:{baixo:72,alto:105,seg:.7}};       // setinha: RPM fora disso por 0,7 s
-let marG=MAR.inicial,marIv=0,marUlt=-1,marT=0,marCad=0,marRpm=0,marFC=MAR.fc.rep,marDica=0,marForaT=0,marPed=0;
+let marEmb=false,marPosEmb=false,marCadE=0,marG=MAR.inicial,marIv=0,marUlt=-1,marT=0,marCad=0,marRpm=0,marFC=MAR.fc.rep,marDica=0,marForaT=0,marPed=0;
 const marOn=()=>MAR.liga&&MODO==='crono';
 const marDev=i=>MAR.marchas[i][0]/MAR.marchas[i][1]*MAR.roda;
 function marTroca(d){if(!marOn()||MAR.modo!=='marcha'||state!=='run')return;marG=clamp(marG+d,0,MAR.marchas.length-1)}
-function marZera(){marG=MAR.inicial;marIv=0;marUlt=-1;marT=0;marCad=0;marRpm=0;marFC=MAR.fc.rep+25;marDica=0;marForaT=0;marPed=0}
+function marZera(){marEmb=false;marPosEmb=false;marCadE=0;marG=MAR.inicial;marIv=0;marUlt=-1;marT=0;marCad=0;marRpm=0;marFC=MAR.fc.rep+25;marDica=0;marForaT=0;marPed=0}
 // potência pedida pela cadência × marcha (antes do teto)
-function marPasso(dt,toque){marT+=dt;
- if(toque){if(marUlt>=0){const iv=clamp(marT-marUlt,MAR.ivMin,MAR.ivMax);marIv=marIv?marIv+(iv-marIv)*MAR.ivSuave:iv}else marIv=60*MAR.volta/MAR.rpm1;marUlt=marT}
+function marPasso(dt,toque,segura){marT+=dt;
+ if(toque&&marPosEmb){marPosEmb=false;marUlt=marT}   // 1º toque depois do embalo: só continua o ritmo (não conta como pedalada rápida)
+ else if(toque){if(marUlt>=0){const iv=clamp(marT-marUlt,MAR.ivMin,MAR.ivMax);marIv=marIv?marIv+(iv-marIv)*MAR.ivSuave:iv}else marIv=60*MAR.volta/MAR.rpm1;marUlt=marT}
  const desde=marUlt<0?1e9:marT-marUlt;marCad=desde<MAR.ivMax?60*MAR.volta/Math.max(marIv,desde):0;
- if(MAR.modo==='ritmo')return marPed=FTP*curva(MAR.ritmo.W,marCad);   // ritmo: os watts saem só do RPM
+ if(MAR.modo==='ritmo'){const Rt=MAR.ritmo;   // ritmo: os watts saem só do RPM
+  if(segura&&(marEmb||marCad>0)){if(!marEmb){marEmb=true;marCadE=Math.min(marCad,Rt.verde[1])}else marCadE*=Math.exp(-dt/Rt.embTau);
+   if(marCadE<20)marCadE=0;marCad=marCadE;if(marCad>0){marIv=60*MAR.volta/marCad;marUlt=marT}}   // ao soltar, o ritmo continua daqui
+  else if(marEmb){marEmb=false;marPosEmb=true}
+  return marPed=FTP*curva(Rt.W,marCad)}
  const v=speed/3.6,dev=marDev(marG),vT=marCad/60*dev;
  const acel=Math.min(FTP*MAR.acelMax,(AJ.peso+AJ.bike)*(vT-v)/MAR.alcance*Math.max(v,AJ.vmin)/AJ.eta);
  marPed=marCad>0?Math.max(0,vT*resist(vT)/AJ.eta+acel):0;
@@ -235,7 +242,7 @@ function update(dt){
  const toque=boost&&!boostAnt&&(mar||stamina>.5);boostAnt=boost;   // cada novo toque = uma pedalada
  if(active)holdT+=dt;else holdT=0;
  const sprint=!emp&&active&&holdT>=AJ.tapSegura;
- if(mar){power+=(marPasso(dt,toque)-power)*Math.min(1,dt*(MAR.modo==='ritmo'?MAR.ritmo.suave:MAR.suave))}
+ if(mar){power+=(marPasso(dt,toque,boost&&holdT>=MAR.ritmo.segura)-power)*Math.min(1,dt*(MAR.modo==='ritmo'?MAR.ritmo.suave:MAR.suave))}
  else if(emp){pTap=0;const livre=Math.min(base,FTP*AJ.empLivre);   // sem apertar: sem pedalar
   if(active)power=Math.max(power,livre)+AJ.empSobe*(1+AJ.empAcel*Math.max(0,holdT-AJ.empSegura))*dt;   // mesmo ritmo = mesmos watts no plano e na subida (na subida a física é que pesa)
   else power+=(livre-power)*Math.min(1,dt*AJ.empSolta)}
@@ -2939,7 +2946,7 @@ function marHud(){const H0=MARH,[co,pi]=MAR.marchas[marG],rit=MAR.modo==='ritmo'
  if(marDica&&state==='run')tx(marDica>0?'TROQUE ▲':'TROQUE ▼',H0.sobe.x+H0.sobe.w/2,H0.sobe.y-14,22,'center','#ffd83a')}
  // RPM: número + régua com a faixa verde
  const R=H0.rpm,rv=Math.round(marRpm),G=rit?MAR.ritmo.verde:MAR.faixa,A=MAR.ritmo.amarela,dentro=rv>=G[0]&&rv<=G[1];
- const zn=!rv?['','#fff']:rv<G[0]?['FRACO','#9fb3c8']:dentro?['PERFEITO','#35f21c']:rit&&rv<=A?['ATAQUE','#ffd83a']:rit?['SPRINT','#ff3b2a']:['','#ffd83a'];
+ const zn=!rv?['','#fff']:rv<G[0]?['FRACO','#9fb3c8']:dentro?[marEmb?'EMBALO':'PERFEITO','#35f21c']:rit&&rv<=A?['ATAQUE','#ffd83a']:rit?['SPRINT','#ff3b2a']:['','#ffd83a'];
  pilula(R.x,R.y,R.w,R.h);
  if(dentro&&state==='run'){rr(R.x-3,R.y-3,R.w+6,R.h+6,(R.h+6)/2);ctx.lineWidth=5;ctx.strokeStyle=`rgba(53,242,28,${.55+.45*Math.sin(T*10)})`;ctx.stroke()}
  tx('RPM',R.x+24,R.y+34,22,'left','#fff');if(rit&&zn[0])tx(zn[0],R.x+24,R.y+58,20,'left',zn[1]);

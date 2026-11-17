@@ -209,3 +209,8 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   fadiga ×0,9, quadro do RPM brilha) · amarela até 105 (ATAQUE, até 140%) · vermelha acima (SPRINT). Gás = bater mais rápido.
   Sem coluna de marchas; itens nas bagzinhas no canto esquerdo; FC e W' ficam. Robô 50 km: 65 rpm 174 W fadiga 40 · 75 rpm
   199 W fadiga 83 · 80 rpm 211 W quebra sem itens (com itens chega) · 85 rpm 225 W com itens fadiga 78.
+- **17/11 (noite) — EMBALO (opção 1 do dono):** no ritmo, segurar o raio > 0,25 s = o RPM fica (no máx. o topo do verde, 85)
+  e cai devagar (`MAR.ritmo.embTau` 24 s: do meio do verde até sair ~3,5 s); o quadro mostra EMBALO. Soltou, o ritmo segue
+  dali; o 1º toque depois do embalo só retoma (não conta como pedalada rápida, `marPosEmb`). Gás = bater rápido (segurar
+  nunca passa do verde). Robô: segurando ~60% do tempo, ~1 toque/s (antes ~2,5/s), mesmo equilíbrio (≈187 W chega sem itens,
+  ≈211 W só com itens).

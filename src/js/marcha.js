@@ -34,7 +34,7 @@ function marHud(){const H0=MARH,[co,pi]=MAR.marchas[marG],rit=MAR.modo==='ritmo'
  if(marDica&&state==='run')tx(marDica>0?'TROQUE ▲':'TROQUE ▼',H0.sobe.x+H0.sobe.w/2,H0.sobe.y-14,22,'center','#ffd83a')}
  // RPM: número + régua com a faixa verde
  const R=H0.rpm,rv=Math.round(marRpm),G=rit?MAR.ritmo.verde:MAR.faixa,A=MAR.ritmo.amarela,dentro=rv>=G[0]&&rv<=G[1];
- const zn=!rv?['','#fff']:rv<G[0]?['FRACO','#9fb3c8']:dentro?['PERFEITO','#35f21c']:rit&&rv<=A?['ATAQUE','#ffd83a']:rit?['SPRINT','#ff3b2a']:['','#ffd83a'];
+ const zn=!rv?['','#fff']:rv<G[0]?['FRACO','#9fb3c8']:dentro?[marEmb?'EMBALO':'PERFEITO','#35f21c']:rit&&rv<=A?['ATAQUE','#ffd83a']:rit?['SPRINT','#ff3b2a']:['','#ffd83a'];
  pilula(R.x,R.y,R.w,R.h);
  if(dentro&&state==='run'){rr(R.x-3,R.y-3,R.w+6,R.h+6,(R.h+6)/2);ctx.lineWidth=5;ctx.strokeStyle=`rgba(53,242,28,${.55+.45*Math.sin(T*10)})`;ctx.stroke()}
  tx('RPM',R.x+24,R.y+34,22,'left','#fff');if(rit&&zn[0])tx(zn[0],R.x+24,R.y+58,20,'left',zn[1]);
