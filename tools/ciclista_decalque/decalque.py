@@ -50,9 +50,11 @@ SEM = {   # polilinhas de semente
             [(890, 385), (872, 432)], [(918, 362), (925, 372)], [(930, 400), (935, 410)], [(505, 630), (522, 642)],
             [(722, 510), (736, 524)], [(500, 600), (507, 610)], [(545, 556), (630, 562)], [(535, 645), (630, 650)]],
  'coroa': [arco(J['mov'], 30, 0, 360), arco(J['mov'], 14, 0, 360)],
- 'canela': [[(728, 400), (690, 450)], [(675, 460), (668, 466)]],
+ 'canela': [[(735, 395), (712, 425), (690, 450)], [(726, 388), (699, 419), (678, 450)], [(752, 398), (727, 430), (700, 460)],
+            [(675, 460), (668, 466)], [(745, 385), (735, 410)]],
  'sapatilha': [[(645, 500), (680, 545)], [(632, 480), (640, 500)]],
- 'coxa': [[(640, 335), (725, 372)], [(700, 350), (745, 375)], [(620, 345), (680, 380)]],
+ 'coxa': [[(640, 335), (725, 372)], [(700, 350), (745, 375)], [(620, 345), (680, 380)], [(650, 352), (690, 372)],
+          [(690, 340), (700, 378)], [(745, 365), (758, 378)]],
  'tronco': [[(600, 260), (740, 200)], [(570, 320), (600, 290)], [(650, 300), (700, 260)], [(560, 340), (585, 345)]],
  'cabeca': [[(790, 120), (830, 110)], [(800, 160), (815, 200)], [(820, 150), (840, 150)], [(785, 205), (800, 215)]],
  'braco': [[(760, 250), (785, 300)], [(745, 245), (775, 255)]],
@@ -133,12 +135,32 @@ for r, e, rr in (('roda_t', 'eixoT', RODA + 3), ('roda_d', 'eixoD', RODA + 3), (
     fora = ((xx - J[e][0]) ** 2 + (yy - J[e][1]) ** 2) > rr ** 2
     parte[(parte == Z[r]) & fora] = Z['quadro']
 
+# restos de perna dentro do quadro (pele, ou qualquer coisa na zona da perna fora dos tubos) -> perna de trás (não desenhada)
+def dist_seg(a, b):
+    a = np.array(a, float); b = np.array(b, float); d = b - a
+    t = np.clip(((xx - a[0]) * d[0] + (yy - a[1]) * d[1]) / (d @ d), 0, 1)
+    return np.hypot(xx - (a[0] + t * d[0]), yy - (a[1] + t * d[1]))
+pele = (H >= 4) & (H <= 22) & (S > 60) & (V > 90)
+tubos = (dist_seg((612, 436), (800, 422)) < 13) | (dist_seg((845, 450), (680, 610)) < 22) | \
+        ((xx > 703) & (xx < 750) & (yy > 495) & (yy < 548))
+zona = (xx > 630) & (xx < 765) & (yy > 380) & (yy < 575)
+resto = (parte == Z['quadro']) & (pele | (zona & ~tubos))
+na_canela = dist_seg(J['joelho'], J['tornozelo']) < 22
+parte[resto & na_canela] = Z['canela']
+parte[resto & ~na_canela] = Z['perna_tras']
+
+# peças da perna da frente só perto do osso (contornos de tubo que vazaram voltam para o quadro)
+for nome, a_, b_, r_ in (('canela', 'joelho', 'tornozelo', 27), ('coxa', 'quadril', 'joelho', 56)):
+    longe = (parte == Z[nome]) & (dist_seg(J[a_], J[b_]) > r_)
+    parte[longe & tubos] = Z['quadro']; parte[longe & ~tubos] = Z['perna_tras']
+
 # pneu: o anel do pneu que ficou com o quadro (atrás da coroa/sapatilha) volta para a roda
 for r, e in (('roda_t', 'eixoT'), ('roda_d', 'eixoD')):
     dd2 = np.sqrt((xx - J[e][0]) ** 2 + (yy - J[e][1]) ** 2)
     parte[(parte == Z['quadro']) & (dd2 > RODA - 15) & (dd2 < RODA + 4)] = Z[r]
     # miolo da roda: fica só o escuro (riscos de giro), some o chuvisco claro
     parte[(parte == Z[r]) & (dd2 > 45) & (dd2 < RODA - 16) & (V > 85)] = -1
+    parte[(parte == Z[r]) & (dd2 > 45) & (V > 110)] = -1
 
 # ---------------- paleta ----------------
 lab3 = cv2.cvtColor(im, cv2.COLOR_BGR2LAB).reshape(-1, 3).astype(np.float32)
@@ -208,6 +230,13 @@ for p in PARTES:
 
 # divide camisa/bermuda no tronco por clip (feito no JS com a linha da cintura)
 dados['cintura'] = [(540, 272), (700, 310)]
+def cor_med(m):
+    bgr = np.median(im[m], 0); return '#%02x%02x%02x' % tuple(int(v) for v in bgr[::-1])
+mq = parte == Z['quadro']
+dados['cores'] = {
+ 'quadro': cor_med(mq & (V > 200) & (S < 40)), 'quadroS': cor_med(mq & (V > 120) & (V < 190) & (S < 50)),
+ 'pneu': cor_med((parte == Z['roda_t']) & (V > 45) & (V < 85)), 'coroa': cor_med((parte == Z['coroa']) & (V > 30) & (V < 70)),
+}
 open(SAIDA, 'w').write('// gerado por tools/ciclista_decalque/decalque.py — não editar à mão\nconst DECAL=' +
                        json.dumps(dados, separators=(',', ':')) + ';\n')
 print('partes:', {p: (len(v['cam']), int((parte == Z[p]).sum())) for p, v in dados['partes'].items()})
