@@ -267,6 +267,7 @@ if BIKE:
     ys0, xs0 = np.nonzero(conhec); tab = np.full(lbl.max() + 1, -1, np.int32); tab[lbl[ys0, xs0]] = parte[ys0, xs0]
     novo = np.where(ciclista, tab[lbl], -1)
     parte = novo.astype(parte.dtype)
+    parte[(parte == Z['tronco']) & (yy > 338) & (xx < 612)] = -1   # contorno do bumbum por cima do selim sai
     # peças da bike (na imagem da bike): coroa e pedivela giram, pedal acompanha o pé, o resto fica parado
     dm = np.hypot(xx - J['mov'][0], yy - J['mov'][1])
     EIXO_PED = (710.0, 665.0)                     # ponta do pedivela na arte da bike (medido)
@@ -413,6 +414,27 @@ for p, mp, FONTE in ITENS:
 
 # divide camisa/bermuda no tronco por clip (feito no JS com a linha da cintura)
 dados['cintura'] = [(540, 272), (700, 310)]
+def perfil(nomes, a_, b_, t0, t1, n=26):
+    """meia-largura da silhueta dos dois lados do osso a->b (lado + = normal à esquerda de a->b), alisada."""
+    m = np.zeros(parte.shape, np.uint8)
+    for q in nomes: m |= MASCARA.get(q, parte == Z[q]).astype(np.uint8)
+    m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (19, 19)))
+    a = np.array(J[a_], float); b = np.array(J[b_], float); d = b - a; nn = np.array([-d[1], d[0]]) / np.linalg.norm(d)
+    ts = np.linspace(t0, t1, n); W = []
+    for t in ts:
+        c = a + d * t; w2 = []
+        for sg in (1, -1):
+            k = 0
+            while k < 70 and m[int(round(c[1] + sg * nn[1] * k)), int(round(c[0] + sg * nn[0] * k))]: k += 1
+            w2.append(k)
+        W.append(w2)
+    W = np.array(W, float)
+    from scipy.ndimage import median_filter, gaussian_filter1d
+    W = gaussian_filter1d(median_filter(W, size=(5, 1), mode='nearest'), 1.2, axis=0, mode='nearest')
+    return {'t': [round(float(x), 3) for x in ts], 'mais': [round(float(x), 1) for x in W[:, 0]], 'menos': [round(float(x), 1) for x in W[:, 1]]}
+dados['perfil'] = {'coxa': perfil(['coxa'], 'quadril', 'joelho', .1, 1.0), 'canela': perfil(['canela'], 'joelho', 'tornozelo', 0., 1.0),
+                   'braco': perfil(['braco'], 'ombro', 'cotovelo', .25, 1.0), 'antebraco': perfil(['antebraco'], 'cotovelo', 'punho', 0., .95)}
+for k_, v_ in dados['perfil'].items(): print('perfil', k_, v_['mais'][::5], v_['menos'][::5])
 if BIKE: dados['bike'] = dados_bike
 # pneus: elipses ajustadas nas bordas externa e interna de cada pneu (a arte não é um círculo perfeito: raio 125-131).
 # O pneu dianteiro não é concêntrico com o cubo na arte (~7 px). O JS desenha as faixas interpolando entre as duas elipses.

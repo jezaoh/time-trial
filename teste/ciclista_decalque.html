@@ -93,18 +93,86 @@ const BAL={desce:1.4,gira:.007};
 function corpo(th){return{dy:BAL.desce*(Math.cos(2*th)-Math.cos(2*TH0)),a:BAL.gira*(Math.sin(2*th+.5)-Math.sin(2*TH0+.5))}}
 function corpoP(B,p){return add(add(rot(sub(p,J.quadril),B.a),J.quadril),[0,B.dy])}
 function corpoT(c,B){c.translate(0,B.dy);rotT(c,J.quadril,J.quadril,B.a)}
+// ---------- perna (biomecânica, não decalque) ----------
+// Bike fit: com o pé no ponto morto inferior o joelho fica com ~30° de flexão (ângulo interno ~150°); no alto ~65-70°.
+// As pernas da arte são curtas para a bike (hip→tornozelo 269 px; um adulto nessa bike pede ~300): a canela estica
+// 17% e a coxa 6% (proporção humana canela ≈ 0,9 coxa) e o pedivela fica com 62 px (≈ 170 mm para uma roda de 700c).
+// O pedal fica sob a PLANTA do pé (não na ponta). Pé (ângulo da sola, ponta para baixo): ~5° às 3h (fase de força,
+// calcanhar baixo), ~25° às 9h (subindo), ~15° no alto e embaixo. A arte tem a sola a ~39° no alto do giro.
+const PERNA={coxa:1.06,canela:1.17,piv:62,ball:[668,551],solaArte:39};
+const LC=L.coxa*PERNA.coxa,LS=L.canela*PERNA.canela;
+function anguloPe(th){const t=th;return(15-10*Math.cos(t))*Math.PI/180}       // t: 0 = pedal à frente (3h), π/2 = embaixo
 function pernaPose(th,hip){hip=hip||J.quadril;
- const ped=add(J.mov,[Math.cos(th)*PIV,Math.sin(th)*PIV]);
- const dphi=-.32*(Math.cos(th)-Math.cos(TH0));                         // tornozelo como no vídeo: na frente o calcanhar desce, atrás a ponta desce (calcanhar sobe, longe da roda)
- const tz=add(ped,rot(sub(J.tornozelo,J.pedal),dphi));
- const jo=ik(hip,tz,L.coxa,L.canela,LADO_JOELHO);
+ const ped=add(J.mov,[Math.cos(th)*PERNA.piv,Math.sin(th)*PERNA.piv]);      // eixo do pedal = planta do pé
+ const dphi=anguloPe(th)-PERNA.solaArte*Math.PI/180;                         // giro do pé em relação à arte
+ const tz=add(ped,rot(sub(J.tornozelo,PERNA.ball),dphi));
+ const jo=ik(hip,tz,LC,LS,LADO_JOELHO);
  return{ped,dphi,tz,jo};
+}
+// osso a0→b0 da arte vai para a→b: gira e ESTICA só ao longo do osso (a largura da perna não muda)
+function segS(c,a0,b0,a,b){const r0=ang(sub(b0,a0));c.translate(a[0],a[1]);c.rotate(ang(sub(b,a)));c.scale(len(sub(b,a))/len(sub(b0,a0)),1);c.rotate(-r0);c.translate(-a0[0],-a0[1])}
+// ---------- "carne por baixo": formas lisas da anatomia, em cor base e com contorno, desenhadas ANTES do decalque.
+// Ficam escondidas sob o desenho; só aparecem onde a pose abre um buraco que a referência não mostra (atrás do joelho,
+// embaixo da bermuda no selim, cintura, ombro, cotovelo). Larguras medidas na referência (meia-largura, px).
+const CB=(()=>{const lum=c=>hx(c).reduce((a,b)=>a+b,0),pk=(n,pap)=>{const ls=(D.partes[n]||{cam:[]}).cam.filter(x=>x.p===pap).sort((a,b)=>lum(b.c)-lum(a.c));return ls.length?(pap==='pele'?ls[Math.floor(ls.length/2)]:ls[0]).c:'#888'};   // cor base = tom claro (pele: tom do meio)
+ return{pele:pk('canela','pele'),bermuda:pk('coxa','bermuda'),camisa:pk('tronco','camisa'),meia:pk('canela','meia'),linha:'#17171b'}})();
+const BARRA=.68,MANGA=.42;                         // barra da bermuda (coxa) e da manga (braço), fração do osso
+function capsulas(c,pts,rs){for(let i=0;i<pts.length;i++){c.beginPath();c.arc(pts[i][0],pts[i][1],Math.max(.1,rs[i]),0,7);c.fill()}
+ for(let i=0;i<pts.length-1;i++){const p=pts[i],q=pts[i+1],u=sub(q,p),Lu=len(u)||1,n=[-u[1]/Lu,u[0]/Lu];
+  c.beginPath();c.moveTo(p[0]+n[0]*rs[i],p[1]+n[1]*rs[i]);c.lineTo(q[0]+n[0]*rs[i+1],q[1]+n[1]*rs[i+1]);c.lineTo(q[0]-n[0]*rs[i+1],q[1]-n[1]*rs[i+1]);c.lineTo(p[0]-n[0]*rs[i],p[1]-n[1]*rs[i]);c.closePath();c.fill()}}
+const lerp2=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+function carneBase(c,grupos,kit,escuro){   // grupos: [[pontos, raios, papel]] — contorno de todos juntos, depois as cores
+ c.fillStyle=cor(CB.linha,null,kit,escuro);for(const [p,r] of grupos)capsulas(c,p,r.map(x=>x+3.2));
+ for(const [p,r,pap] of grupos){c.fillStyle=cor(CB[pap],pap,kit,escuro);capsulas(c,p,r)}}
+// ---------- SILHUETA LISA DOS MEMBROS ----------
+// Coxa + joelho + canela (e braço + cotovelo + antebraço) viram UMA forma contínua, com a largura medida na arte
+// ponto a ponto (D.perfil, alisada). A forma é preenchida com as cores base, o decalque é desenhado DENTRO dela (clip)
+// e o contorno é UM traço liso por fora. Não existe emenda: em qualquer ângulo não abre buraco nem sobra linha.
+const PF=D.perfil;
+function wAt(pf,lado,t){const T=pf.t,W=pf[lado];if(t<=T[0])return W[0];if(t>=T[T.length-1])return W[W.length-1];
+ for(let i=1;i<T.length;i++)if(t<=T[i]){const f=(t-T[i-1])/(T[i]-T[i-1]);return W[i-1]+(W[i]-W[i-1])*f}}
+function lado(A,B,pf,ld,t0,t1,n){const d=sub(B,A),L_=len(d),nn=[-d[1]/L_,d[0]/L_],sg=ld==='mais'?1:-1,o=[];
+ for(let i=0;i<=n;i++){const t=t0+(t1-t0)*i/n,w=wAt(pf,ld,Math.min(Math.max(t,pf.t[0]),1))*sg;o.push([A[0]+d[0]*t+nn[0]*w,A[1]+d[1]*t+nn[1]*w])}return o}
+function silMembro(A,B,C,pa,pb,ext){
+ // frente: lado 'menos' da 1ª peça e da 2ª; trás: lado 'mais' das duas (volta)
+ const f1=lado(A,B,pa,'menos',0,1,16),f2=lado(B,C,pb,'menos',0,1,14),t2=lado(B,C,pb,'mais',1,0,14),t1=lado(A,B,pa,'mais',1,0,16);
+ // ponta de cima redonda (quadril/ombro): meia-volta por trás do osso, entra no tronco sem quina
+ const ca=t1[t1.length-1],cb=f1[0],cm=lerp2(ca,cb,.5),rc=len(sub(ca,cb))/2,back=ang(sub(A,B));
+ let a0=ang(sub(ca,cm)),a1c=ang(sub(cb,cm)),dd=a1c-a0;while(dd>Math.PI)dd-=2*Math.PI;while(dd<-Math.PI)dd+=2*Math.PI;
+ const mid=a0+dd/2;if(Math.cos(mid-back)<0)dd=dd>0?dd-2*Math.PI:dd+2*Math.PI;     // passa pelo lado de trás
+ const cap=[];for(let i=1;i<10;i++){const a=a0+dd*i/10;cap.push([cm[0]+Math.cos(a)*rc*(ext?1:.5),cm[1]+Math.sin(a)*rc*(ext?1:.5)])}
+ // arco da frente da junta (por fora), do fim de f1 ao começo de f2
+ const a1=ang(sub(f1[f1.length-1],B)),a2=ang(sub(f2[0],B)),r1=len(sub(f1[f1.length-1],B)),r2=len(sub(f2[0],B));
+ let da=a2-a1;while(da>Math.PI)da-=2*Math.PI;while(da<-Math.PI)da+=2*Math.PI;
+ const arco=[];for(let i=1;i<8;i++){const f=i/8,a=a1+da*f,r=r1+(r2-r1)*f;arco.push([B[0]+Math.cos(a)*r,B[1]+Math.sin(a)*r])}
+ // dobra de trás: se as linhas de trás se cruzam, corta no cruzamento
+ const tr=t2.concat(t1);
+ const pts=f1.concat(arco,f2,tr,cap);
+ const fill=new Path2D();fill.moveTo(pts[0][0],pts[0][1]);for(const q of pts.slice(1))fill.lineTo(q[0],q[1]);fill.closePath();
+ // contorno: tudo menos a ponta de cima (quadril/ombro, que entra no tronco)
+ const borda=new Path2D(),ab=pts.slice(2,pts.length-cap.length-2);borda.moveTo(ab[0][0],ab[0][1]);for(const q of ab.slice(1))borda.lineTo(q[0],q[1]);
+ return{fill,borda};
+}
+// faixa (quad grande) perpendicular ao osso A->B entre t0 e t1, para pintar bermuda/manga/meia dentro da silhueta
+function faixa(A,B,t0,t1){const d=sub(B,A),n=[-d[1]*3,d[0]*3],p0=add(A,[d[0]*t0,d[1]*t0]),p1=add(A,[d[0]*t1,d[1]*t1]),P=new Path2D();
+ P.moveTo(p0[0]+n[0],p0[1]+n[1]);P.lineTo(p1[0]+n[0],p1[1]+n[1]);P.lineTo(p1[0]-n[0],p1[1]-n[1]);P.lineTo(p0[0]-n[0],p0[1]-n[1]);P.closePath();return P}
+const CONTORNO=3.6;
+function membro(c,S,cores,kit,escuro,desenhaDecal){
+ c.fillStyle=cor(CB.pele,'pele',kit,escuro);c.fill(S.fill);
+ c.save();c.clip(S.fill);
+ for(const [P,pap] of cores){c.fillStyle=cor(CB[pap],pap,kit,escuro);c.fill(P)}
+ desenhaDecal();
+ c.restore();
+ c.lineWidth=CONTORNO;c.lineJoin='round';c.lineCap='round';c.strokeStyle=cor(CB.linha,null,kit,escuro);c.stroke(S.borda);
 }
 function perna(c,th,kit,escuro,hip){
  hip=hip||J.quadril;const P=pernaPose(th,hip);
- c.save();segT(c,J.joelho,J.tornozelo,P.jo,P.tz);parte(c,'canela',kit,escuro);c.restore();
- c.save();rotT(c,J.pedal,P.ped,P.dphi);parte(c,'sapatilha',kit,escuro);c.restore();
- c.save();segT(c,J.quadril,J.joelho,hip,P.jo);parte(c,'coxa',kit,escuro);c.restore();
+ const S=silMembro(hip,P.jo,P.tz,PF.coxa,PF.canela,.35);
+ membro(c,S,[[faixa(hip,P.jo,-1,BARRA),'bermuda'],[faixa(P.jo,P.tz,.78,2),'meia']],kit,escuro,()=>{
+  c.save();segS(c,J.joelho,J.tornozelo,P.jo,P.tz);parte(c,'canela',kit,escuro);c.restore();
+  c.save();segS(c,J.quadril,J.joelho,hip,P.jo);parte(c,'coxa',kit,escuro);c.restore();
+ });
+ c.save();rotT(c,PERNA.ball,P.ped,P.dphi);parte(c,'sapatilha',kit,escuro);c.restore();
 }
 // ---------- peças que a referência não mostra (escondidas pelas pernas): desenhadas em código, atrás do decalque ----------
 const CQ=D.cores;
@@ -144,13 +212,13 @@ function coroaFundo(c){c.fillStyle='#141416';c.beginPath();c.arc(J.mov[0],J.mov[
 const BK=D.bike,ANG_PED=BK.angPed,LEN_PED=len(sub(BK.eixoPed,J.mov));
 // o pé gira na ponta da sapatilha (com as pernas da arte é o único ponto que alcança o pedal embaixo); o pedal fica
 // sob a planta do pé (BALL) e o pedivela liga a coroa até ele (ângulo e comprimento por quadro: ±5%, invisível).
-const BALL=[668,551],SOLA=.73;
-function pedPonto(th){const P=pernaPose(th);return{pp:add(P.ped,rot(sub(BALL,J.pedal),P.dphi)),dphi:P.dphi}}
+const SOLA=.73;
+function pedPonto(th){const P=pernaPose(th);return{pp:P.ped,dphi:P.dphi}}
 function pedivelaArte(c,th,kit,escuro){const {pp}=pedPonto(th),v=sub(pp,J.mov);
  c.save();c.translate(J.mov[0],J.mov[1]);c.rotate(ang(v));c.scale(len(v)/LEN_PED,1);c.rotate(-ANG_PED);c.translate(-J.mov[0],-J.mov[1]);parte(c,'pedivela',kit,escuro);c.restore()}
 function pedalArte(c,th,kit,escuro){const {pp,dphi}=pedPonto(th);
  c.save();c.translate(pp[0],pp[1]);c.rotate(dphi+SOLA);c.translate(-BK.eixoPed[0],-BK.eixoPed[1]);parte(c,'pedal',kit,escuro);c.restore()}
-function angCoroa(th){return ang(sub(pedPonto(th).pp,J.mov))-ANG_PED}
+function angCoroa(th){return th-ANG_PED}
 function cicDecal(c,E){
  const kit=E.kit,th=E.th,B=corpo(th),hip=corpoP(B,J.quadril),omb=corpoP(B,J.ombro);
  // lado de trás: do outro lado da bike, atrás de tudo (inclusive das rodas)
@@ -160,10 +228,12 @@ function cicDecal(c,E){
  parte(c,'rodas',kit);parte(c,'quadro',kit);
  c.save();rotT(c,J.mov,J.mov,angCoroa(th));parte(c,'coroa',kit);c.restore();
  pedivelaArte(c,th,kit,false);pedalArte(c,th,kit,false);
- c.save();corpoT(c,B);parte(c,'tronco',kit);c.restore();
+ c.save();corpoT(c,B);carneBase(c,[[[[578,322],[604,318]],[30,30],'bermuda']],kit);parte(c,'tronco',kit);c.restore();   // assento/quadril por baixo
  perna(c,th,kit,false,hip);
  c.save();corpoT(c,B);parte(c,'cabeca',kit);c.restore();
  const co=ik(omb,J.punho,L.braco,L.ante,LADO_COTOV);
+ // braço: a arte tem os DOIS braços juntos nesta região (o de longe aparece atrás) -> fica o decalque, sem silhueta lisa;
+ // o braço quase não gira (só acompanha o balanço do tronco)
  c.save();segT(c,J.cotovelo,J.punho,co,J.punho);parte(c,'antebraco',kit);c.restore();
  c.save();segT(c,J.ombro,J.cotovelo,omb,co);parte(c,'braco',kit);c.restore();
  parte(c,'luva',kit);
