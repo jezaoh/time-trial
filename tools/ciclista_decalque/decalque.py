@@ -247,7 +247,7 @@ def papel(p, rgb, x, y):
 # A bike vem inteira da imagem dela (nada inventado). O ciclista = onde a referência difere da bike.
 BIKE = REF.replace('.png', '_ref_bike.png')
 BIKE = BIKE if os.path.exists(BIKE) else None
-BPARTES = ['quadro', 'coroa', 'pedivela', 'pedal', 'rodas']
+BPARTES = ['quadro', 'coroa', 'pedivela', 'pedal', 'rodas', 'cubo_t', 'cubo_d']
 bparte = None
 if BIKE:
     bk = cv2.imread(BIKE, cv2.IMREAD_UNCHANGED)
@@ -259,6 +259,12 @@ if BIKE:
     ciclista = cv2.morphologyEx(ciclista.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)) > 0
     n_, lb_, st_, _ = cv2.connectedComponentsWithStats(ciclista.astype(np.uint8), 8)
     ciclista = np.isin(lb_, [i for i in range(1, n_) if st_[i, cv2.CC_STAT_AREA] > 150])
+    # buracos: onde o ciclista tem a MESMA cor da bike atrás (meia branca x quadro branco, luva preta x fita preta) a
+    # diferença não acha o ciclista -> volta tudo que o watershed rotulou como ciclista e está cercado/perto dele
+    RIDER0 = [Z[q] for q in PARTES if q not in ('roda_t', 'roda_d', 'quadro', 'coroa')]
+    perto_c = cv2.morphologyEx(ciclista.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))) > 0
+    ciclista |= np.isin(parte, RIDER0) & perto_c & (ra > 100)
+    ciclista |= (parte == Z['luva']) & (ra > 100)
     # rótulos do ciclista: só dentro da silhueta; pixel do ciclista rotulado como bike -> peça do ciclista mais próxima
     RIDER = [Z[q] for q in PARTES if q not in ('roda_t', 'roda_d', 'quadro', 'coroa')]
     eh_r = np.isin(parte, RIDER)
@@ -267,7 +273,10 @@ if BIKE:
     ys0, xs0 = np.nonzero(conhec); tab = np.full(lbl.max() + 1, -1, np.int32); tab[lbl[ys0, xs0]] = parte[ys0, xs0]
     novo = np.where(ciclista, tab[lbl], -1)
     parte = novo.astype(parte.dtype)
-    parte[(parte == Z['tronco']) & (yy > 338) & (xx < 612)] = -1   # contorno do bumbum por cima do selim sai
+    parte[np.isin(parte, [Z['tronco'], Z['coxa']]) & (yy > 338) & (xx < 612)] = -1   # contorno do bumbum por cima do selim sai
+    # o bumbum é só do tronco: a coxa começa no quadril (o pedaço de trás dela girava junto e riscava o bumbum)
+    atras = ((xx - J['quadril'][0]) * (J['joelho'][0] - J['quadril'][0]) + (yy - J['quadril'][1]) * (J['joelho'][1] - J['quadril'][1])) < 0
+    parte[(parte == Z['coxa']) & atras] = Z['tronco']
     # peças da bike (na imagem da bike): coroa e pedivela giram, pedal acompanha o pé, o resto fica parado
     dm = np.hypot(xx - J['mov'][0], yy - J['mov'][1])
     EIXO_PED = (710.0, 665.0)                     # ponta do pedivela na arte da bike (medido)
@@ -281,6 +290,14 @@ if BIKE:
     bparte[bb & (bparte == 0) & (dist_seg((698, 664), (748, 662)) < 13) & (dm > 44)] = -1   # restos do pedal/pedivela parados
     bparte[bb & braco_m] = 2
     bparte[bb & pedal_m & ~braco_m] = 3
+    # cassete e disco de freio: centro medido na arte (não é o centro do pneu); tubo branco e câmbio ficam parados
+    branco = (bV > 165) & (cv2.cvtColor(bk[..., :3], cv2.COLOR_BGR2HSV)[..., 1] < 40)
+    branco = cv2.dilate(branco.astype(np.uint8), np.ones((3, 3))) > 0
+    for i_, (e_, r_) in ((5, ((515.0, 588.0), 31)), (6, ((897.5, 591.5), 30))):
+        m_ = bb & (np.hypot(xx - e_[0], yy - e_[1]) < r_) & ~branco
+        if i_ == 5: m_ &= ~((yy > 603) & (xx < 532))
+        bparte[m_] = i_
+    dados_hub = {'T': (515.0, 588.0), 'D': (897.5, 591.5)}
     # rodas (pneu + aro + miolo), paleta própria: separadas do quadro (tubos brancos ficam no quadro)
     for e_ in ((516.4, 587.3), (891.6, 587.0)):
         dr = np.hypot(xx - e_[0], yy - e_[1])
@@ -407,7 +424,7 @@ for p, mp, FONTE in ITENS:
         anelP = (cv2.dilate(mpH.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * F + 3, 2 * F + 3))) > 0) & ~viz
         anelP &= ~(cv2.erode(mpH.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * F + 1, 2 * F + 1))) > 0)
         src = np.where(anelP, np.maximum(src, 1.), src)
-    d = vetor(None, .5, 3, .6, src=src)
+    d = vetor(None, .5, 3, 1.3, src=src)   # traço: borda bem lisa (linha de desenho, não serrilhado)
     if d: camadas.append({'c': LINHA, 'p': None, 'd': d})
     dados['partes'][p] = {'z': Z.get(p, -1), 'cam': camadas}
     clsH = clsH_
@@ -435,7 +452,7 @@ def perfil(nomes, a_, b_, t0, t1, n=26):
 dados['perfil'] = {'coxa': perfil(['coxa'], 'quadril', 'joelho', .1, 1.0), 'canela': perfil(['canela'], 'joelho', 'tornozelo', 0., 1.0),
                    'braco': perfil(['braco'], 'ombro', 'cotovelo', .25, 1.0), 'antebraco': perfil(['antebraco'], 'cotovelo', 'punho', 0., .95)}
 for k_, v_ in dados['perfil'].items(): print('perfil', k_, v_['mais'][::5], v_['menos'][::5])
-if BIKE: dados['bike'] = dados_bike
+if BIKE: dados['bike'] = dados_bike; dados['bike']['hub'] = dados_hub
 # pneus: elipses ajustadas nas bordas externa e interna de cada pneu (a arte não é um círculo perfeito: raio 125-131).
 # O pneu dianteiro não é concêntrico com o cubo na arte (~7 px). O JS desenha as faixas interpolando entre as duas elipses.
 def elipses_pneu(c):
