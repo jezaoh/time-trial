@@ -29,6 +29,7 @@
  <div class="g"><b>Kit</b><span id="kits"></span></div>
 </div>
 <script src="decalque_dados.js"></script>
+<script src="decalque_pecas.js"></script>
 <script>
 // =====================================================================================================
 // CICLISTA DECALCADO: partes vetoriais tiradas da referência (tools/ciclista_decalque/decalque.py),
@@ -90,8 +91,11 @@ const CINT=(()=>{const [a,b]=D.cintura,u=sub(b,a),e=[a[0]-u[0]*5,a[1]-u[1]*5],f=
 // pose: th = ângulo do pedivela (rad, y para baixo), roda = giro das rodas
 // balanço do corpo (como no vídeo): o quadril afunda um pouco a cada pisada (2x por volta) e o tronco gira de leve em
 // volta do quadril. Medido em px da referência; no quadro 0 é zero (pose da referência exata).
-const BAL={desce:0,gira:.007};   // quadril PRESO no selim (desce 0); só o tronco gira de leve em volta dele
-function corpo(th){return{dy:BAL.desce*(Math.cos(2*th)-Math.cos(2*TH0)),a:BAL.gira*(Math.sin(2*th+.5)-Math.sin(2*TH0+.5))}}
+// balanço medido no vídeo 'pedalando sentado' (em px da arte): ombros afundam ~3 px a cada pisada (2×/volta, tronco gira
+// em volta do quadril preso no selim), cabeça segura (gira só ~45% do tronco), bike+ciclista balançam ~3 px para frente/trás 1×/volta;
+// mãos presas no guidão -> o cotovelo 'respira' sozinho pelo IK.
+const BAL={desce:0,gira:.018,cabeca:.55,vai:3};   // quadril PRESO no selim (desce 0); só o tronco gira de leve em volta dele
+function corpo(th){return{dy:BAL.desce*(Math.cos(2*th)-Math.cos(2*TH0)),a:BAL.gira*(Math.cos(2*th)-Math.cos(2*TH0))}}
 function corpoP(B,p){return add(add(rot(sub(p,J.quadril),B.a),J.quadril),[0,B.dy])}
 function corpoT(c,B){c.translate(0,B.dy);rotT(c,J.quadril,J.quadril,B.a)}
 // ---------- perna (biomecânica, não decalque) ----------
@@ -100,7 +104,8 @@ function corpoT(c,B){c.translate(0,B.dy);rotT(c,J.quadril,J.quadril,B.a)}
 // 17% e a coxa 6% (proporção humana canela ≈ 0,9 coxa) e o pedivela fica com 62 px (≈ 170 mm para uma roda de 700c).
 // O pedal fica sob a PLANTA do pé (não na ponta). Pé (ângulo da sola, ponta para baixo): ~5° às 3h (fase de força,
 // calcanhar baixo), ~25° às 9h (subindo), ~15° no alto e embaixo. A arte tem a sola a ~39° no alto do giro.
-const PERNA={coxa:1.06,canela:1.17,piv:62,ball:[668,551],solaArte:39};
+const PERNA={coxa:1.06,canela:1.17,piv:DPECAS.L_PED,   // pedivela = o da arte da coroa (61 px ≈ 170 mm)
+ ball:[668,551],solaArte:39};
 const LC=L.coxa*PERNA.coxa,LS=L.canela*PERNA.canela;
 function anguloPe(th){const t=th;return(15-10*Math.cos(t))*Math.PI/180}       // t: 0 = pedal à frente (3h), π/2 = embaixo
 function pernaPose(th,hip){hip=hip||J.quadril;
@@ -168,7 +173,7 @@ function silMembro(A,B,C,pa,pb,ext,fim=1){
 // faixa (quad grande) perpendicular ao osso A->B entre t0 e t1, para pintar bermuda/manga/meia dentro da silhueta
 function faixa(A,B,t0,t1){const d=sub(B,A),n=[-d[1]*3,d[0]*3],p0=add(A,[d[0]*t0,d[1]*t0]),p1=add(A,[d[0]*t1,d[1]*t1]),P=new Path2D();
  P.moveTo(p0[0]+n[0],p0[1]+n[1]);P.lineTo(p1[0]+n[0],p1[1]+n[1]);P.lineTo(p1[0]-n[0],p1[1]-n[1]);P.lineTo(p0[0]-n[0],p0[1]-n[1]);P.closePath();return P}
-const CONTORNO=2.8;
+const CONTORNO=2.2;
 function membro(c,S,cores,kit,escuro,desenhaDecal){
  // cor base só longe da ponta de cima (no quadril quem aparece é o bumbum do tronco: sem emenda de tom)
  c.save();c.clip(S.fill);c.clip(S.longe);c.fillStyle=cor(CB.pele,'pele',kit,escuro);c.fillRect(-9999,-9999,29999,29999);
@@ -177,11 +182,10 @@ function membro(c,S,cores,kit,escuro,desenhaDecal){
  c.lineWidth=CONTORNO;c.lineJoin='round';c.lineCap='round';c.strokeStyle=cor(CB.linha,null,kit,escuro);c.stroke(S.borda);
 }
 function assento(c,kit){
- const P=new Path2D();P.ellipse(582,331,31.5,15.5,0,0,Math.PI*2);   // medido: costas do bumbum em x≈549, topo do selim em y≈344
- c.fillStyle=cor(CB.linha,null,kit);c.save();c.translate(0,0);c.lineWidth=CONTORNO*2;c.strokeStyle=c.fillStyle;c.stroke(P);c.restore();
- c.fillStyle=cor(CB.bermuda,'bermuda',kit);c.fill(P);
+ // (o bumbum inteiro agora vem da arte do ciclista sem a bike)
+ c.fillStyle=cor(CB.bermuda,'bermuda',kit);
  // frente do quadril (virilha): bermuda por baixo, sem contorno, fecha a fresta quando a coxa desce
- capsulas(c,[[604,318],[628,326]],[22,18]);
+ capsulas(c,[[600,320],[628,324],[640,324]],[26,18,10]);capsulas(c,[[618,308],[640,305]],[9,8]);capsulas(c,[[600,322],[598,342]],[20,9]);
 }
 function perna(c,th,kit,escuro,hip){
  hip=hip||J.quadril;const P=pernaPose(th,hip);
@@ -246,34 +250,49 @@ function rodasGiro(c,a,kit){
   c.setLineDash([5,23,2,30]);c.lineDashOffset=-a*m(2);c.stroke();
   c.strokeStyle='rgba(255,245,230,.10)';c.lineWidth=1.6;c.setLineDash([9,41]);c.lineDashOffset=-a*m(2)+17;c.stroke();c.restore()}
  const H=D.bike.hub;
- // base lisa embaixo (onde o tubo branco tampava o disco/cassete na arte): ao girar não abre buraco
- for(const [k,e,r] of [['cubo_t',H.T,29.5],['cubo_d',H.D,28.5]]){const b0=(D.partes[k]||{cam:[{c:'#777'}]}).cam[0].c;
-  c.beginPath();c.arc(e[0],e[1],r,0,7);c.fillStyle=cor(b0,null,kit);c.fill();c.lineWidth=2.6;c.strokeStyle='#17171b';c.stroke();
-  c.beginPath();c.arc(e[0],e[1],r*.55,0,7);c.lineWidth=1.4;c.strokeStyle='rgba(23,23,27,.6)';c.stroke()}
- c.save();rotT(c,H.T,H.T,a);parte(c,'cubo_t',kit);c.restore();
- c.save();rotT(c,H.D,H.D,a);parte(c,'cubo_d',kit);c.restore();
+ // cassete e disco: peças soltas da sua arte (bike desmontada / roda), girando com a roda
+ peca(c,'cassete',H.T[0],H.T[1],a,kit);
+ peca(c,'disco',H.D[0],H.D[1],a,kit);
+ pinca(c,H.D,kit);
+}
+// ---------- peças soltas (tools/ciclista_decalque/pecas.py) ----------
+for(const k in DPECAS)if(DPECAS[k].cam)for(const l of DPECAS[k].cam)l.path=new Path2D(l.d);
+function peca(c,nome,x,y,r,kit,escuro){const P=DPECAS[nome];c.save();c.translate(x,y);c.rotate(r);
+ for(const l of P.cam){c.fillStyle=cor(l.c,null,kit,escuro);c.fill(l.path)}c.restore()}
+const ANG_COR=ang(DPECAS.coroa.pts.pedal),ANG_BR=ang(DPECAS.braco.pts.pedal),ANG_PDL=ang(DPECAS.pedal.pts.ponta);
+function coroaPeca(c,th,kit){peca(c,'coroa',J.mov[0],J.mov[1],th-ANG_COR,kit)}
+function bracoTras(c,th,kit){peca(c,'braco',J.mov[0],J.mov[1],th-ANG_BR,kit,true)}
+// pedal: eixo na planta do pé, corpo do pedal paralelo à sola (o pé gira com anguloPe)
+function pedalPeca(c,th,kit,escuro){const P=pernaPose(th);peca(c,'pedal',P.ped[0],P.ped[1],anguloPe(th)-ANG_PDL,kit,escuro)}
+// pinça do freio dianteiro (a roda da arte não tem): presa ao garfo, por cima da borda do disco, parada
+function pinca(c,h,kit){const R=30,a0=-Math.PI*.62,da=.62,P=new Path2D();
+ P.arc(h[0],h[1],R+5.5,a0-da,a0+da);P.arc(h[0],h[1],R-9,a0+da*.82,a0-da*.82,true);P.closePath();
+ c.fillStyle='#2b2c31';c.fill(P);c.lineWidth=2.2;c.lineJoin='round';c.strokeStyle='#141416';c.stroke(P);
+ c.save();c.clip(P);c.strokeStyle='rgba(255,255,255,.22)';c.lineWidth=2.4;c.beginPath();c.arc(h[0],h[1],R+2.5,a0-da*.8,a0+da*.4);c.stroke();c.restore();
+ for(const t of [-.55,.55]){const a=a0+da*t,x=h[0]+Math.cos(a)*(R-2),y=h[1]+Math.sin(a)*(R-2);c.beginPath();c.arc(x,y,2.4,0,7);c.fillStyle='#8c8f96';c.fill();c.lineWidth=1.2;c.stroke()}
 }
 function cicDecal(c,E){
  const kit=E.kit,th=E.th,B=corpo(th),hip=corpoP(B,J.quadril),omb=corpoP(B,J.ombro);
+ c.save();c.translate(BAL.vai*(Math.sin(th)-Math.sin(TH0)),0);
  // lado de trás: do outro lado da bike, atrás de tudo (inclusive das rodas)
- pedivelaArte(c,th+Math.PI,kit,true);pedalArte(c,th+Math.PI,kit,true);
+ bracoTras(c,th+Math.PI,kit);pedalPeca(c,th+Math.PI,kit,true);
  perna(c,th+Math.PI,kit,true,hip);
  // bike inteira, parada (rodas, quadro, corrente, câmbio, guidão)
  parte(c,'rodas',kit);rodasGiro(c,E.roda,kit);parte(c,'quadro',kit);
- c.save();rotT(c,J.mov,J.mov,angCoroa(th));parte(c,'coroa',kit);c.restore();
- pedivelaArte(c,th,kit,false);pedalArte(c,th,kit,false);
+ coroaPeca(c,th,kit);pedalPeca(c,th,kit,false);
  // bumbum ASSENTADO no selim: forma lisa da bermuda que desce até o topo do selim (com contorno), por baixo do tronco
  c.save();corpoT(c,B);assento(c,kit);parte(c,'tronco',kit);c.restore();
  perna(c,th,kit,false,hip);
- c.save();corpoT(c,B);parte(c,'cabeca',kit);c.restore();
+ c.save();corpoT(c,B);rotT(c,J.pescoco,J.pescoco,-B.a*BAL.cabeca);parte(c,'cabeca',kit);c.restore();
  const co=ik(omb,J.punho,L.braco,L.ante,LADO_COTOV);
  // braço: a arte tem os DOIS braços juntos nesta região (o de longe aparece atrás) -> fica o decalque, sem silhueta lisa;
  // o braço quase não gira (só acompanha o balanço do tronco)
  // carne por baixo do braço (só cor, sem contorno): fecha a fresta do cotovelo quando o braço dobra diferente da arte
- c.fillStyle=cor(CB.pele,'pele',kit);capsulas(c,[lerp2(omb,co,.45),co,lerp2(co,J.punho,.5)],[13,11,10]);
+ c.fillStyle=cor(CB.pele,'pele',kit);capsulas(c,[lerp2(omb,co,.4),lerp2(omb,co,.75),co,lerp2(co,J.punho,.5)],[14,14,12,10]);capsulas(c,[co,add(co,[-12,11]),add(co,[-18,13])],[10,7,3.5]);
  c.save();segT(c,J.cotovelo,J.punho,co,J.punho);parte(c,'antebraco',kit);c.restore();
  c.save();segT(c,J.ombro,J.cotovelo,omb,co);parte(c,'braco',kit);c.restore();
  parte(c,'luva',kit);
+ c.restore();
 }
 window.cicDecal=cicDecal;
 const ESC_JOGO=113/375*1376/1280;
@@ -290,6 +309,7 @@ window.ossos=ossos;
 // carimba ela em volta (dilatação de 'esp' px de tela) e põe o desenho por cima. As linhas internas ficam como estão.
 const BUF=document.createElement('canvas'),SIL=document.createElement('canvas');
 function cicDecalBorda(c,E,esp=1.6){
+ if(!(esp>0)){cicDecal(c,E);return}   // sem engrossar: o contorno é o da arte (mesmo peso das linhas internas)
  const W=c.canvas.width,H=c.canvas.height;for(const k of [BUF,SIL])if(k.width!==W||k.height!==H){k.width=W;k.height=H}
  const b=BUF.getContext('2d'),s=SIL.getContext('2d');
  b.setTransform(1,0,0,1,0,0);b.clearRect(0,0,W,H);b.setTransform(c.getTransform());cicDecal(b,E);b.setTransform(1,0,0,1,0,0);
@@ -303,7 +323,7 @@ window.cicDecalBorda=cicDecalBorda;
 // ---------- página ----------
 const cv=document.getElementById('palco'),ctx=cv.getContext('2d');
 const REF=new Image();REF.src='ref_ciclista2_alinhada.png';REF.onload=()=>desenhar();
-const S={borda:.55,ver:'anim',th:TH0,kit:null,rpm:80,roda:0,scroll:0,pausa:false,lento:false,jogo:false,esq:false};
+const S={borda:0,ver:'anim',th:TH0,kit:null,rpm:80,roda:0,scroll:0,pausa:false,lento:false,jogo:false,esq:false};
 const IMG={};
 for(const n of ['cen_ceu','cen_campo','cen_veg','asph']){const i=new Image();i.onerror=()=>{if(!i._b){i._b=1;i.src='img/'+n+'.webp'}};i.src='../src/assets/imagens/'+n+'.webp';IMG[n]=i}
 const ok=i=>i&&i.complete&&i.naturalWidth>0;

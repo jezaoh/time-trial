@@ -245,6 +245,7 @@ def papel(p, rgb, x, y):
 
 # ---------------- bike sem o ciclista (mesmo enquadramento) ----------------
 # A bike vem inteira da imagem dela (nada inventado). O ciclista = onde a referência difere da bike.
+REF2X = REF.replace('.png', '_2x.png')
 BIKE = REF.replace('.png', '_ref_bike.png')
 BIKE = BIKE if os.path.exists(BIKE) else None
 BPARTES = ['quadro', 'coroa', 'pedivela', 'pedal', 'rodas', 'cubo_t', 'cubo_d']
@@ -265,6 +266,31 @@ if BIKE:
     perto_c = cv2.morphologyEx(ciclista.astype(np.uint8), cv2.MORPH_CLOSE, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (25, 25))) > 0
     ciclista |= np.isin(parte, RIDER0) & perto_c & (ra > 100)
     ciclista |= (parte == Z['luva']) & (ra > 100)
+    # CICLISTA SEM A BIKE (mesmo desenho, alinhado por alinhar_solo.py): mostra o que a bike escondia (bumbum no selim,
+    # atrás do joelho, coxa sobre o tubo). Silhueta = a dele; pixels: os da referência onde ela mostra o ciclista, os dele
+    # onde a referência mostrava a bike na frente.
+    SOLO = REF.replace('.png', '_so_ciclista.png')
+    if os.path.exists(SOLO):
+        so = cv2.imread(SOLO, cv2.IMREAD_UNCHANGED); so_m = so[..., 3] > 100
+        tras = np.isin(parte, [Z['pe_tras'], Z['perna_tras']])
+        velho = ciclista.copy()
+        ciclista = so_m | (velho & tras)
+        extra = so_m & ~velho
+        im = im.copy(); im[extra] = (so[..., :3][extra] * (so[..., 3:4][extra] / 255.)).astype(np.uint8)
+        hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV).astype(int); H, S, V = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+        R2 = cv2.imread(REF2X, cv2.IMREAD_UNCHANGED); S2 = cv2.imread(SOLO.replace('.png', '_2x.png'), cv2.IMREAD_UNCHANGED)
+        V2 = cv2.resize(velho.astype(np.uint8), (R2.shape[1], R2.shape[0]), interpolation=cv2.INTER_NEAREST) > 0
+        V2 = cv2.erode(V2.astype(np.uint8), np.ones((3, 3))) > 0          # borda da ref (antialias com a bike) também vem dele
+        B2 = cv2.imread(BIKE.replace('.png', '_2x.png'), cv2.IMREAD_UNCHANGED)[..., 3] > 100
+        B2 = cv2.dilate(B2.astype(np.uint8), np.ones((5, 5))) > 0
+        T2 = cv2.resize(tras.astype(np.uint8), (R2.shape[1], R2.shape[0]), interpolation=cv2.INTER_NEAREST) > 0
+        T2 = cv2.dilate(T2.astype(np.uint8), np.ones((7, 7))) > 0
+        troca = (S2[..., 3] > 30) & (~V2 | B2 | T2)   # onde havia bike ou a perna de trás, os pixels são os dele (sem resto)
+        yy2, xx2 = np.mgrid[0:R2.shape[0], 0:R2.shape[1]]
+        troca &= ~((yy2 < 2 * 215) & (xx2 > 2 * 730))   # capacete: furos ficam da referência (fechados em cinza escuro, sem cabelo manchado)
+        R2 = R2.copy(); R2[troca] = S2[troca]
+        REF2X = '/tmp/_decalque_composta_2x.png'; cv2.imwrite(REF2X, R2)
+        print('ciclista sem bike: +%d px (bike escondia)' % extra.sum())
     # rótulos do ciclista: só dentro da silhueta; pixel do ciclista rotulado como bike -> peça do ciclista mais próxima
     RIDER = [Z[q] for q in PARTES if q not in ('roda_t', 'roda_d', 'quadro', 'coroa')]
     eh_r = np.isin(parte, RIDER)
@@ -273,7 +299,14 @@ if BIKE:
     ys0, xs0 = np.nonzero(conhec); tab = np.full(lbl.max() + 1, -1, np.int32); tab[lbl[ys0, xs0]] = parte[ys0, xs0]
     novo = np.where(ciclista, tab[lbl], -1)
     parte = novo.astype(parte.dtype)
-    parte[np.isin(parte, [Z['tronco'], Z['coxa']]) & (yy > 338) & (xx < 612)] = -1   # contorno do bumbum por cima do selim sai
+    if os.path.exists(SOLO):   # dentro da silhueta do ciclista sem bike não existe perna de trás: vira a peça da frente mais próxima
+        TR = [Z['pe_tras'], Z['perna_tras']]
+        ruim = so_m & np.isin(parte, TR)
+        bom = (so_m & np.isin(parte, RIDER) & ~np.isin(parte, TR)).astype(np.uint8)
+        _, lbl2 = cv2.distanceTransformWithLabels(1 - bom, cv2.DIST_L2, 3, labelType=cv2.DIST_LABEL_PIXEL)
+        ys0, xs0 = np.nonzero(bom); tab2 = np.full(lbl2.max() + 1, -1, np.int32); tab2[lbl2[ys0, xs0]] = parte[ys0, xs0]
+        parte[ruim] = tab2[lbl2[ruim]]
+        print('perna de trás dentro do ciclista -> frente: %d px' % ruim.sum())
     # o bumbum é só do tronco: a coxa começa no quadril (o pedaço de trás dela girava junto e riscava o bumbum)
     atras = ((xx - J['quadril'][0]) * (J['joelho'][0] - J['quadril'][0]) + (yy - J['quadril'][1]) * (J['joelho'][1] - J['quadril'][1])) < 0
     parte[(parte == Z['coxa']) & atras] = Z['tronco']
@@ -288,6 +321,8 @@ if BIKE:
     bparte[bb] = 0
     bparte[bb & (dm < 43.5) & ~((bV > 170) & (dm > 34))] = 1   # coroa (com as janelas da aranha); tubos brancos da borda ficam no quadro
     bparte[bb & (bparte == 0) & (dist_seg((698, 664), (748, 662)) < 13) & (dm > 44)] = -1   # restos do pedal/pedivela parados
+    ang_m = np.degrees(np.arctan2(yy - J['mov'][1], xx - J['mov'][0]))
+    bparte[bb & (bparte == 0) & (dm > 41) & (dm < 56) & (ang_m > 15) & (ang_m < 85) & (bV < 110)] = -1   # resto do pedivela da arte
     bparte[bb & braco_m] = 2
     bparte[bb & pedal_m & ~braco_m] = 3
     # cassete e disco de freio: centro medido na arte (não é o centro do pneu); tubo branco e câmbio ficam parados
@@ -319,8 +354,8 @@ def fonte(hi_path, a1):
     lim = np.minimum(np.maximum(72., 72. + (viz - 150.) * .3), np.maximum(34., viz - 20.))
     dT = cv2.distanceTransform((alfa_ > 100).astype(np.uint8), cv2.DIST_L2, 3)
     return dict(F=f, imH=imH_, alfaH=alfa_, labH=cv2.cvtColor(imH_, cv2.COLOR_BGR2LAB).astype(np.float32), cinzaH=cz,
-                LIM_H=lim, linhaH=cz < lim, bordaH=(alfa_ > 40) & (dT < 2.2 * f))
-FREF = fonte(REF.replace('.png', '_2x.png'), im)
+                LIM_H=lim, linhaH=cz < lim, bordaH=(alfa_ > 40) & (dT < 1.6 * f))
+FREF = fonte(REF2X, im)
 FBIKE = fonte(BIKE.replace('.png', '_2x.png'), None) if BIKE else None
 F = FREF['F']; globals().update(FREF)
 clsH = np.zeros(imH.shape[:2], int)
@@ -341,7 +376,7 @@ def vetor(mask_hi, thr=.5, area_min=4, suave=1.0, src=None):
         dd.append('M' + ' L'.join(f'{x:.1f} {y:.1f}' for x, y in ap) + 'Z')
     return ''.join(dd)
 
-EMENDA = {'coxa': ('tronco', 'canela'), 'canela': ('coxa', 'sapatilha'), 'sapatilha': ('canela',),
+EMENDA = {'sapatilha': ('canela',),   # coxa/canela: o contorno liso vem da silhueta do JS (silMembro)
           'braco': ('tronco', 'antebraco'), 'antebraco': ('braco', 'luva')}
 dados = {'J': J, 'R': RODA, 'tam': [Ww, Hh], 'partes': {}}
 # juntas: a peça de baixo (canela/antebraço) ganha o disco inteiro da junta; a de cima (coxa/braço) fica só com a metade
