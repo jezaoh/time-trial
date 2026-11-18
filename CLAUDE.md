@@ -317,3 +317,7 @@ Antes de publicar, resolva com o dono a pendência "Ranking × botão novo" (PEN
   chegar ao alvo, solta até cair) — segurando direto ele secava a barra. Metas 12/13: treino iniciante 150 W chega (fadiga 64), 165 W
   quebra; corrida 90% 6º–8º; Pedal Livre 140 W 57 km (antes 83), 160 W 28 km (antes 34). FORA: Rachão nível 10 no máximo chega
   em último (15º; antes 7º) — stamina zera acima de ~FTP. A conversar com o dono (opção: `CORR.dopeFtp`, regra 4: mexer no NPC).
+- **18/11 — SEM TELA DE MODOS + HUD REORGANIZADO (pedido do dono):** o título vai direto para a Carreira (`toModo` embrulhado em
+  carreira.js; voltar do hub/nome = tela inicial). **Contrarrelógio = teste interno:** abrir com `?teste=crono` no endereço mostra
+  a tela de modos (teste_v2.py já usa). HUD (`HUD_W` em desenho.js): % grande e watts em cima do raio; no topo, centralizados, só
+  MÉDIA (w e %) e FTP, na altura da velocidade. Gel azul foi para cima dos itens do bolso (canto esquerdo) e custa **1.000** (era 600).

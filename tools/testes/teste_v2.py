@@ -10,7 +10,7 @@ import asyncio, sys, os, io
 from PIL import Image
 from playwright.async_api import async_playwright
 alvo = sys.argv[1]; out = sys.argv[2] if len(sys.argv) > 2 else '/tmp'
-url = alvo if alvo.startswith('http') else 'file://' + os.path.abspath(alvo)
+url = (alvo if alvo.startswith('http') else 'file://' + os.path.abspath(alvo)) + '?teste=crono'   # 18/11: sem tela de modos; o Contrarrelógio é teste interno
 LOG_ON = "window._L=[];if(!window._u0){window._u0=update;update=function(dt){_u0(dt);if(window._L)_L.push([boost,stamina,power,fatigue,speed,dt])}}"
 async def caso(pg, nome, padrao):
     """padrao: lista de (pressionado_ms, solto_ms)"""

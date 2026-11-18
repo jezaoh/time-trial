@@ -30,7 +30,7 @@ const CAR={
  loja:[{id:'banana',n:'BANANA',d:['−fadiga e +stamina','leva até 5 por pedalada'],p:20},
   {id:'gel',n:'GEL',d:['−40% da fadiga (o 2º rende','menos) · até 3 por pedalada'],p:60},
   {id:'iso',n:'ISOTÔNICO',d:['5 goles, um pouco melhor','que a água · vale 1 pedalada'],p:40},
-  {id:'azul',n:'GEL AZUL',d:['zera a fadiga: vida extra','máximo 1 por pedalada'],p:600},
+  {id:'azul',n:'GEL AZUL',d:['zera a fadiga: vida extra','máximo 1 por pedalada'],p:1000},
   {id:'reset',n:'RESETAR PONTOS',d:['devolve todos os pontos','para refazer a build'],p:250}],
  builds:[{n:'ESCALADOR',a:'Escalada · Fôlego · Recuperação',d:'Sofre no plano, voa nas subidas.',c:'#a8ffb4'},
   {n:'SPRINTER',a:'Sprint · Motor · Recuperação',d:'Esconde no vácuo e explode no fim.',c:'#ffb36b'},
@@ -99,6 +99,13 @@ finish=function(w){_carFinish(w);if(MODO!=='carreira')return;
 // ---------- navegação ----------
 function devolverSaindo(){if(typeof LV!=='undefined'&&LV&&typeof devolverItens==='function'){devolverItens();carSalvar()}}   // saiu no meio da prova: itens não usados voltam
 function toModo(){devolverSaindo();corridaParar();state='modo';boost=false;speed=0;grade=0;nickEl.blur()}
+// 18/11 (pedido do dono): sem a tela ESCOLHA O MODO — o jogo entra direto na Carreira. O Contrarrelógio fica só como teste
+// interno: abra com ?teste=crono no endereço para ver a tela de modos de novo.
+const TESTE_CRONO=typeof location!=='undefined'&&/[?&]teste=crono/.test(location.search);
+const _toModo=toModo;
+toModo=function(){if(TESTE_CRONO){_toModo();return}
+ if(state==='carreira'||state==='nome'){devolverSaindo();corridaParar();state='title';boost=false;speed=0;grade=0;nickEl.blur();return}   // voltar do hub = tela inicial
+ devolverSaindo();corridaParar();boost=false;speed=0;grade=0;nickEl.blur();MODO='carreira';if(CS.nome)toHub();else editarNome()};
 function toHub(){devolverSaindo();corridaParar();state='carreira';boost=false;speed=0;grade=0;carZerar=0;nickEl.blur()}
 const _carToSelect=toSelect;
 toSelect=function(){if(state==='title'){toModo();return}if(MODO==='carreira'){toHub();return}_carToSelect()};

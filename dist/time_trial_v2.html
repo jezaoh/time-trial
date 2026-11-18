@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="pt-BR"><head>
-<!-- Time Trial V2 · versão 17/11/2026 20:15 --><meta charset="utf-8">
+<!-- Time Trial V2 · versão 17/11/2026 23:22 --><meta charset="utf-8">
 <meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#06121c"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Time Trial V2</title>
 
@@ -42,7 +42,7 @@ const META={"idle": {"azul": {"cw": 290, "ch": 388, "sx": 2.311418685121107, "sy
 const $=id=>document.getElementById(id),c=$('game'),ctx=c.getContext('2d',{alpha:false}),W=1536,H=864,SS=W/1672,IMG={},nickEl=$('nick');
 const NUT=[[0,2,99,240],[99,2,100,240],[199,2,99,240],[298,2,99,240],[397,2,100,240],[497,2,100,240],[597,28,121,214]];
 // versão: data e hora da montagem (preenchida por tools/montar_arquivo_unico.py; aparece no canto da tela inicial)
-const VERSAO="17/11/2026 20:15";
+const VERSAO="17/11/2026 23:22";
 // fonte do jogo: Exo 2 itálico (900 títulos e números · 800 textos)
 const FT=(w,s)=>`italic ${w} ${s}px Exo2,system-ui,sans-serif`;
 const ICON={clock:0,flag:1,avg:2,speed:3,up:4,flat:5,down:6};
@@ -559,6 +559,7 @@ const HB_IDS=['water','gel','b_iso','b_banana','b_azul','b_agua7'],HB_DOM={agua:
 function botaoDOM(id,r){const e=$(id);if(!e)return;const k=r?`${r.x|0},${r.y|0},${r.w|0},${r.h|0}`:'off';if(HB_CACHE[id]===k)return;HB_CACHE[id]=k;
  if(!r){e.style.display='none';return}e.style.display='block';e.style.left=(r.x/W*100)+'%';e.style.top=(r.y/H*100)+'%';e.style.width=(r.w/W*100)+'%';e.style.height=(r.h/H*100)+'%'}
 function esconderBotoesHUD(){for(const id of HB_IDS)botaoDOM(id,null)}
+const HUD_W={cx:945,pctY:470,pctT:76,wY:536,wT:46,azulX:62,azulY:572,azulH:132};   // gel azul: acima dos itens do bolso (pedido do dono)   // 18/11: posições do HUD de potência (topo e acima do raio)
 function hud(){
  // topo esquerdo: pausa + cronômetro
  if(state!=='over'){const px=26,py=28,ps=66;btns.push({x:px,y:py,w:ps,h:ps,act:togglePause});pilula(px,py,ps,ps);ctx.fillStyle='#14161c';
@@ -573,23 +574,24 @@ function hud(){
  // velocímetro, velocidade e média
  velocimetro(471,166,50);const v=`${Math.round(speed)}`;ctx.font=FT(900,58);const wv=ctx.measureText(v).width;tx(v,533,184,58);tx('km/h',541+wv,184,30);
  ic('avg',533,192,26);tx(`Média ${f1(elapsed>0?dist*3600/(elapsed*SCALE):0)} km/h`,565,214,21);
- // watts, % e FTP
- const w=Math.round(wHud),p=Math.round(w/FTP*100),sw=`${w} w`,spc=` ${p}%`;ctx.font=FT(900,58);const ww=ctx.measureText(sw).width,wp=ctx.measureText(spc).width,x0=945-(ww+wp)/2;
- tx(sw,x0,184,58,'left','#ffd23a');tx(spc,x0+ww,184,58,'left',pctCor(p));tx(`FTP: ${FTP} w`,945,214,24,'center');
- // em cima: potência MÉDIA do pedal (não é o FTP do ciclista), com a mesma cor de esforço
- {const m=pTempo>0?Math.round(pSoma/pTempo):0,pm=Math.round(m/FTP*100),a=`MÉDIA ${m} w `,b=`${pm}%`;ctx.font=FT(800,24);
-  const wa=ctx.measureText(a).width,wb=ctx.measureText(b).width,xa=945-(wa+wb)/2;tx(a,xa,128,24,'left','#fff');tx(b,xa+wa,128,24,'left',pctCor(pm))}
+ // 18/11 (pedido do dono): no centro do topo só a MÉDIA de potência e o FTP, centralizados e na mesma altura da velocidade;
+ // os watts e a % do momento foram para cima do raio (HUD_W)
+ {const m=pTempo>0?Math.round(pSoma/pTempo):0,pm=Math.round(m/FTP*100),a=`MÉDIA ${m} w  `,b=`${pm}%`;ctx.font=FT(900,36);
+  const wa=ctx.measureText(a).width,wb=ctx.measureText(b).width,xa=HUD_W.cx-(wa+wb)/2;tx(a,xa,176,36,'left','#fff');tx(b,xa+wa,176,36,'left',pctCor(pm));
+  tx(`FTP ${FTP} w`,HUD_W.cx,212,24,'center','#cfe3f1')}
  // rampa
  pilula(1160,38,346,108);pilula(1250,154,256,52);tx(`▲ ${Math.round(elevG)} m`,1488,192,30,'right','#fff');tx('ELEV.',1272,190,20,'left','#fff');const gi=grade>1?'up':grade<-1?'down':'flat';ic(gi,1180,52,82);tx(`${grade<0?'−':''}${f1(Math.abs(grade))}%`,1488,118,56,'right',grade>1?'#ffe16c':'#fff');
  // itens (esquerda, embaixo)
  const SL=slotsHUD(),R={},mrc=typeof marTela==='function'&&marTela();SL.forEach((id,i)=>{R[id]=itemHUD(id,mrc?marSlotX(i):22+i*74,820)});   // marchas (marcha.js): itens nas bagzinhas, à direita da coluna das marchas
- // gel azul acima do raio
+ // gel azul acima dos itens do bolso (18/11; antes ficava acima do raio)
  const azul=typeof LV!=='undefined'&&LV&&LV.azul>0&&!LV.azulUsou;
  // 16/11: maior (118 → 165) e mais alto, com folga de ~50 px até o raio (que começa em y≈564)
- if(azul){const a=IMG.it_gelazul,ah=165,aw=ah*a.width/a.height,ay=345;ctx.drawImage(a,1346-aw/2,ay,aw,ah);badge(1346+aw/2+4,ay+6,1);R.azul={x:1346-Math.max(aw,100)/2-10,y:ay-12,w:Math.max(aw,100)+20,h:ah+24}}
+ if(azul){const a=IMG.it_gelazul,ah=HUD_W.azulH,aw=ah*a.width/a.height,ay=HUD_W.azulY,ax=HUD_W.azulX;ctx.drawImage(a,ax-aw/2,ay,aw,ah);badge(ax+aw/2+4,ay+6,1);R.azul={x:ax-Math.max(aw,100)/2-10,y:ay-12,w:Math.max(aw,100)+20,h:ah+24}}
  if(state==='run')for(const k in HB_DOM)botaoDOM(HB_DOM[k],R[k]||null);
  // mini perfil e barra de stamina
  perfilMini(768,714);staminaBar(386,728,763);
+ // watts e % em cima do raio: a % maior por cima, os watts logo acima do botão (centralizados no raio)
+ {const w=Math.round(wHud),p=Math.round(w/FTP*100);tx(`${p}%`,1346,HUD_W.pctY,HUD_W.pctT,'center',pctCor(p));tx(`${w} w`,1346,HUD_W.wY,HUD_W.wT,'center','#ffd23a')}
  // raio
  const act=boost&&state==='run',bimg=IMG.bolt2&&IMG.bolt2.width?IMG.bolt2:IMG.bolt,bs=act?212:228,cx=1346,cy=678;ctx.globalAlpha=stamina>.5?1:.45;
  if(typeof sensRaio==='function')sensRaio(bimg,act,cx,cy);   // mola a cada pedalada + brilho pronto (sem shadowBlur por quadro)
@@ -1068,7 +1070,7 @@ const CAR={
  loja:[{id:'banana',n:'BANANA',d:['−fadiga e +stamina','leva até 5 por pedalada'],p:20},
   {id:'gel',n:'GEL',d:['−40% da fadiga (o 2º rende','menos) · até 3 por pedalada'],p:60},
   {id:'iso',n:'ISOTÔNICO',d:['5 goles, um pouco melhor','que a água · vale 1 pedalada'],p:40},
-  {id:'azul',n:'GEL AZUL',d:['zera a fadiga: vida extra','máximo 1 por pedalada'],p:600},
+  {id:'azul',n:'GEL AZUL',d:['zera a fadiga: vida extra','máximo 1 por pedalada'],p:1000},
   {id:'reset',n:'RESETAR PONTOS',d:['devolve todos os pontos','para refazer a build'],p:250}],
  builds:[{n:'ESCALADOR',a:'Escalada · Fôlego · Recuperação',d:'Sofre no plano, voa nas subidas.',c:'#a8ffb4'},
   {n:'SPRINTER',a:'Sprint · Motor · Recuperação',d:'Esconde no vácuo e explode no fim.',c:'#ffb36b'},
@@ -1137,6 +1139,13 @@ finish=function(w){_carFinish(w);if(MODO!=='carreira')return;
 // ---------- navegação ----------
 function devolverSaindo(){if(typeof LV!=='undefined'&&LV&&typeof devolverItens==='function'){devolverItens();carSalvar()}}   // saiu no meio da prova: itens não usados voltam
 function toModo(){devolverSaindo();corridaParar();state='modo';boost=false;speed=0;grade=0;nickEl.blur()}
+// 18/11 (pedido do dono): sem a tela ESCOLHA O MODO — o jogo entra direto na Carreira. O Contrarrelógio fica só como teste
+// interno: abra com ?teste=crono no endereço para ver a tela de modos de novo.
+const TESTE_CRONO=typeof location!=='undefined'&&/[?&]teste=crono/.test(location.search);
+const _toModo=toModo;
+toModo=function(){if(TESTE_CRONO){_toModo();return}
+ if(state==='carreira'||state==='nome'){devolverSaindo();corridaParar();state='title';boost=false;speed=0;grade=0;nickEl.blur();return}   // voltar do hub = tela inicial
+ devolverSaindo();corridaParar();boost=false;speed=0;grade=0;nickEl.blur();MODO='carreira';if(CS.nome)toHub();else editarNome()};
 function toHub(){devolverSaindo();corridaParar();state='carreira';boost=false;speed=0;grade=0;carZerar=0;nickEl.blur()}
 const _carToSelect=toSelect;
 toSelect=function(){if(state==='title'){toModo();return}if(MODO==='carreira'){toHub();return}_carToSelect()};
