@@ -89,7 +89,7 @@ const CINT=(()=>{const [a,b]=D.cintura,u=sub(b,a),e=[a[0]-u[0]*5,a[1]-u[1]*5],f=
 // pose: th = ângulo do pedivela (rad, y para baixo), roda = giro das rodas
 function pernaPose(th){
  const ped=add(J.mov,[Math.cos(th)*PIV,Math.sin(th)*PIV]);
- const dphi=-.15*(Math.sin(th)-Math.sin(TH0));                         // tornozelo: pé mais plano embaixo
+ const dphi=-.32*(Math.cos(th)-Math.cos(TH0));                         // tornozelo como no vídeo: na frente o calcanhar desce, atrás a ponta desce (calcanhar sobe, longe da roda)
  const tz=add(ped,rot(sub(J.tornozelo,J.pedal),dphi));
  const jo=ik(J.quadril,tz,L.coxa,L.canela,LADO_JOELHO);
  return{ped,dphi,tz,jo};

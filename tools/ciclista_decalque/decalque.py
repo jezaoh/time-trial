@@ -285,9 +285,24 @@ def vetor(mask_hi, thr=.5, area_min=4, suave=1.0, src=None):
         dd.append('M' + ' L'.join(f'{x:.1f} {y:.1f}' for x, y in ap) + 'Z')
     return ''.join(dd)
 
+EMENDA = {'coxa': ('tronco', 'canela'), 'canela': ('coxa', 'sapatilha'), 'sapatilha': ('canela',),
+          'braco': ('tronco', 'antebraco'), 'antebraco': ('braco', 'luva')}
 dados = {'J': J, 'R': RODA, 'tam': [Ww, Hh], 'partes': {}}
+# juntas: a peça de baixo (canela/antebraço) ganha o disco inteiro da junta; a de cima (coxa/braço) fica só com a metade
+# do lado dela. Assim, ao dobrar diferente da referência, não sobra arco de contorno sobre a outra peça nem abre buraco.
+def lado_junta(jc, a_, b_):
+    ua = np.array(J[a_], float) - J[jc]; ub = np.array(J[b_], float) - J[jc]
+    u = ub / np.linalg.norm(ub) - ua / np.linalg.norm(ua); u /= np.linalg.norm(u)
+    return ((xx - J[jc][0]) * u[0] + (yy - J[jc][1]) * u[1]) > 0           # True = lado da peça de baixo
+JUNTAS = {('joelho', 'quadril', 'tornozelo', 27, 'coxa', 'canela'), ('cotovelo', 'ombro', 'punho', 19, 'braco', 'antebraco')}
+MASCARA = {}
+for jc, a_, b_, r_, cima, baixo in JUNTAS:
+    disco = (np.hypot(xx - J[jc][0], yy - J[jc][1]) < r_) & ((parte == Z[cima]) | (parte == Z[baixo]))
+    meia = disco & lado_junta(jc, a_, b_)
+    MASCARA[baixo] = (parte == Z[baixo]) | disco
+    MASCARA[cima] = (parte == Z[cima]) & ~meia
 for p in PARTES:
-    mp = parte == Z[p]
+    mp = MASCARA.get(p, parte == Z[p])
     if mp.sum() < 20: continue
     mpH = cv2.resize(mp.astype(np.uint8), None, fx=F, fy=F, interpolation=cv2.INTER_NEAREST) > 0
     escH = linhaH
@@ -333,6 +348,15 @@ for p in PARTES:
     # 'escuridão relativa' ao limite local: >0.5 = traço (contorno suave, alcança a borda antialiasada)
     src = np.where(mpH5 & (alfaH > 40), .5 + (LIM_H - cinzaH.astype(np.float32)) / 40., 0)
     src = np.where(mpH5 & bordaH, np.maximum(src, 1.), src)
+    # membros: contorno próprio em toda a borda da peça, menos na emenda com a peça vizinha (quadril, joelho, cotovelo...)
+    # -> a peça girada (e a perna de trás, que é cópia) nunca fica sem contorno onde a referência encostava em outra coisa
+    if p in EMENDA:
+        viz = np.zeros_like(mpH)
+        for q in EMENDA[p]: viz |= cv2.resize(MASCARA.get(q, parte == Z[q]).astype(np.uint8), None, fx=F, fy=F, interpolation=cv2.INTER_NEAREST) > 0
+        viz = cv2.dilate(viz.astype(np.uint8), np.ones((5, 5))) > 0
+        anelP = (cv2.dilate(mpH.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * F + 3, 2 * F + 3))) > 0) & ~viz
+        anelP &= ~(cv2.erode(mpH.astype(np.uint8), cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * F + 1, 2 * F + 1))) > 0)
+        src = np.where(anelP, np.maximum(src, 1.), src)
     d = vetor(None, .5, 3, .6, src=src)
     if d: camadas.append({'c': LINHA, 'p': None, 'd': d})
     dados['partes'][p] = {'z': Z[p], 'cam': camadas}
