@@ -158,7 +158,9 @@ pele = (H >= 4) & (H <= 22) & (S > 60) & (V > 90)
 tubos = (dist_seg((612, 436), (800, 422)) < 13) | (dist_seg((845, 450), (680, 610)) < 22) | \
         ((xx > 703) & (xx < 750) & (yy > 495) & (yy < 548))
 zona = (xx > 630) & (xx < 765) & (yy > 380) & (yy < 575)
-resto = (parte == Z['quadro']) & ((pele & (yy > 330)) | (zona & ~tubos))
+resto = (parte == Z['quadro']) & ((pele & (yy > 330) & (xx < 800)) | (zona & ~tubos))
+# pele que sobrou no quadro perto da mão (nós dos dedos) é da luva
+parte[(parte == Z['quadro']) & pele & (xx >= 800) & (yy < 420)] = Z['luva']
 na_canela = dist_seg(J['joelho'], J['tornozelo']) < 22
 parte[resto & na_canela] = Z['canela']
 parte[resto & ~na_canela] = Z['perna_tras']
@@ -240,6 +242,11 @@ for c in range(K):
     dc = ((labH - cen[c]) ** 2).sum(-1); m = dc < best; best[m] = dc[m]; clsH[m] = c
 clsH = cv2.medianBlur(clsH, 5).astype(int)
 cinzaH = cv2.cvtColor(imH, cv2.COLOR_BGR2GRAY)
+# traço ADAPTATIVO: linha = quase preto, ou bem mais escuro que a vizinhança. Enchimento escuro (luva, pneu, coroa,
+# fita do guidão) não vira traço só por ser escuro.
+vizH = cv2.medianBlur(cinzaH, 2 * (7 * F) + 1).astype(np.float32)
+LIM_H = np.minimum(np.maximum(72., 72. + (vizH - 150.) * .3), np.maximum(34., vizH - 20.))   # limite por pixel (sobe em área clara: pega a borda antialiasada)
+linhaH = cinzaH < LIM_H
 ESC = 2            # superamostragem extra na hora de achar os contornos
 LINHA = '#17171b'
 
@@ -262,8 +269,19 @@ for p in PARTES:
     mp = parte == Z[p]
     if mp.sum() < 20: continue
     mpH = cv2.resize(mp.astype(np.uint8), None, fx=F, fy=F, interpolation=cv2.INTER_NEAREST) > 0
-    escH = cinzaH < 62
-    claros = [c for c in range(K) if c not in ESC_IDS and (mpH & (clsH == c) & ~escH).sum() > 10 * F * F]
+    escH = linhaH
+    # paleta PRÓPRIA da parte (k-means só nos pixels dela): tons pequenos (nós dos dedos) não se perdem na paleta global
+    sel_ = mpH & ~escH & (alfaH > 200)
+    clsP = np.full(mpH.shape, -1, np.int32)
+    if sel_.sum() > 50:
+        kp = int(min(7, max(2, sel_.sum() // (300 * F * F))))
+        _, _, cenP = cv2.kmeans(labH[sel_][::2].astype(np.float32), kp, None, crit, 3, cv2.KMEANS_PP_CENTERS)
+        ys_, xs_ = np.nonzero(mpH)
+        dP = ((labH[ys_, xs_][:, None, :] - cenP[None]) ** 2).sum(-1)
+        clsP[ys_, xs_] = dP.argmin(1)
+        tmp = (clsP + 1).astype(np.uint8); tmp = cv2.medianBlur(tmp, 5); clsP = np.where(mpH, tmp.astype(np.int32) - 1, -1)
+    clsH_ = clsH; clsH = clsP
+    claros = [c for c in range(7) if (mpH & (clsH == c) & ~escH).sum() > 4 * F * F]   # pequenas contam (nós dos dedos)
     claros.sort(key=lambda c: -(mpH & (clsH == c)).sum())
     mpH5 = cv2.dilate(mpH.astype(np.uint8), np.ones((5, 5))) > 0
     camadas = []
@@ -279,13 +297,15 @@ for p in PARTES:
         mm = (cv2.dilate(mm.astype(np.uint8), np.ones((5, 5))) > 0) & mpH5 & (alfaH > 100)
         px = imH[mpH & (clsH == c) & ~escH]; bgr = np.median(px, 0); rgb = tuple(int(v) for v in bgr[::-1])
         cy, cx = np.mean(np.nonzero(mm), 1) / F
-        d = vetor(mm, .5, 6, 1.0)
+        d = vetor(mm, .5, 3, 1.0)
         if d: camadas.append({'c': '#%02x%02x%02x' % rgb, 'p': papel(p, rgb, cx, cy), 'd': d})
     # traço: direto do tom de cinza (contínuo, sem k-means), dentro da parte
-    src = np.where(mpH5 & (alfaH > 40), (255 - cinzaH.astype(np.float32)) / 255., 0)   # alcança a borda antialiasada
-    d = vetor(None, (255 - 72) / 255., 3, .6, src=src)
+    # 'escuridão relativa' ao limite local: >0.5 = traço (contorno suave, alcança a borda antialiasada)
+    src = np.where(mpH5 & (alfaH > 40), .5 + (LIM_H - cinzaH.astype(np.float32)) / 40., 0)
+    d = vetor(None, .5, 3, .6, src=src)
     if d: camadas.append({'c': LINHA, 'p': None, 'd': d})
     dados['partes'][p] = {'z': Z[p], 'cam': camadas}
+    clsH = clsH_
 
 # divide camisa/bermuda no tronco por clip (feito no JS com a linha da cintura)
 dados['cintura'] = [(540, 272), (700, 310)]
@@ -302,6 +322,7 @@ print('partes:', {p: (len(v['cam']), int((parte == Z[p]).sum())) for p, v in dad
 print('tamanho:', len(open(SAIDA).read()) // 1024, 'KB')
 
 if DBG:
+    np.save(DBG + '/rotulos.npy', parte.astype(np.int8)); json.dump(PARTES, open(DBG + '/partes.json', 'w'))
     cores = np.random.RandomState(3).randint(40, 255, (len(PARTES), 3))
     vis = (im * .35).astype(np.uint8)
     for p in PARTES:

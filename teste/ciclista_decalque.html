@@ -112,6 +112,17 @@ function pneus(c){
   c.lineWidth=11;c.strokeStyle=CQ.pneu;c.beginPath();c.arc(e[0],e[1],D.R-8,0,7);c.stroke()}
 }
 function tubosEscondidos(c,kit){tubo(c,[614,468],[672,598],12.5,kit);tubo(c,[616,434],[762,423],7,kit)}
+// pedivela (a referência mostra o de baixo dentro do 'pé de trás', que não é desenhado): braço afinando + pedal
+function pedivela(c,th,escuro){
+ const m=J.mov,p=add(m,[Math.cos(th)*PIV,Math.sin(th)*PIV]),u=[Math.cos(th),Math.sin(th)],n=[-u[1],u[0]];
+ const w0=9,w1=5.5,cor=escuro?'#101013':'#2a2b30';
+ const forma=()=>{c.beginPath();c.moveTo(m[0]+n[0]*w0,m[1]+n[1]*w0);c.lineTo(p[0]+n[0]*w1,p[1]+n[1]*w1);c.arc(p[0],p[1],w1,ang(n),ang(n)+Math.PI);
+  c.lineTo(m[0]-n[0]*w0,m[1]-n[1]*w0);c.arc(m[0],m[1],w0,ang(n)+Math.PI,ang(n));c.closePath()};
+ forma();c.fillStyle=cor;c.fill();c.lineWidth=3;c.strokeStyle='#0b0b0d';c.stroke();
+ if(!escuro){c.strokeStyle='rgba(255,255,255,.18)';c.lineWidth=2;c.beginPath();c.moveTo(m[0]+n[0]*4-u[0]*0,m[1]+n[1]*4);c.lineTo(p[0]+n[0]*2.5,p[1]+n[1]*2.5);c.stroke()}
+ // pedal
+ c.save();c.translate(p[0],p[1]);c.fillStyle='#0b0b0d';c.fillRect(-15,-4,30,8);c.fillStyle=escuro?'#16161a':'#303136';c.fillRect(-13,-2.5,26,5);c.restore();
+}
 function coroaFundo(c){c.fillStyle='#141416';c.beginPath();c.arc(J.mov[0],J.mov[1],39,0,7);c.fill();
  c.fillStyle=CQ.coroa;c.beginPath();c.arc(J.mov[0],J.mov[1],36,0,7);c.fill();
  c.strokeStyle='#141416';c.lineWidth=2.5;c.beginPath();c.arc(J.mov[0],J.mov[1],27,0,7);c.stroke()}
@@ -120,11 +131,13 @@ function cicDecal(c,E){
  pneus(c);
  c.save();rotT(c,J.eixoT,J.eixoT,E.roda);parte(c,'roda_t',kit);c.restore();
  c.save();rotT(c,J.eixoD,J.eixoD,E.roda);parte(c,'roda_d',kit);c.restore();
+ pedivela(c,th+Math.PI,true);
  perna(c,th+Math.PI,kit,true);                                           // perna de trás (escura, atrás do quadro)
  tubosEscondidos(c,kit);
  parte(c,'quadro',kit);
  coroaFundo(c);
  c.save();rotT(c,J.mov,J.mov,th-TH0);parte(c,'coroa',kit);c.restore();
+ pedivela(c,th,false);
  parte(c,'tronco',kit);
  perna(c,th,kit,false);
  parte(c,'cabeca',kit);
