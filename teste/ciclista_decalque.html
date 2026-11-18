@@ -24,7 +24,8 @@
 <div id="ctl">
  <div class="g"><b>Ver</b><button data-ver="anim" class="on">Animado</button><button data-ver="sobre">Sobreposição 50%</button><button data-ver="decal">Só o decalque</button><button data-ver="ref">Referência</button><button data-ver="partes">Partes</button></div>
  <div class="g"><b>Cadência</b><input id="rpm" type="range" min="0" max="130" value="80"><span id="rpmv">80 rpm</span></div>
- <div class="g"><b>Pedivela</b><input id="ang" type="range" min="0" max="360" value="0"><span id="angv">quadro 0</span></div>
+ <div class="g"><b>Volta</b><button id="pausa">⏸ Pausar</button><button id="lento">Câmera lenta</button><input id="ang" type="range" min="0" max="360" step="1" value="0"><span id="angv">0°</span></div>
+ <div class="g"><b>Tamanho</b><button id="tam">Tamanho do jogo</button><button id="esq">Esqueleto</button></div>
  <div class="g"><b>Kit</b><span id="kits"></span></div>
 </div>
 <script src="decalque_dados.js"></script>
@@ -89,7 +90,7 @@ const CINT=(()=>{const [a,b]=D.cintura,u=sub(b,a),e=[a[0]-u[0]*5,a[1]-u[1]*5],f=
 // pose: th = ângulo do pedivela (rad, y para baixo), roda = giro das rodas
 // balanço do corpo (como no vídeo): o quadril afunda um pouco a cada pisada (2x por volta) e o tronco gira de leve em
 // volta do quadril. Medido em px da referência; no quadro 0 é zero (pose da referência exata).
-const BAL={desce:1.4,gira:.007};
+const BAL={desce:0,gira:.007};   // quadril PRESO no selim (desce 0); só o tronco gira de leve em volta dele
 function corpo(th){return{dy:BAL.desce*(Math.cos(2*th)-Math.cos(2*TH0)),a:BAL.gira*(Math.sin(2*th+.5)-Math.sin(2*TH0+.5))}}
 function corpoP(B,p){return add(add(rot(sub(p,J.quadril),B.a),J.quadril),[0,B.dy])}
 function corpoT(c,B){c.translate(0,B.dy);rotT(c,J.quadril,J.quadril,B.a)}
@@ -264,6 +265,16 @@ function cicDecal(c,E){
  parte(c,'luva',kit);
 }
 window.cicDecal=cicDecal;
+const ESC_JOGO=113/375*1376/1280;
+// esqueleto invisível (mostra com o botão): ossos, juntas, pedais. ossos() devolve os pontos para o teste automático.
+function ossos(th){const B=corpo(th),hip=corpoP(B,J.quadril),omb=corpoP(B,J.ombro),f=pernaPose(th,hip),t=pernaPose(th+Math.PI,hip);
+ return{hip,omb,mao:J.punho,co:ik(omb,J.punho,L.braco,L.ante,LADO_COTOV),f,t,mov:J.mov}}
+function esqueleto(c,th){const O=ossos(th);c.save();c.lineWidth=3;c.lineCap='round';
+ const lin=(pts,cor)=>{c.strokeStyle=cor;c.beginPath();c.moveTo(pts[0][0],pts[0][1]);for(const p of pts.slice(1))c.lineTo(p[0],p[1]);c.stroke()};
+ lin([O.t.ped,O.mov,O.f.ped],'#ff0');lin([O.hip,O.t.jo,O.t.tz,O.t.ped],'#0af');lin([O.hip,O.f.jo,O.f.tz,O.f.ped],'#f40');lin([O.hip,O.omb,O.co,O.mao],'#0f6');
+ for(const p of [O.hip,O.omb,O.co,O.mao,O.f.jo,O.f.tz,O.f.ped,O.t.jo,O.t.tz,O.t.ped,O.mov]){c.fillStyle='#fff';c.beginPath();c.arc(p[0],p[1],5,0,7);c.fill()}
+ c.restore()}
+window.ossos=ossos;
 // contorno externo mais grosso que as linhas internas: desenha o ciclista num buffer, faz a silhueta preta,
 // carimba ela em volta (dilatação de 'esp' px de tela) e põe o desenho por cima. As linhas internas ficam como estão.
 const BUF=document.createElement('canvas'),SIL=document.createElement('canvas');
@@ -281,35 +292,58 @@ window.cicDecalBorda=cicDecalBorda;
 // ---------- página ----------
 const cv=document.getElementById('palco'),ctx=cv.getContext('2d');
 const REF=new Image();REF.src='ref_ciclista2_alinhada.png';REF.onload=()=>desenhar();
-const S={borda:1.3,ver:'anim',th:TH0,kit:null,rpm:80,roda:0,scroll:0};
+const S={borda:1.3,ver:'anim',th:TH0,kit:null,rpm:80,roda:0,scroll:0,pausa:false,lento:false,jogo:false,esq:false};
 const IMG={};
 for(const n of ['cen_ceu','cen_campo','cen_veg','asph']){const i=new Image();i.onerror=()=>{if(!i._b){i._b=1;i.src='img/'+n+'.webp'}};i.src='../src/assets/imagens/'+n+'.webp';IMG[n]=i}
 const ok=i=>i&&i.complete&&i.naturalWidth>0;
-function tira(img,y,h,par){const w=img.naturalWidth*h/img.naturalHeight;let x=-((S.scroll*par)%w);for(;x<1376;x+=w-1)ctx.drawImage(img,x,y,w,h)}
+// ---------- cenário: camadas pré-renderizadas em canvases auxiliares ----------
+// Céu + chão de fundo = 1 canvas fixo. Cada faixa (morros, asfalto, mato) = 1 canvas com a tira já redimensionada,
+// largura = tile·n ≥ tela + 1 tile. Por quadro: 2 drawImage por faixa (deslocamento pela câmera), sem redimensionar.
+const CEN={fixo:null,faixas:[]};
+function camadaFaixa(img,y,h,par){const w=Math.round(img.naturalWidth*h/img.naturalHeight),n=Math.ceil(1376/w)+1,k=document.createElement('canvas');
+ k.width=w*n;k.height=h;const g=k.getContext('2d');for(let i=0;i<n;i++)g.drawImage(img,i*w-(i?1:0),0,w+1,h);return{k,w,y,par}}
+function prepararCenario(){
+ if(!['cen_ceu','cen_campo','cen_veg','asph'].every(n=>ok(IMG[n])))return false;
+ const f=document.createElement('canvas');f.width=1376;f.height=768;const g=f.getContext('2d');
+ g.fillStyle='#6fae3a';g.fillRect(0,0,1376,768);g.drawImage(IMG.cen_ceu,0,0,1376,470);CEN.fixo=f;
+ CEN.faixas=[camadaFaixa(IMG.cen_campo,210,320,.25),camadaFaixa(IMG.asph,520,190,1),camadaFaixa(IMG.cen_veg,650,140,1.35)];return true}
 function fundoJogo(){
- if(ok(IMG.cen_ceu))ctx.drawImage(IMG.cen_ceu,0,0,1376,470);ctx.fillStyle='#6fae3a';ctx.fillRect(0,400,1376,368);
- if(ok(IMG.cen_campo))tira(IMG.cen_campo,210,320,.25);if(ok(IMG.asph))tira(IMG.asph,520,190,1);if(ok(IMG.cen_veg))tira(IMG.cen_veg,650,140,1.35);
+ if(!CEN.fixo&&!prepararCenario()){ctx.fillStyle='#7cc0ea';ctx.fillRect(0,0,1376,768);return}
+ ctx.drawImage(CEN.fixo,0,0);
+ for(const F of CEN.faixas){const x=-((S.scroll*F.par)%F.w);ctx.drawImage(F.k,Math.round(x),F.y)}
 }
 const CORP={roda_t:'#e6194b',roda_d:'#3cb44b',quadro:'#ffe119',coroa:'#4363d8',canela:'#f58231',sapatilha:'#911eb4',coxa:'#46f0f0',tronco:'#f032e6',cabeca:'#bcf60c',braco:'#fabebe',antebraco:'#008080',luva:'#e6beff'};
 function desenhar(){
  ctx.fillStyle='#1d2238';ctx.fillRect(0,0,1376,768);
  if(S.ver!=='decal'&&S.ver!=='anim'&&REF.complete)ctx.drawImage(REF,0,0);
- if(S.ver==='anim'){fundoJogo();const e=.62;ctx.save();ctx.translate(688-707*e,640-(587+D.R)*e);ctx.scale(e,e);
+ if(S.ver==='anim'){fundoJogo();
+  // tamanho do jogo: entre-eixos na tela = 113 px numa tela de 1280 (sprite 154 px · KS 1,128 · ZOOM 0,65) -> 0,32 aqui
+  const e=S.jogo?ESC_JOGO:.62,cx=S.jogo?470:688,cy=S.jogo?690:640;
+  ctx.save();ctx.translate(cx-707*e,cy-(587+D.R)*e);ctx.scale(e,e);
   ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(707,587+D.R,260,10,0,0,7);ctx.fill();
-  cicDecalBorda(ctx,{th:S.th,roda:S.roda,kit:S.kit},S.borda);ctx.restore();
-  ctx.font='800 24px system-ui';ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=5;const t=S.rpm+' rpm';ctx.strokeText(t,24,40);ctx.fillText(t,24,40);return}
+  cicDecalBorda(ctx,{th:S.th,roda:S.roda,kit:S.kit},S.borda);if(S.esq)esqueleto(ctx,S.th);ctx.restore();
+  ctx.font='800 24px system-ui';ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=5;
+  const g=Math.round(((S.th-TH0)*180/Math.PI%360+360)%360),t=S.rpm+' rpm · '+g+'°'+(S.pausa?' · pausado':S.lento?' · ×0,25':'');
+  ctx.strokeText(t,24,40);ctx.fillText(t,24,40);return}
  if(S.ver==='sobre'){ctx.globalAlpha=.5;cicDecal(ctx,{th:S.th,roda:0,kit:S.kit});ctx.globalAlpha=1}
  if(S.ver==='decal')cicDecalBorda(ctx,{th:S.th,roda:0,kit:S.kit},S.borda/.62);
  if(S.ver==='partes'){ctx.globalAlpha=.55;for(const p in CORP){const P=D.partes[p];if(!P)continue;ctx.fillStyle=CORP[p];for(const l of P.cam.slice(0,1))ctx.fill(l.path)}ctx.globalAlpha=1}
 }
-function passo(dt){S.th+=S.rpm/60*2*Math.PI*dt;const v=S.rpm/60*(50/17)*2.1;S.roda+=v/.335*dt;S.scroll+=v*dt*(D.R*.62/.335)}
+function passo(dt){if(S.pausa)return;if(S.lento)dt*=.25;S.th+=S.rpm/60*2*Math.PI*dt;const v=S.rpm/60*(50/17)*2.1;S.roda+=v/.335*dt;S.scroll+=v*dt*(D.R*.62/.335)}
 let ult=performance.now();
 function loop(t){const dt=Math.min(.05,(t-ult)/1000);ult=t;if(S.ver==='anim'){passo(dt);desenhar()}requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
-window.TESTE={S,desenhar,passo};
+window.TESTE={S,desenhar,passo,marcaPausa:v=>marcaPausa(v)};
 const ri=document.getElementById('rpm');ri.oninput=()=>{S.rpm=+ri.value;document.getElementById('rpmv').textContent=S.rpm+' rpm'};
 document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{S.ver=b.dataset.ver;document.querySelectorAll('[data-ver]').forEach(x=>x.classList.toggle('on',x===b));desenhar()});
-const ai=document.getElementById('ang');ai.oninput=()=>{const g=+ai.value;S.th=TH0+g*Math.PI/180;document.getElementById('angv').textContent=g?g+'°':'quadro 0';desenhar()};
+const ai=document.getElementById('ang'),bp=document.getElementById('pausa'),bl=document.getElementById('lento'),bt=document.getElementById('tam'),be=document.getElementById('esq');
+function marcaPausa(v){S.pausa=v;bp.textContent=v?'▶ Continuar':'⏸ Pausar';bp.classList.toggle('on',v)}
+ai.oninput=()=>{const g=+ai.value;marcaPausa(true);const v=(S.th-TH0)/(2*Math.PI),volta=Math.floor(v);S.th=TH0+(volta+g/360)*2*Math.PI;
+ S.roda=(S.th-TH0)*(50/17);document.getElementById('angv').textContent=g+'°';desenhar()};
+bp.onclick=()=>{marcaPausa(!S.pausa);desenhar()};
+bl.onclick=()=>{S.lento=!S.lento;bl.classList.toggle('on',S.lento)};
+bt.onclick=()=>{S.jogo=!S.jogo;bt.classList.toggle('on',S.jogo);desenhar()};
+be.onclick=()=>{S.esq=!S.esq;be.classList.toggle('on',S.esq);desenhar()};
 const kd=document.getElementById('kits');
 for(const k in KITS){const b=document.createElement('button');b.textContent=k;if(k==='referencia')b.classList.add('on');
  b.onclick=()=>{S.kit=KITS[k];kd.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));desenhar()};kd.appendChild(b)}
