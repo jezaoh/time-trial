@@ -137,7 +137,7 @@ window.cicDecal=cicDecal;
 
 // ---------- página ----------
 const cv=document.getElementById('palco'),ctx=cv.getContext('2d');
-const REF=new Image();REF.src='ref_ciclista.jpg';REF.onload=()=>desenhar();
+const REF=new Image();REF.src='ref_ciclista2_alinhada.png';REF.onload=()=>desenhar();
 const S={ver:'anim',th:TH0,kit:null,rpm:80,roda:0,scroll:0};
 const IMG={};
 for(const n of ['cen_ceu','cen_campo','cen_veg','asph']){const i=new Image();i.onerror=()=>{if(!i._b){i._b=1;i.src='img/'+n+'.webp'}};i.src='../src/assets/imagens/'+n+'.webp';IMG[n]=i}

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Decalque da referência do ciclista em partes vetoriais (Path2D) para o teste teste/ciclista_decalque.html.
 
-Uso: python3 tools/ciclista_decalque/decalque.py teste/ref_ciclista.jpg teste/decalque_dados.js [pasta_debug]
+Uso: python3 tools/ciclista_decalque/decalque.py teste/ref_ciclista2_alinhada.png teste/decalque_dados.js [pasta_debug]
+(a referência PNG nova é alinhada antes por alinhar.py; a JPG antiga também funciona)
 
 Método:
  1. fundo = pixels saturados azul/roxo/verde-água (céu e chão da referência) -> transparente;
@@ -18,7 +19,10 @@ import sys, json, cv2, numpy as np
 
 REF, SAIDA = sys.argv[1], sys.argv[2]
 DBG = sys.argv[3] if len(sys.argv) > 3 else None
-im = cv2.imread(REF); Hh, Ww = im.shape[:2]
+im = cv2.imread(REF, cv2.IMREAD_UNCHANGED); Hh, Ww = im.shape[:2]
+ALFA = None
+if im.ndim == 3 and im.shape[2] == 4:      # PNG com transparência (ref. nova, alinhada por alinhar.py): o alfa é o fundo
+    ALFA = im[..., 3]; im = (im[..., :3] * (ALFA[..., None] / 255.)).astype(np.uint8)   # borda sobre preto = contorno
 hsv = cv2.cvtColor(im, cv2.COLOR_BGR2HSV).astype(int)
 H, S, V = hsv[..., 0], hsv[..., 1], hsv[..., 2]
 
@@ -56,7 +60,8 @@ SEM = {   # polilinhas de semente
  'coxa': [[(640, 335), (725, 372)], [(700, 350), (745, 375)], [(620, 345), (680, 380)], [(650, 352), (690, 372)],
           [(690, 340), (700, 378)], [(745, 365), (758, 378)]],
  'tronco': [[(600, 260), (740, 200)], [(570, 320), (600, 290)], [(650, 300), (700, 260)], [(560, 340), (585, 345)]],
- 'cabeca': [[(790, 120), (830, 110)], [(800, 160), (815, 200)], [(820, 150), (840, 150)], [(785, 205), (800, 215)]],
+ 'cabeca': [[(790, 120), (830, 110)], [(800, 160), (815, 200)], [(820, 150), (840, 150)], [(785, 205), (800, 215)],
+            [(765, 172), (785, 195)], [(775, 165), (790, 185)]],
  'braco': [[(760, 250), (785, 300)], [(745, 245), (775, 255)]],
  'antebraco': [[(800, 325), (830, 352)]],
  'luva': [[(850, 370), (870, 380)], [(860, 360), (880, 375)]],
@@ -65,16 +70,20 @@ SEM = {   # polilinhas de semente
 # ---------------- fundo ----------------
 fundo = (S > 55) & (H > 80) & (H < 150) & (V > 40)
 sujeito = ~fundo
-# só o que encosta no ciclista/bike (tira riscos do chão); dentro das rodas fica tudo
-n, lab, st, _ = cv2.connectedComponentsWithStats(sujeito.astype(np.uint8), 8)
-maior = 1 + np.argmax(st[1:, cv2.CC_STAT_AREA])
 yy, xx = np.mgrid[0:Hh, 0:Ww]
-dentro_rodas = ((xx - J['eixoT'][0]) ** 2 + (yy - J['eixoT'][1]) ** 2 < (RODA + 4) ** 2) | \
-               ((xx - J['eixoD'][0]) ** 2 + (yy - J['eixoD'][1]) ** 2 < (RODA + 4) ** 2)
-sujeito = (lab == maior) | (sujeito & dentro_rodas)
-# contorno misturado com o céu (azulado e escuro) volta a ser do ciclista: anel de 3 px em volta do sujeito
-anel = cv2.dilate(sujeito.astype(np.uint8), np.ones((7, 7))) > 0
-sujeito = sujeito | (anel & (V < 95))
+if ALFA is not None:
+    sujeito = ALFA > 100
+else:
+    # só o que encosta no ciclista/bike (tira riscos do chão); dentro das rodas fica tudo
+    n, lab, st, _ = cv2.connectedComponentsWithStats(sujeito.astype(np.uint8), 8)
+    maior = 1 + np.argmax(st[1:, cv2.CC_STAT_AREA])
+    yy, xx = np.mgrid[0:Hh, 0:Ww]
+    dentro_rodas = ((xx - J['eixoT'][0]) ** 2 + (yy - J['eixoT'][1]) ** 2 < (RODA + 4) ** 2) | \
+                   ((xx - J['eixoD'][0]) ** 2 + (yy - J['eixoD'][1]) ** 2 < (RODA + 4) ** 2)
+    sujeito = (lab == maior) | (sujeito & dentro_rodas)
+    # contorno misturado com o céu (azulado e escuro) volta a ser do ciclista: anel de 3 px em volta do sujeito
+    anel = cv2.dilate(sujeito.astype(np.uint8), np.ones((7, 7))) > 0
+    sujeito = sujeito | (anel & (V < 95))
 fundo = ~sujeito
 escuro = (V < 80) & sujeito
 
@@ -111,9 +120,14 @@ def perp(c, a, b, L=60):  # linha por c perpendicular a a->b
 # joelho: entre coxa e canela, perpendicular ao meio dos dois ossos
 k0, k1 = perp(J['joelho'], J['quadril'], J['tornozelo'], 50)
 s = lado(k0, k1, *J['quadril']); corta('coxa', 'canela', k0, k1, 'coxa' if s > 0 else 'canela')
+# joelho redondo: o disco em volta da articulação fica com a coxa (desenhada por cima) -> a ponta não vira espinho ao girar
+disco = (xx - J['joelho'][0]) ** 2 + (yy - J['joelho'][1]) ** 2 < 27 ** 2
+parte[disco & (parte == Z['canela'])] = Z['coxa']
 # cotovelo
 e0, e1 = perp(J['cotovelo'], J['ombro'], J['punho'], 40)
 s = lado(e0, e1, *J['ombro']); corta('braco', 'antebraco', e0, e1, 'braco' if s > 0 else 'antebraco')
+disco = (xx - J['cotovelo'][0]) ** 2 + (yy - J['cotovelo'][1]) ** 2 < 19 ** 2
+parte[disco & (parte == Z['antebraco'])] = Z['braco']
 # quadril: coxa x tronco. A coxa é o que fica do lado do joelho da linha pelo quadril perpendicular à coxa,
 # e também um círculo em volta do quadril (tampa redonda: a coxa gira sem abrir buraco).
 h0, h1 = perp(J['quadril'], J['quadril'], J['joelho'], 70)
@@ -144,20 +158,36 @@ pele = (H >= 4) & (H <= 22) & (S > 60) & (V > 90)
 tubos = (dist_seg((612, 436), (800, 422)) < 13) | (dist_seg((845, 450), (680, 610)) < 22) | \
         ((xx > 703) & (xx < 750) & (yy > 495) & (yy < 548))
 zona = (xx > 630) & (xx < 765) & (yy > 380) & (yy < 575)
-resto = (parte == Z['quadro']) & (pele | (zona & ~tubos))
+resto = (parte == Z['quadro']) & ((pele & (yy > 330)) | (zona & ~tubos))
 na_canela = dist_seg(J['joelho'], J['tornozelo']) < 22
 parte[resto & na_canela] = Z['canela']
 parte[resto & ~na_canela] = Z['perna_tras']
 
 # peças da perna da frente só perto do osso (contornos de tubo que vazaram voltam para o quadro)
-for nome, a_, b_, r_ in (('canela', 'joelho', 'tornozelo', 27), ('coxa', 'quadril', 'joelho', 56)):
+for nome, a_, b_, r_ in (('canela', 'joelho', 'tornozelo', 27), ('coxa', 'quadril', 'joelho', 56)):  # o disco do joelho (r 27) fica dentro
     longe = (parte == Z[nome]) & (dist_seg(J[a_], J[b_]) > r_)
     parte[longe & tubos] = Z['quadro']; parte[longe & ~tubos] = Z['perna_tras']
+# braço: camisa longe do osso fica no tronco
+parte[(parte == Z['braco']) & (dist_seg(J['ombro'], J['cotovelo']) > 24) & (yy < 270)] = Z['tronco']
+
+# membros: só o pedaço principal (lascas finas giram junto e aparecem como espinhos)
+for nome in ('canela', 'coxa', 'sapatilha', 'braco', 'antebraco'):
+    m = (parte == Z[nome]).astype(np.uint8)
+    k_ = 5 if nome in ('coxa', 'canela') else 3       # fios de contorno pendurados (3-4 px) somem
+    ab = cv2.morphologyEx(m, cv2.MORPH_OPEN, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k_, k_)))
+    n_, lb_, st_, _ = cv2.connectedComponentsWithStats(ab, 8)
+    if n_ < 2: continue
+    fica = lb_ == (1 + np.argmax(st_[1:, cv2.CC_STAT_AREA]))
+    fica = cv2.morphologyEx(fica.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)) > 0
+    sai = (m > 0) & ~fica
+    parte[sai & tubos] = Z['quadro']; parte[sai & ~tubos] = Z['perna_tras' if nome in ('canela', 'coxa', 'sapatilha') else 'tronco']
+    parte[fica & (parte != Z[nome]) & (parte >= Z['canela']) & (parte < Z['tronco'])] = parte[fica & (parte != Z[nome]) & (parte >= Z['canela']) & (parte < Z['tronco'])]
 
 # pneu: o anel do pneu que ficou com o quadro (atrás da coroa/sapatilha) volta para a roda
 for r, e in (('roda_t', 'eixoT'), ('roda_d', 'eixoD')):
     dd2 = np.sqrt((xx - J[e][0]) ** 2 + (yy - J[e][1]) ** 2)
-    parte[(parte == Z['quadro']) & (dd2 > RODA - 15) & (dd2 < RODA + 4)] = Z[r]
+    branco_q = cv2.dilate(((parte == Z['quadro']) & (V > 150)).astype(np.uint8), np.ones((9, 9))) > 0   # garfo/tubos que cruzam o pneu
+    parte[(parte == Z['quadro']) & (dd2 > RODA - 28) & (dd2 < RODA + 4) & (V < 130) & ~branco_q] = Z[r]
     # miolo da roda: fica só o escuro (riscos de giro), some o chuvisco claro
     parte[(parte == Z[r]) & (dd2 > 45) & (dd2 < RODA - 16) & (V > 85)] = -1
     parte[(parte == Z[r]) & (dd2 > 45) & (V > 110)] = -1
@@ -193,39 +223,68 @@ def papel(p, rgb, x, y):
     if p in ('quadro',): return 'quadro'
     return None
 
-ESC = 3
+# ---------------- vetorização (na versão 2x, se existir) ----------------
+import os
+HI = REF.replace('.png', '_2x.png')
+F = 1
+imH = im
+if REF.endswith('.png') and os.path.exists(HI):
+    a4 = cv2.imread(HI, cv2.IMREAD_UNCHANGED); F = a4.shape[1] // Ww
+    imH = (a4[..., :3] * (a4[..., 3:4] / 255.)).astype(np.uint8)
+    alfaH = a4[..., 3]
+else:
+    alfaH = np.where(sujeito, 255, 0).astype(np.uint8)
+labH = cv2.cvtColor(imH, cv2.COLOR_BGR2LAB).astype(np.float32)
+best = np.full(imH.shape[:2], 1e12, np.float32); clsH = np.zeros(imH.shape[:2], np.uint8)
+for c in range(K):
+    dc = ((labH - cen[c]) ** 2).sum(-1); m = dc < best; best[m] = dc[m]; clsH[m] = c
+clsH = cv2.medianBlur(clsH, 5).astype(int)
+cinzaH = cv2.cvtColor(imH, cv2.COLOR_BGR2GRAY)
+ESC = 2            # superamostragem extra na hora de achar os contornos
+LINHA = '#17171b'
+
+def vetor(mask_hi, thr=.5, area_min=4, suave=1.0, src=None):
+    """máscara (0..1, resolução F) -> string SVG em coordenadas da referência."""
+    big = cv2.resize(mask_hi.astype(np.float32) if src is None else src, None, fx=ESC, fy=ESC, interpolation=cv2.INTER_CUBIC)
+    if suave: big = cv2.GaussianBlur(big, (0, 0), suave)
+    bm = (big > thr).astype(np.uint8)
+    cs, _ = cv2.findContours(bm, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
+    dd = []
+    for ct in cs:
+        if cv2.contourArea(ct) < area_min * ESC * ESC * F * F: continue
+        ap = cv2.approxPolyDP(ct, .8, True).reshape(-1, 2) / (ESC * F)
+        if len(ap) < 3: continue
+        dd.append('M' + ' L'.join(f'{x:.1f} {y:.1f}' for x, y in ap) + 'Z')
+    return ''.join(dd)
+
 dados = {'J': J, 'R': RODA, 'tam': [Ww, Hh], 'partes': {}}
 for p in PARTES:
     mp = parte == Z[p]
     if mp.sum() < 20: continue
+    mpH = cv2.resize(mp.astype(np.uint8), None, fx=F, fy=F, interpolation=cv2.INTER_NEAREST) > 0
+    escH = cinzaH < 62
+    claros = [c for c in range(K) if c not in ESC_IDS and (mpH & (clsH == c) & ~escH).sum() > 10 * F * F]
+    claros.sort(key=lambda c: -(mpH & (clsH == c)).sum())
+    mpH5 = cv2.dilate(mpH.astype(np.uint8), np.ones((5, 5))) > 0
     camadas = []
-    ids = [c for c in range(K) if (mp & (cls == c)).sum() > 6]
-    ids.sort(key=lambda c: -(mp & (cls == c)).sum())
-    # camada base: silhueta inteira na cor mais comum (fecha frestas entre camadas)
-    for i, c in enumerate([-1] + ids):
-        mm = mp if c == -1 else (mp & (cls == c))
-        px = im[mm]
-        if c == -1:
-            c0 = ids[0]; px = im[mp & (cls == c0)]
-        bgr = np.median(px, 0)
-        if bgr.max() < 52: bgr = bgr * .6          # contorno: o JPEG mistura com o fundo, devolve o preto
-        rgb = tuple(int(v) for v in bgr[::-1])
-        cy = int(np.mean(np.nonzero(mm)[0])); cx = int(np.mean(np.nonzero(mm)[1]))
-        big = cv2.resize(mm.astype(np.float32), None, fx=ESC, fy=ESC, interpolation=cv2.INTER_LINEAR)
-        big = cv2.GaussianBlur(big, (0, 0), 1.2)
-        thr = .5 if c == -1 else .42
-        bm = (big > thr).astype(np.uint8)
-        cs, hi = cv2.findContours(bm, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_NONE)
-        dd = []
-        for ct in cs:
-            if cv2.contourArea(ct) < 6 * ESC * ESC and c != -1: continue
-            ap = cv2.approxPolyDP(ct, .9, True).reshape(-1, 2) / ESC
-            if len(ap) < 3: continue
-            dd.append('M' + ' L'.join(f'{x:.1f} {y:.1f}' for x, y in ap) + 'Z')
-        if not dd: continue
-        ro = papel(p, rgb, cx, cy)
-        # a camada da camisa no tronco pode ter partes de bermuda: divide por altura
-        camadas.append({'c': '#%02x%02x%02x' % rgb, 'p': ro, 'd': ''.join(dd)})
+    # base: silhueta inteira na cor mais comum (fecha frestas)
+    if claros:
+        px = imH[mpH & (clsH == claros[0]) & ~escH]; bgr = np.median(px, 0); rgb = tuple(int(v) for v in bgr[::-1])
+    else:
+        rgb = (23, 23, 27)
+    camadas.append({'c': '#%02x%02x%02x' % rgb, 'p': papel(p, rgb, *np.mean(np.nonzero(mp)[::-1], 1)), 'd': vetor(mpH, .5, 1, 1.2)})
+    for c in claros[1:]:
+        mm = mpH & (clsH == c) & ~escH
+        # 1-2 px além da parte, na própria cor: cobre a fresta da emenda sem pintar a vizinha de outra cor
+        mm = (cv2.dilate(mm.astype(np.uint8), np.ones((5, 5))) > 0) & mpH5 & (alfaH > 100)
+        px = imH[mpH & (clsH == c) & ~escH]; bgr = np.median(px, 0); rgb = tuple(int(v) for v in bgr[::-1])
+        cy, cx = np.mean(np.nonzero(mm), 1) / F
+        d = vetor(mm, .5, 6, 1.0)
+        if d: camadas.append({'c': '#%02x%02x%02x' % rgb, 'p': papel(p, rgb, cx, cy), 'd': d})
+    # traço: direto do tom de cinza (contínuo, sem k-means), dentro da parte
+    src = np.where(mpH5 & (alfaH > 40), (255 - cinzaH.astype(np.float32)) / 255., 0)   # alcança a borda antialiasada
+    d = vetor(None, (255 - 72) / 255., 3, .6, src=src)
+    if d: camadas.append({'c': LINHA, 'p': None, 'd': d})
     dados['partes'][p] = {'z': Z[p], 'cam': camadas}
 
 # divide camisa/bermuda no tronco por clip (feito no JS com a linha da cintura)
