@@ -1,0 +1,384 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ciclista Decalque</title>
+<style>
+ :root{--bg:#0f1720;--fg:#f2f2f2;--btn:#22303f;--btn2:#f4c20d}
+ @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#eef2f6;--fg:#111;--btn:#fff}}
+ :root[data-theme="dark"]{--bg:#0f1720;--fg:#f2f2f2;--btn:#22303f}
+ *{box-sizing:border-box}
+ body{margin:0;background:var(--bg);color:var(--fg);font:600 14px system-ui,sans-serif}
+ #palco{display:block;width:100%;max-width:1376px;margin:0 auto;aspect-ratio:1376/768;background:#223}
+ #ctl{max-width:1376px;margin:0 auto;padding:10px 16px 24px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+ .g{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+ .g b{opacity:.7;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+ button{background:var(--btn);color:var(--fg);border:2px solid #000;border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer}
+ button.on{background:var(--btn2);color:#111}
+ input[type=range]{width:150px}
+</style>
+</head>
+<body>
+<canvas id="palco" width="1376" height="768"></canvas>
+<div id="ctl">
+ <div class="g"><b>Ver</b><button data-ver="anim" class="on">Animado</button><button data-ver="sobre">Sobreposição 50%</button><button data-ver="decal">Só o decalque</button><button data-ver="ref">Referência</button><button data-ver="partes">Partes</button></div>
+ <div class="g"><b>Cadência</b><input id="rpm" type="range" min="0" max="130" value="80"><span id="rpmv">80 rpm</span></div>
+ <div class="g"><b>Volta</b><button id="pausa">⏸ Pausar</button><button id="lento">Câmera lenta</button><input id="ang" type="range" min="0" max="360" step="1" value="0"><span id="angv">0°</span></div>
+ <div class="g"><b>Tamanho</b><button id="tam">Tamanho do jogo</button><button id="esq">Esqueleto</button></div>
+ <div class="g"><b>Kit</b><span id="kits"></span></div>
+</div>
+<script src="decalque_dados.js"></script>
+<script src="decalque_pecas.js"></script>
+<script>
+// =====================================================================================================
+// CICLISTA DECALCADO: partes vetoriais tiradas da referência (tools/ciclista_decalque/decalque.py),
+// cada uma presa ao seu osso. Coordenadas = pixels da referência. Quadro 0 = pose da referência.
+// =====================================================================================================
+const D=DECAL,J=D.J;
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1]],add=(a,b)=>[a[0]+b[0],a[1]+b[1]],len=a=>Math.hypot(a[0],a[1]);
+const ang=a=>Math.atan2(a[1],a[0]);
+const rot=(a,r)=>[a[0]*Math.cos(r)-a[1]*Math.sin(r),a[0]*Math.sin(r)+a[1]*Math.cos(r)];
+const cross=(a,b)=>a[0]*b[1]-a[1]*b[0];
+// ossos (comprimentos da referência)
+const L={coxa:len(sub(J.joelho,J.quadril)),canela:len(sub(J.tornozelo,J.joelho)),braco:len(sub(J.cotovelo,J.ombro)),ante:len(sub(J.punho,J.cotovelo))};
+const PIV=len(sub(J.pedal,J.mov)),TH0=ang(sub(J.pedal,J.mov));
+const LADO_JOELHO=Math.sign(cross(sub(J.tornozelo,J.quadril),sub(J.joelho,J.quadril)));
+const LADO_COTOV=Math.sign(cross(sub(J.punho,J.ombro),sub(J.cotovelo,J.ombro)));
+function ik(A,B,l1,l2,lado){
+ const d0=sub(B,A);let d=len(d0);d=Math.max(Math.abs(l1-l2)+.01,Math.min(l1+l2-.01,d));
+ const a=ang(d0),al=Math.acos((l1*l1+d*d-l2*l2)/(2*l1*d));
+ const k1=add(A,[Math.cos(a+al)*l1,Math.sin(a+al)*l1]),k2=add(A,[Math.cos(a-al)*l1,Math.sin(a-al)*l1]);
+ return Math.sign(cross(d0,sub(k1,A)))===lado?k1:k2;
+}
+// Path2D prontos
+for(const p in D.partes)for(const c of D.partes[p].cam)c.path=new Path2D(c.d);
+// ---------- cores / kit ----------
+const BASE={camisa:'#e9eaef',bermuda:'#e9eaef',capacete:'#e9eaef',quadro:'#e9eaef',sapatilha:'#e9eaef',meia:'#e9eaef',pele:'#d79a6c'};
+const KITS={
+ referencia:null,
+ azul:   {camisa:'#2f6fd6',bermuda:'#1b2230',capacete:'#ffffff',quadro:'#1f3f80',sapatilha:'#ffffff',meia:'#ffffff',pele:'#c98a5e'},
+ vinho:  {camisa:'#9a2238',bermuda:'#1b1b1b',capacete:'#f0c419',quadro:'#5e1220',sapatilha:'#1b1b1b',meia:'#1b1b1b',pele:'#f0bf98'},
+ verde:  {camisa:'#2f9a46',bermuda:'#1c1c1c',capacete:'#3fbf55',quadro:'#232323',sapatilha:'#ffffff',meia:'#ffffff',pele:'#8d5a3a'},
+ amarelo:{camisa:'#f4c20d',bermuda:'#1a1a1a',capacete:'#222222',quadro:'#c62828',sapatilha:'#f4c20d',meia:'#f4c20d',pele:'#e8b08a'}
+};
+const hx=c=>[1,3,5].map(i=>parseInt(c.slice(i,i+2),16));
+const rgb=a=>'rgb('+a.map(v=>Math.max(0,Math.min(255,Math.round(v)))).join(',')+')';
+const cache=new Map();
+function cor(c,papel,kit,escuro){
+ const key=c+papel+(kit?JSON.stringify(kit):'')+escuro;if(cache.has(key))return cache.get(key);
+ let v=hx(c);
+ if(kit&&papel&&kit[papel]){const b=hx(BASE[papel]),k=hx(kit[papel]);v=v.map((x,i)=>k[i]*Math.min(1.12,x/b[i]))}
+ if(escuro){const n=[34,36,50];v=v.map((x,i)=>x+(n[i]-x)*.22)}   // perna de trás: só um pouco mais escura (como no vídeo)
+ const r=rgb(v);cache.set(key,r);return r;
+}
+// ---------- desenho ----------
+function segT(c,a0,b0,a,b){c.translate(a[0],a[1]);c.rotate(ang(sub(b,a))-ang(sub(b0,a0)));c.translate(-a0[0],-a0[1])}
+function rotT(c,p0,p,da){c.translate(p[0],p[1]);c.rotate(da);c.translate(-p0[0],-p0[1])}
+function parte(c,nome,kit,escuro,clip){
+ const P=D.partes[nome];if(!P)return;
+ for(const l of P.cam){
+  if(nome==='tronco'&&(l.p==='camisa')){  // camisa em cima da linha da cintura, bermuda embaixo
+   for(const [pap,lado] of [['camisa',-1],['bermuda',1]]){c.save();c.clip(CINT[lado<0?0:1]);c.fillStyle=cor(l.c,pap,kit,escuro);c.fill(l.path);c.restore()}
+  }else{c.fillStyle=cor(l.c,l.p,kit,escuro);c.fill(l.path)}
+ }
+}
+const CINT=(()=>{const [a,b]=D.cintura,u=sub(b,a),e=[a[0]-u[0]*5,a[1]-u[1]*5],f=[b[0]+u[0]*5,b[1]+u[1]*5];
+ const cima=new Path2D(),baixo=new Path2D();
+ cima.moveTo(e[0],e[1]);cima.lineTo(f[0],f[1]);cima.lineTo(f[0],-9999);cima.lineTo(e[0],-9999);cima.closePath();
+ baixo.moveTo(e[0],e[1]);baixo.lineTo(f[0],f[1]);baixo.lineTo(f[0],9999);baixo.lineTo(e[0],9999);baixo.closePath();return[cima,baixo]})();
+
+// pose: th = ângulo do pedivela (rad, y para baixo), roda = giro das rodas
+// balanço do corpo (como no vídeo): o quadril afunda um pouco a cada pisada (2x por volta) e o tronco gira de leve em
+// volta do quadril. Medido em px da referência; no quadro 0 é zero (pose da referência exata).
+// balanço medido no vídeo 'pedalando sentado' (em px da arte): ombros afundam ~3 px a cada pisada (2×/volta, tronco gira
+// em volta do quadril preso no selim), cabeça segura (gira só ~45% do tronco), bike+ciclista balançam ~3 px para frente/trás 1×/volta;
+// mãos presas no guidão -> o cotovelo 'respira' sozinho pelo IK.
+const BAL={desce:0,gira:.018,cabeca:.55,vai:3};   // quadril PRESO no selim (desce 0); só o tronco gira de leve em volta dele
+function corpo(th){return{dy:BAL.desce*(Math.cos(2*th)-Math.cos(2*TH0)),a:BAL.gira*(Math.cos(2*th)-Math.cos(2*TH0))}}
+function corpoP(B,p){return add(add(rot(sub(p,J.quadril),B.a),J.quadril),[0,B.dy])}
+function corpoT(c,B){c.translate(0,B.dy);rotT(c,J.quadril,J.quadril,B.a)}
+// ---------- perna (biomecânica, não decalque) ----------
+// Bike fit: com o pé no ponto morto inferior o joelho fica com ~30° de flexão (ângulo interno ~150°); no alto ~65-70°.
+// As pernas da arte são curtas para a bike (hip→tornozelo 269 px; um adulto nessa bike pede ~300): a canela estica
+// 17% e a coxa 6% (proporção humana canela ≈ 0,9 coxa) e o pedivela fica com 62 px (≈ 170 mm para uma roda de 700c).
+// O pedal fica sob a PLANTA do pé (não na ponta). Pé (ângulo da sola, ponta para baixo): ~5° às 3h (fase de força,
+// calcanhar baixo), ~25° às 9h (subindo), ~15° no alto e embaixo. A arte tem a sola a ~39° no alto do giro.
+const PERNA={coxa:1.06,canela:1.17,piv:DPECAS.L_PED,   // pedivela = o da arte da coroa (61 px ≈ 170 mm)
+ ball:[668,551],solaArte:39};
+const LC=L.coxa*PERNA.coxa,LS=L.canela*PERNA.canela;
+function anguloPe(th){const t=th;return(15-10*Math.cos(t))*Math.PI/180}       // t: 0 = pedal à frente (3h), π/2 = embaixo
+function pernaPose(th,hip){hip=hip||J.quadril;
+ const ped=add(J.mov,[Math.cos(th)*PERNA.piv,Math.sin(th)*PERNA.piv]);      // eixo do pedal = planta do pé
+ const dphi=anguloPe(th)-PERNA.solaArte*Math.PI/180;                         // giro do pé em relação à arte
+ const tz=add(ped,rot(sub(J.tornozelo,PERNA.ball),dphi));
+ const jo=ik(hip,tz,LC,LS,LADO_JOELHO);
+ return{ped,dphi,tz,jo};
+}
+// osso a0→b0 da arte vai para a→b: gira e ESTICA só ao longo do osso (a largura da perna não muda)
+function segS(c,a0,b0,a,b){const r0=ang(sub(b0,a0));c.translate(a[0],a[1]);c.rotate(ang(sub(b,a)));c.scale(len(sub(b,a))/len(sub(b0,a0)),1);c.rotate(-r0);c.translate(-a0[0],-a0[1])}
+// ---------- "carne por baixo": formas lisas da anatomia, em cor base e com contorno, desenhadas ANTES do decalque.
+// Ficam escondidas sob o desenho; só aparecem onde a pose abre um buraco que a referência não mostra (atrás do joelho,
+// embaixo da bermuda no selim, cintura, ombro, cotovelo). Larguras medidas na referência (meia-largura, px).
+const CB=(()=>{const lum=c=>hx(c).reduce((a,b)=>a+b,0),pk=(n,pap)=>{const ls=(D.partes[n]||{cam:[]}).cam.filter(x=>x.p===pap).sort((a,b)=>lum(b.c)-lum(a.c));return ls.length?(pap==='pele'?ls[Math.floor(ls.length/2)]:ls[0]).c:'#888'};   // cor base = tom claro (pele: tom do meio)
+ return{pele:pk('canela','pele'),bermuda:pk('coxa','bermuda'),camisa:pk('tronco','camisa'),meia:pk('canela','meia'),linha:'#17171b'}})();
+const BARRA=.68,MANGA=.42;                         // barra da bermuda (coxa) e da manga (braço), fração do osso
+function capsulas(c,pts,rs){for(let i=0;i<pts.length;i++){c.beginPath();c.arc(pts[i][0],pts[i][1],Math.max(.1,rs[i]),0,7);c.fill()}
+ for(let i=0;i<pts.length-1;i++){const p=pts[i],q=pts[i+1],u=sub(q,p),Lu=len(u)||1,n=[-u[1]/Lu,u[0]/Lu];
+  c.beginPath();c.moveTo(p[0]+n[0]*rs[i],p[1]+n[1]*rs[i]);c.lineTo(q[0]+n[0]*rs[i+1],q[1]+n[1]*rs[i+1]);c.lineTo(q[0]-n[0]*rs[i+1],q[1]-n[1]*rs[i+1]);c.lineTo(p[0]-n[0]*rs[i],p[1]-n[1]*rs[i]);c.closePath();c.fill()}}
+const lerp2=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+function carneBase(c,grupos,kit,escuro){   // grupos: [[pontos, raios, papel]] — contorno de todos juntos, depois as cores
+ c.fillStyle=cor(CB.linha,null,kit,escuro);for(const [p,r] of grupos)capsulas(c,p,r.map(x=>x+3.2));
+ for(const [p,r,pap] of grupos){c.fillStyle=cor(CB[pap],pap,kit,escuro);capsulas(c,p,r)}}
+// ---------- SILHUETA LISA DOS MEMBROS ----------
+// Coxa + joelho + canela (e braço + cotovelo + antebraço) viram UMA forma contínua, com a largura medida na arte
+// ponto a ponto (D.perfil, alisada). A forma é preenchida com as cores base, o decalque é desenhado DENTRO dela (clip)
+// e o contorno é UM traço liso por fora. Não existe emenda: em qualquer ângulo não abre buraco nem sobra linha.
+const PF=D.perfil;
+// atrás do joelho a arte não mostra a perna (a bike passava ali): posterior da coxa e panturrilha com largura mínima
+for(let i=0;i<PF.coxa.t.length;i++){const t=PF.coxa.t[i];if(t>.6)PF.coxa.mais[i]=Math.max(PF.coxa.mais[i],12+14*(t-.6)/.4)}
+for(let i=0;i<PF.canela.t.length;i++){const t=PF.canela.t[i];if(t<.4)PF.canela.mais[i]=Math.max(PF.canela.mais[i],26-10*t/.4)}
+function wAt(pf,lado,t){const T=pf.t,W=pf[lado];if(t<=T[0])return W[0];if(t>=T[T.length-1])return W[W.length-1];
+ for(let i=1;i<T.length;i++)if(t<=T[i]){const f=(t-T[i-1])/(T[i]-T[i-1]);return W[i-1]+(W[i]-W[i-1])*f}}
+function lado(A,B,pf,ld,t0,t1,n){const d=sub(B,A),L_=len(d),nn=[-d[1]/L_,d[0]/L_],sg=ld==='mais'?1:-1,o=[];
+ for(let i=0;i<=n;i++){const t=t0+(t1-t0)*i/n,w=wAt(pf,ld,Math.min(Math.max(t,pf.t[0]),1))*sg;o.push([A[0]+d[0]*t+nn[0]*w,A[1]+d[1]*t+nn[1]*w])}return o}
+function silMembro(A,B,C,pa,pb,ext,fim=1){
+ // frente: lado 'menos' da 1ª peça e da 2ª; trás: lado 'mais' das duas (volta)
+ const f1=lado(A,B,pa,'menos',0,1,16),f2=lado(B,C,pb,'menos',0,fim,16),t2=lado(B,C,pb,'mais',fim,0,16),t1=lado(A,B,pa,'mais',1,0,16);
+ // ponta de cima redonda (quadril/ombro): meia-volta por trás do osso, entra no tronco sem quina
+ const ca=t1[t1.length-1],cb=f1[0],cm=lerp2(ca,cb,.5),rc=len(sub(ca,cb))/2,back=ang(sub(A,B));
+ let a0=ang(sub(ca,cm)),a1c=ang(sub(cb,cm)),dd=a1c-a0;while(dd>Math.PI)dd-=2*Math.PI;while(dd<-Math.PI)dd+=2*Math.PI;
+ const mid=a0+dd/2;if(Math.cos(mid-back)<0)dd=dd>0?dd-2*Math.PI:dd+2*Math.PI;     // passa pelo lado de trás
+ const cap=[];for(let i=1;i<10;i++){const a=a0+dd*i/10;cap.push([cm[0]+Math.cos(a)*rc*(ext?1:.5),cm[1]+Math.sin(a)*rc*(ext?1:.5)])}
+ // arco da frente da junta (por fora), do fim de f1 ao começo de f2
+ const a1=ang(sub(f1[f1.length-1],B)),a2=ang(sub(f2[0],B)),r1=len(sub(f1[f1.length-1],B)),r2=len(sub(f2[0],B));
+ let da=a2-a1;while(da>Math.PI)da-=2*Math.PI;while(da<-Math.PI)da+=2*Math.PI;
+ const arco=[];for(let i=1;i<8;i++){const f=i/8,a=a1+da*f,r=r1+(r2-r1)*f;arco.push([B[0]+Math.cos(a)*r,B[1]+Math.sin(a)*r])}
+ // dobra de trás: se as linhas de trás se cruzam, corta no cruzamento
+ // dobra de trás do joelho: se as linhas de trás se cruzam, corta no cruzamento (sem laço)
+ let tr=t2.concat(t1);
+ const X=(p,q,r,u)=>{const d1=sub(q,p),d2=sub(u,r),den=cross(d1,d2);if(Math.abs(den)<1e-9)return null;
+  const tt=cross(sub(r,p),d2)/den,uu=cross(sub(r,p),d1)/den;return(tt>=0&&tt<=1&&uu>=0&&uu<=1)?[p[0]+d1[0]*tt,p[1]+d1[1]*tt]:null};
+ fora:for(let i=t2.length-2;i>=0;i--)for(let j=0;j<t1.length-1;j++){const x=X(t2[i],t2[i+1],t1[j],t1[j+1]);
+  if(x){tr=t2.slice(0,i+1).concat([x],t1.slice(j+1));break fora}}
+ const pts=f1.concat(arco,f2,tr,cap);
+ const fill=new Path2D();fill.moveTo(pts[0][0],pts[0][1]);for(const q of pts.slice(1))fill.lineTo(q[0],q[1]);fill.closePath();
+ // contorno: tudo menos a ponta de cima (quadril/ombro, que entra no tronco)
+ const corte=ext?4:2,borda=new Path2D(),ab=pts.slice(corte,pts.length-cap.length-corte);   // sem contorno perto do quadril (entra no bumbum)
+ borda.moveTo(ab[0][0],ab[0][1]);for(const q of ab.slice(1))borda.lineTo(q[0],q[1]);
+ // clip do decalque: a silhueta + tudo atrás da ponta de cima (o decalque do quadril/ombro entra inteiro, sem emenda)
+ const clip=new Path2D();clip.addPath(fill);clip.addPath(faixa(A,B,-.3,.12));
+ return{fill,borda,clip,longe:faixa(A,B,.16,9)};
+}
+// faixa (quad grande) perpendicular ao osso A->B entre t0 e t1, para pintar bermuda/manga/meia dentro da silhueta
+function faixa(A,B,t0,t1){const d=sub(B,A),n=[-d[1]*3,d[0]*3],p0=add(A,[d[0]*t0,d[1]*t0]),p1=add(A,[d[0]*t1,d[1]*t1]),P=new Path2D();
+ P.moveTo(p0[0]+n[0],p0[1]+n[1]);P.lineTo(p1[0]+n[0],p1[1]+n[1]);P.lineTo(p1[0]-n[0],p1[1]-n[1]);P.lineTo(p0[0]-n[0],p0[1]-n[1]);P.closePath();return P}
+const CONTORNO=2.2;
+function membro(c,S,cores,kit,escuro,desenhaDecal){
+ // cor base só longe da ponta de cima (no quadril quem aparece é o bumbum do tronco: sem emenda de tom)
+ c.save();c.clip(S.fill);c.clip(S.longe);c.fillStyle=cor(CB.pele,'pele',kit,escuro);c.fillRect(-9999,-9999,29999,29999);
+ for(const [P,pap] of cores){c.fillStyle=cor(CB[pap],pap,kit,escuro);c.fill(P)}c.restore();
+ c.save();c.clip(S.clip,'nonzero');desenhaDecal();c.restore();
+ c.lineWidth=CONTORNO;c.lineJoin='round';c.lineCap='round';c.strokeStyle=cor(CB.linha,null,kit,escuro);c.stroke(S.borda);
+}
+function assento(c,kit){
+ // (o bumbum inteiro agora vem da arte do ciclista sem a bike)
+ c.fillStyle=cor(CB.bermuda,'bermuda',kit);
+ // frente do quadril (virilha): bermuda por baixo, sem contorno, fecha a fresta quando a coxa desce
+ capsulas(c,[[600,320],[628,324],[640,324]],[26,18,10]);capsulas(c,[[618,308],[640,305]],[9,8]);capsulas(c,[[600,322],[598,342]],[20,9]);
+}
+function perna(c,th,kit,escuro,hip){
+ hip=hip||J.quadril;const P=pernaPose(th,hip);
+ const S=silMembro(hip,P.jo,P.tz,PF.coxa,PF.canela,.35,1.22);   // canela/meia entra no sapato
+ membro(c,S,[[faixa(hip,P.jo,-1,BARRA),'bermuda'],[faixa(P.jo,P.tz,.78,2),'meia']],kit,escuro,()=>{
+  c.save();segS(c,J.joelho,J.tornozelo,P.jo,P.tz);parte(c,'canela',kit,escuro);c.restore();
+  c.save();segS(c,J.quadril,J.joelho,hip,P.jo);parte(c,'coxa',kit,escuro);c.restore();
+ });
+ c.save();rotT(c,PERNA.ball,P.ped,P.dphi);parte(c,'sapatilha',kit,escuro);c.restore();
+}
+// ---------- peças que a referência não mostra (escondidas pelas pernas): desenhadas em código, atrás do decalque ----------
+const CQ=D.cores;
+function capsula(c,a,b,r,cor){c.strokeStyle=cor;c.lineWidth=r*2;c.lineCap='round';c.beginPath();c.moveTo(a[0],a[1]);c.lineTo(b[0],b[1]);c.stroke()}
+function tubo(c,a,b,r,kit){
+ capsula(c,a,b,r+3,'#141416');capsula(c,a,b,r,cor(CQ.quadroS,'quadro',kit));
+ capsula(c,[a[0]-r*.25,a[1]-r*.3],[b[0]-r*.25,b[1]-r*.3],r*.62,cor(CQ.quadro,'quadro',kit));
+}
+// pneu em código: faixas entre a elipse externa (0) e a interna (1) medidas no PNG, com o perfil de cor medido
+// (contorno, borda escura, banda marrom, risco, aro cinza, contorno interno). Estático: o anel é simétrico.
+const PN=[[0,.17,'#0b0b0c'],[.15,.29,'#39342f'],[.27,.58,'#4d463e'],[.56,.68,'#1b1a16'],[.66,.9,'#3c3b3c'],[.88,1,'#0b0b0c']];
+function pneus(c){
+ for(const k of ['T','D']){const E=D.pneu[k],a=E.ext,b=E.int,L=(f,i)=>a[i]+(b[i]-a[i])*f;
+  for(const [f0,f1,cor] of PN){c.beginPath();
+   c.ellipse(L(f0,0),L(f0,1),L(f0,2),L(f0,3),L(f0,4),0,Math.PI*2);
+   c.ellipse(L(f1,0),L(f1,1),L(f1,2),L(f1,3),L(f1,4),0,Math.PI*2,true);
+   c.fillStyle=cor;c.fill('evenodd')}
+ }
+}
+function tubosEscondidos(c,kit){tubo(c,[614,468],[672,598],12.5,kit);tubo(c,[616,434],[762,423],7,kit)}
+// pedivela (a referência mostra o de baixo dentro do 'pé de trás', que não é desenhado): braço afinando + pedal
+function pedivela(c,th,escuro){
+ const m=J.mov,p=add(m,[Math.cos(th)*PIV,Math.sin(th)*PIV]),u=[Math.cos(th),Math.sin(th)],n=[-u[1],u[0]];
+ const w0=9,w1=5.5,cor=escuro?'#101013':'#2a2b30';
+ const forma=()=>{c.beginPath();c.moveTo(m[0]+n[0]*w0,m[1]+n[1]*w0);c.lineTo(p[0]+n[0]*w1,p[1]+n[1]*w1);c.arc(p[0],p[1],w1,ang(n),ang(n)+Math.PI);
+  c.lineTo(m[0]-n[0]*w0,m[1]-n[1]*w0);c.arc(m[0],m[1],w0,ang(n)+Math.PI,ang(n));c.closePath()};
+ forma();c.fillStyle=cor;c.fill();c.lineWidth=3;c.strokeStyle='#0b0b0d';c.stroke();
+ if(!escuro){c.strokeStyle='rgba(255,255,255,.18)';c.lineWidth=2;c.beginPath();c.moveTo(m[0]+n[0]*4-u[0]*0,m[1]+n[1]*4);c.lineTo(p[0]+n[0]*2.5,p[1]+n[1]*2.5);c.stroke()}
+ // pedal
+ c.save();c.translate(p[0],p[1]);c.fillStyle='#0b0b0d';c.fillRect(-15,-4,30,8);c.fillStyle=escuro?'#16161a':'#303136';c.fillRect(-13,-2.5,26,5);c.restore();
+}
+function coroaFundo(c){c.fillStyle='#141416';c.beginPath();c.arc(J.mov[0],J.mov[1],39,0,7);c.fill();
+ c.fillStyle=CQ.coroa;c.beginPath();c.arc(J.mov[0],J.mov[1],36,0,7);c.fill();
+ c.strokeStyle='#141416';c.lineWidth=2.5;c.beginPath();c.arc(J.mov[0],J.mov[1],27,0,7);c.stroke()}
+// transmissão com as peças da arte da bike: coroa (gira), pedivela (gira; o de trás é o mesmo, escurecido) e pedal
+// (acompanha o pé). O pedivela da arte é mais longo que o pedal da pose da referência: ajusta no comprimento.
+const BK=D.bike,ANG_PED=BK.angPed,LEN_PED=len(sub(BK.eixoPed,J.mov));
+// o pé gira na ponta da sapatilha (com as pernas da arte é o único ponto que alcança o pedal embaixo); o pedal fica
+// sob a planta do pé (BALL) e o pedivela liga a coroa até ele (ângulo e comprimento por quadro: ±5%, invisível).
+const SOLA=.73;
+function pedPonto(th){const P=pernaPose(th);return{pp:P.ped,dphi:P.dphi}}
+function pedivelaArte(c,th,kit,escuro){const {pp}=pedPonto(th),v=sub(pp,J.mov);
+ c.save();c.translate(J.mov[0],J.mov[1]);c.rotate(ang(v));c.scale(len(v)/LEN_PED,1);c.rotate(-ANG_PED);c.translate(-J.mov[0],-J.mov[1]);parte(c,'pedivela',kit,escuro);c.restore()}
+function pedalArte(c,th,kit,escuro){const {pp,dphi}=pedPonto(th);
+ c.save();c.translate(pp[0],pp[1]);c.rotate(dphi+SOLA);c.translate(-BK.eixoPed[0],-BK.eixoPed[1]);parte(c,'pedal',kit,escuro);c.restore()}
+function angCoroa(th){return th-ANG_PED}
+// rodas girando: cassete+cubo (traseira) e disco+cubo (dianteira) giram com a roda; o pneu ganha marcas que correm
+// (o pneu da arte não é um círculo perfeito, então ele mesmo não gira: balançaria)
+const EIXO_T=[516.4,587.3],EIXO_D=[891.6,587.0];
+function rodasGiro(c,a,kit){
+ for(const [k,e] of [['T',EIXO_T],['D',EIXO_D]]){const E_=D.pneu[k],x=E_.ext,y=E_.int,f=.45,m=i=>x[i]+(y[i]-x[i])*f;
+  c.save();c.beginPath();c.ellipse(m(0),m(1),m(2),m(3),m(4),0,Math.PI*2);c.strokeStyle='rgba(20,18,16,.45)';c.lineWidth=2.2;
+  c.setLineDash([5,23,2,30]);c.lineDashOffset=-a*m(2);c.stroke();
+  c.strokeStyle='rgba(255,245,230,.10)';c.lineWidth=1.6;c.setLineDash([9,41]);c.lineDashOffset=-a*m(2)+17;c.stroke();c.restore()}
+ const H=D.bike.hub;
+ // cassete e disco: peças soltas da sua arte (bike desmontada / roda), girando com a roda
+ peca(c,'cassete',H.T[0],H.T[1],a,kit);
+ peca(c,'disco',H.D[0],H.D[1],a,kit);
+ pinca(c,H.D,kit);
+}
+// ---------- peças soltas (tools/ciclista_decalque/pecas.py) ----------
+for(const k in DPECAS)if(DPECAS[k].cam)for(const l of DPECAS[k].cam)l.path=new Path2D(l.d);
+function peca(c,nome,x,y,r,kit,escuro){const P=DPECAS[nome];c.save();c.translate(x,y);c.rotate(r);
+ for(const l of P.cam){c.fillStyle=cor(l.c,null,kit,escuro);c.fill(l.path)}c.restore()}
+const ANG_COR=ang(DPECAS.coroa.pts.pedal),ANG_BR=ang(DPECAS.braco.pts.pedal),ANG_PDL=ang(DPECAS.pedal.pts.ponta);
+function coroaPeca(c,th,kit){peca(c,'coroa',J.mov[0],J.mov[1],th-ANG_COR,kit)}
+function bracoTras(c,th,kit){peca(c,'braco',J.mov[0],J.mov[1],th-ANG_BR,kit,true)}
+// pedal: eixo na planta do pé, corpo do pedal paralelo à sola (o pé gira com anguloPe)
+function pedalPeca(c,th,kit,escuro){const P=pernaPose(th);peca(c,'pedal',P.ped[0],P.ped[1],anguloPe(th)-ANG_PDL,kit,escuro)}
+// pinça do freio dianteiro (a roda da arte não tem): presa ao garfo, por cima da borda do disco, parada
+function pinca(c,h,kit){const R=30,a0=-Math.PI*.62,da=.62,P=new Path2D();
+ P.arc(h[0],h[1],R+5.5,a0-da,a0+da);P.arc(h[0],h[1],R-9,a0+da*.82,a0-da*.82,true);P.closePath();
+ c.fillStyle='#2b2c31';c.fill(P);c.lineWidth=2.2;c.lineJoin='round';c.strokeStyle='#141416';c.stroke(P);
+ c.save();c.clip(P);c.strokeStyle='rgba(255,255,255,.22)';c.lineWidth=2.4;c.beginPath();c.arc(h[0],h[1],R+2.5,a0-da*.8,a0+da*.4);c.stroke();c.restore();
+ for(const t of [-.55,.55]){const a=a0+da*t,x=h[0]+Math.cos(a)*(R-2),y=h[1]+Math.sin(a)*(R-2);c.beginPath();c.arc(x,y,2.4,0,7);c.fillStyle='#8c8f96';c.fill();c.lineWidth=1.2;c.stroke()}
+}
+function cicDecal(c,E){
+ const kit=E.kit,th=E.th,B=corpo(th),hip=corpoP(B,J.quadril),omb=corpoP(B,J.ombro);
+ c.save();c.translate(BAL.vai*(Math.sin(th)-Math.sin(TH0)),0);
+ // lado de trás: do outro lado da bike, atrás de tudo (inclusive das rodas)
+ bracoTras(c,th+Math.PI,kit);pedalPeca(c,th+Math.PI,kit,true);
+ perna(c,th+Math.PI,kit,true,hip);
+ // bike inteira, parada (rodas, quadro, corrente, câmbio, guidão)
+ parte(c,'rodas',kit);rodasGiro(c,E.roda,kit);parte(c,'quadro',kit);
+ coroaPeca(c,th,kit);pedalPeca(c,th,kit,false);
+ // bumbum ASSENTADO no selim: forma lisa da bermuda que desce até o topo do selim (com contorno), por baixo do tronco
+ c.save();corpoT(c,B);assento(c,kit);parte(c,'tronco',kit);c.restore();
+ perna(c,th,kit,false,hip);
+ c.save();corpoT(c,B);rotT(c,J.pescoco,J.pescoco,-B.a*BAL.cabeca);parte(c,'cabeca',kit);c.restore();
+ const co=ik(omb,J.punho,L.braco,L.ante,LADO_COTOV);
+ // braço: a arte tem os DOIS braços juntos nesta região (o de longe aparece atrás) -> fica o decalque, sem silhueta lisa;
+ // o braço quase não gira (só acompanha o balanço do tronco)
+ // carne por baixo do braço (só cor, sem contorno): fecha a fresta do cotovelo quando o braço dobra diferente da arte
+ c.fillStyle=cor(CB.pele,'pele',kit);capsulas(c,[lerp2(omb,co,.4),lerp2(omb,co,.75),co,lerp2(co,J.punho,.5)],[14,14,12,10]);capsulas(c,[co,add(co,[-12,11]),add(co,[-18,13])],[10,7,3.5]);
+ c.save();segT(c,J.cotovelo,J.punho,co,J.punho);parte(c,'antebraco',kit);c.restore();
+ c.save();segT(c,J.ombro,J.cotovelo,omb,co);parte(c,'braco',kit);c.restore();
+ parte(c,'luva',kit);
+ c.restore();
+}
+window.cicDecal=cicDecal;
+const ESC_JOGO=113/375*1376/1280;
+// esqueleto invisível (mostra com o botão): ossos, juntas, pedais. ossos() devolve os pontos para o teste automático.
+function ossos(th){const B=corpo(th),hip=corpoP(B,J.quadril),omb=corpoP(B,J.ombro),f=pernaPose(th,hip),t=pernaPose(th+Math.PI,hip);
+ return{hip,omb,mao:J.punho,co:ik(omb,J.punho,L.braco,L.ante,LADO_COTOV),f,t,mov:J.mov}}
+function esqueleto(c,th){const O=ossos(th);c.save();c.lineWidth=3;c.lineCap='round';
+ const lin=(pts,cor)=>{c.strokeStyle=cor;c.beginPath();c.moveTo(pts[0][0],pts[0][1]);for(const p of pts.slice(1))c.lineTo(p[0],p[1]);c.stroke()};
+ lin([O.t.ped,O.mov,O.f.ped],'#ff0');lin([O.hip,O.t.jo,O.t.tz,O.t.ped],'#0af');lin([O.hip,O.f.jo,O.f.tz,O.f.ped],'#f40');lin([O.hip,O.omb,O.co,O.mao],'#0f6');
+ for(const p of [O.hip,O.omb,O.co,O.mao,O.f.jo,O.f.tz,O.f.ped,O.t.jo,O.t.tz,O.t.ped,O.mov]){c.fillStyle='#fff';c.beginPath();c.arc(p[0],p[1],5,0,7);c.fill()}
+ c.restore()}
+window.ossos=ossos;
+// contorno externo mais grosso que as linhas internas: desenha o ciclista num buffer, faz a silhueta preta,
+// carimba ela em volta (dilatação de 'esp' px de tela) e põe o desenho por cima. As linhas internas ficam como estão.
+const BUF=document.createElement('canvas'),SIL=document.createElement('canvas');
+function cicDecalBorda(c,E,esp=1.6){
+ if(!(esp>0)){cicDecal(c,E);return}   // sem engrossar: o contorno é o da arte (mesmo peso das linhas internas)
+ const W=c.canvas.width,H=c.canvas.height;for(const k of [BUF,SIL])if(k.width!==W||k.height!==H){k.width=W;k.height=H}
+ const b=BUF.getContext('2d'),s=SIL.getContext('2d');
+ b.setTransform(1,0,0,1,0,0);b.clearRect(0,0,W,H);b.setTransform(c.getTransform());cicDecal(b,E);b.setTransform(1,0,0,1,0,0);
+ s.globalCompositeOperation='copy';s.drawImage(BUF,0,0);s.globalCompositeOperation='source-in';s.fillStyle='#0b0b0d';s.fillRect(0,0,W,H);s.globalCompositeOperation='source-over';
+ c.save();c.setTransform(1,0,0,1,0,0);
+ for(let i=0;i<12;i++){const a=i*Math.PI/6;c.drawImage(SIL,Math.cos(a)*esp,Math.sin(a)*esp)}
+ c.drawImage(BUF,0,0);c.restore();
+}
+window.cicDecalBorda=cicDecalBorda;
+
+// ---------- página ----------
+const cv=document.getElementById('palco'),ctx=cv.getContext('2d');
+const REF=new Image();REF.src='ref_ciclista2_alinhada.png';REF.onload=()=>desenhar();
+const S={borda:0,ver:'anim',th:TH0,kit:null,rpm:80,roda:0,scroll:0,pausa:false,lento:false,jogo:false,esq:false};
+const IMG={};
+for(const n of ['cen_ceu','cen_campo','cen_veg','asph']){const i=new Image();i.onerror=()=>{if(!i._b){i._b=1;i.src='img/'+n+'.webp'}};i.src='../src/assets/imagens/'+n+'.webp';IMG[n]=i}
+const ok=i=>i&&i.complete&&i.naturalWidth>0;
+// ---------- cenário: camadas pré-renderizadas em canvases auxiliares ----------
+// Céu + chão de fundo = 1 canvas fixo. Cada faixa (morros, asfalto, mato) = 1 canvas com a tira já redimensionada,
+// largura = tile·n ≥ tela + 1 tile. Por quadro: 2 drawImage por faixa (deslocamento pela câmera), sem redimensionar.
+const CEN={fixo:null,faixas:[]};
+function camadaFaixa(img,y,h,par){const w=Math.round(img.naturalWidth*h/img.naturalHeight),n=Math.ceil(1376/w)+1,k=document.createElement('canvas');
+ k.width=w*n;k.height=h;const g=k.getContext('2d');for(let i=0;i<n;i++)g.drawImage(img,i*w-(i?1:0),0,w+1,h);return{k,w,y,par}}
+function prepararCenario(){
+ if(!['cen_ceu','cen_campo','cen_veg','asph'].every(n=>ok(IMG[n])))return false;
+ const f=document.createElement('canvas');f.width=1376;f.height=768;const g=f.getContext('2d');
+ g.fillStyle='#6fae3a';g.fillRect(0,0,1376,768);g.drawImage(IMG.cen_ceu,0,0,1376,470);CEN.fixo=f;
+ CEN.faixas=[camadaFaixa(IMG.cen_campo,210,320,.25),camadaFaixa(IMG.asph,520,190,1),camadaFaixa(IMG.cen_veg,650,140,1.35)];return true}
+function fundoJogo(){
+ if(!CEN.fixo&&!prepararCenario()){ctx.fillStyle='#7cc0ea';ctx.fillRect(0,0,1376,768);return}
+ ctx.drawImage(CEN.fixo,0,0);
+ for(const F of CEN.faixas){const x=-((S.scroll*F.par)%F.w);ctx.drawImage(F.k,Math.round(x),F.y)}
+}
+const CORP={roda_t:'#e6194b',roda_d:'#3cb44b',quadro:'#ffe119',coroa:'#4363d8',canela:'#f58231',sapatilha:'#911eb4',coxa:'#46f0f0',tronco:'#f032e6',cabeca:'#bcf60c',braco:'#fabebe',antebraco:'#008080',luva:'#e6beff'};
+function desenhar(){
+ ctx.fillStyle='#1d2238';ctx.fillRect(0,0,1376,768);
+ if(S.ver!=='decal'&&S.ver!=='anim'&&REF.complete)ctx.drawImage(REF,0,0);
+ if(S.ver==='anim'){fundoJogo();
+  // tamanho do jogo: entre-eixos na tela = 113 px numa tela de 1280 (sprite 154 px · KS 1,128 · ZOOM 0,65) -> 0,32 aqui
+  const e=S.jogo?ESC_JOGO:.62,cx=S.jogo?470:688,cy=S.jogo?690:640;
+  ctx.save();ctx.translate(cx-707*e,cy-(587+D.R)*e);ctx.scale(e,e);
+  ctx.fillStyle='rgba(0,0,0,.25)';ctx.beginPath();ctx.ellipse(707,587+D.R,260,10,0,0,7);ctx.fill();
+  cicDecalBorda(ctx,{th:S.th,roda:S.roda,kit:S.kit},S.borda);if(S.esq)esqueleto(ctx,S.th);ctx.restore();
+  ctx.font='800 24px system-ui';ctx.fillStyle='#fff';ctx.strokeStyle='#000';ctx.lineWidth=5;
+  const g=Math.round(((S.th-TH0)*180/Math.PI%360+360)%360),t=S.rpm+' rpm · '+g+'°'+(S.pausa?' · pausado':S.lento?' · ×0,25':'');
+  ctx.strokeText(t,24,40);ctx.fillText(t,24,40);return}
+ if(S.ver==='sobre'){ctx.globalAlpha=.5;cicDecal(ctx,{th:S.th,roda:0,kit:S.kit});ctx.globalAlpha=1}
+ if(S.ver==='decal')cicDecalBorda(ctx,{th:S.th,roda:0,kit:S.kit},S.borda/.62);
+ if(S.ver==='partes'){ctx.globalAlpha=.55;for(const p in CORP){const P=D.partes[p];if(!P)continue;ctx.fillStyle=CORP[p];for(const l of P.cam.slice(0,1))ctx.fill(l.path)}ctx.globalAlpha=1}
+}
+function passo(dt){if(S.pausa)return;if(S.lento)dt*=.25;S.th+=S.rpm/60*2*Math.PI*dt;const v=S.rpm/60*(50/17)*2.1;S.roda+=v/.335*dt;S.scroll+=v*dt*(D.R*.62/.335)}
+let ult=performance.now();
+function loop(t){const dt=Math.min(.05,(t-ult)/1000);ult=t;if(S.ver==='anim'){passo(dt);desenhar()}requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+window.TESTE={S,desenhar,passo,marcaPausa:v=>marcaPausa(v)};
+const ri=document.getElementById('rpm');ri.oninput=()=>{S.rpm=+ri.value;document.getElementById('rpmv').textContent=S.rpm+' rpm'};
+document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{S.ver=b.dataset.ver;document.querySelectorAll('[data-ver]').forEach(x=>x.classList.toggle('on',x===b));desenhar()});
+const ai=document.getElementById('ang'),bp=document.getElementById('pausa'),bl=document.getElementById('lento'),bt=document.getElementById('tam'),be=document.getElementById('esq');
+function marcaPausa(v){S.pausa=v;bp.textContent=v?'▶ Continuar':'⏸ Pausar';bp.classList.toggle('on',v)}
+ai.oninput=()=>{const g=+ai.value;marcaPausa(true);const v=(S.th-TH0)/(2*Math.PI),volta=Math.floor(v);S.th=TH0+(volta+g/360)*2*Math.PI;
+ S.roda=(S.th-TH0)*(50/17);document.getElementById('angv').textContent=g+'°';desenhar()};
+bp.onclick=()=>{marcaPausa(!S.pausa);desenhar()};
+bl.onclick=()=>{S.lento=!S.lento;bl.classList.toggle('on',S.lento)};
+bt.onclick=()=>{S.jogo=!S.jogo;bt.classList.toggle('on',S.jogo);desenhar()};
+be.onclick=()=>{S.esq=!S.esq;be.classList.toggle('on',S.esq);desenhar()};
+const kd=document.getElementById('kits');
+for(const k in KITS){const b=document.createElement('button');b.textContent=k;if(k==='referencia')b.classList.add('on');
+ b.onclick=()=>{S.kit=KITS[k];kd.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));desenhar()};kd.appendChild(b)}
+desenhar();
+</script>
+</body>
+</html>
