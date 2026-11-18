@@ -297,9 +297,18 @@ def lado_junta(jc, a_, b_):
 JUNTAS = {('joelho', 'quadril', 'tornozelo', 27, 'coxa', 'canela'), ('cotovelo', 'ombro', 'punho', 19, 'braco', 'antebraco')}
 MASCARA = {}
 for jc, a_, b_, r_, cima, baixo in JUNTAS:
+    # fora do disco: cada pixel da dupla fica com a peça do lado dele da linha da junta (tira lascas da dobra)
+    par = (parte == Z[cima]) | (parte == Z[baixo])
+    ld = lado_junta(jc, a_, b_); fora = np.hypot(xx - J[jc][0], yy - J[jc][1]) >= r_
+    perto = np.hypot(xx - J[jc][0], yy - J[jc][1]) < r_ * 2.2
+    parte[par & fora & perto & ld] = Z[baixo]; parte[par & fora & perto & ~ld] = Z[cima]
     disco = (np.hypot(xx - J[jc][0], yy - J[jc][1]) < r_) & ((parte == Z[cima]) | (parte == Z[baixo]))
     meia = disco & lado_junta(jc, a_, b_)
-    MASCARA[baixo] = (parte == Z[baixo]) | disco
+    # frente da junta (patela/ponta do cotovelo) = contrário da bissetriz (que aponta para a dobra)
+    ua = np.array(J[a_], float) - J[jc]; ub = np.array(J[b_], float) - J[jc]
+    bis = ua / np.linalg.norm(ua) + ub / np.linalg.norm(ub); bis /= np.linalg.norm(bis)
+    frente = ((xx - J[jc][0]) * -bis[0] + (yy - J[jc][1]) * -bis[1]) > 4
+    MASCARA[baixo] = (parte == Z[baixo]) | (disco & (meia | frente))   # a parte de trás do disco ficaria saindo como lasca
     MASCARA[cima] = (parte == Z[cima]) & ~meia
 for p in PARTES:
     mp = MASCARA.get(p, parte == Z[p])
