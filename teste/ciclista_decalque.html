@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Ciclista Decalque</title>
+<style>
+ :root{--bg:#0f1720;--fg:#f2f2f2;--btn:#22303f;--btn2:#f4c20d}
+ @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--bg:#eef2f6;--fg:#111;--btn:#fff}}
+ :root[data-theme="dark"]{--bg:#0f1720;--fg:#f2f2f2;--btn:#22303f}
+ *{box-sizing:border-box}
+ body{margin:0;background:var(--bg);color:var(--fg);font:600 14px system-ui,sans-serif}
+ #palco{display:block;width:100%;max-width:1376px;margin:0 auto;aspect-ratio:1376/768;background:#223}
+ #ctl{max-width:1376px;margin:0 auto;padding:10px 16px 24px;display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+ .g{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+ .g b{opacity:.7;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+ button{background:var(--btn);color:var(--fg);border:2px solid #000;border-radius:10px;padding:8px 12px;font:inherit;cursor:pointer}
+ button.on{background:var(--btn2);color:#111}
+ input[type=range]{width:150px}
+</style>
+</head>
+<body>
+<canvas id="palco" width="1376" height="768"></canvas>
+<div id="ctl">
+ <div class="g"><b>Ver</b><button data-ver="sobre" class="on">Sobreposição 50%</button><button data-ver="decal">Só o decalque</button><button data-ver="ref">Referência</button><button data-ver="partes">Partes</button></div>
+ <div class="g"><b>Pedivela</b><input id="ang" type="range" min="0" max="360" value="0"><span id="angv">quadro 0</span></div>
+ <div class="g"><b>Kit</b><span id="kits"></span></div>
+</div>
+<script src="decalque_dados.js"></script>
+<script>
+// =====================================================================================================
+// CICLISTA DECALCADO: partes vetoriais tiradas da referência (tools/ciclista_decalque/decalque.py),
+// cada uma presa ao seu osso. Coordenadas = pixels da referência. Quadro 0 = pose da referência.
+// =====================================================================================================
+const D=DECAL,J=D.J;
+const sub=(a,b)=>[a[0]-b[0],a[1]-b[1]],add=(a,b)=>[a[0]+b[0],a[1]+b[1]],len=a=>Math.hypot(a[0],a[1]);
+const ang=a=>Math.atan2(a[1],a[0]);
+const rot=(a,r)=>[a[0]*Math.cos(r)-a[1]*Math.sin(r),a[0]*Math.sin(r)+a[1]*Math.cos(r)];
+const cross=(a,b)=>a[0]*b[1]-a[1]*b[0];
+// ossos (comprimentos da referência)
+const L={coxa:len(sub(J.joelho,J.quadril)),canela:len(sub(J.tornozelo,J.joelho)),braco:len(sub(J.cotovelo,J.ombro)),ante:len(sub(J.punho,J.cotovelo))};
+const PIV=len(sub(J.pedal,J.mov)),TH0=ang(sub(J.pedal,J.mov));
+const LADO_JOELHO=Math.sign(cross(sub(J.tornozelo,J.quadril),sub(J.joelho,J.quadril)));
+const LADO_COTOV=Math.sign(cross(sub(J.punho,J.ombro),sub(J.cotovelo,J.ombro)));
+function ik(A,B,l1,l2,lado){
+ const d0=sub(B,A);let d=len(d0);d=Math.max(Math.abs(l1-l2)+.01,Math.min(l1+l2-.01,d));
+ const a=ang(d0),al=Math.acos((l1*l1+d*d-l2*l2)/(2*l1*d));
+ const k1=add(A,[Math.cos(a+al)*l1,Math.sin(a+al)*l1]),k2=add(A,[Math.cos(a-al)*l1,Math.sin(a-al)*l1]);
+ return Math.sign(cross(d0,sub(k1,A)))===lado?k1:k2;
+}
+// Path2D prontos
+for(const p in D.partes)for(const c of D.partes[p].cam)c.path=new Path2D(c.d);
+// ---------- cores / kit ----------
+const BASE={camisa:'#e9eaef',bermuda:'#e9eaef',capacete:'#e9eaef',quadro:'#e9eaef',sapatilha:'#e9eaef',meia:'#e9eaef',pele:'#d79a6c'};
+const KITS={
+ referencia:null,
+ azul:   {camisa:'#2f6fd6',bermuda:'#1b2230',capacete:'#ffffff',quadro:'#1f3f80',sapatilha:'#ffffff',meia:'#ffffff',pele:'#c98a5e'},
+ vinho:  {camisa:'#9a2238',bermuda:'#1b1b1b',capacete:'#f0c419',quadro:'#5e1220',sapatilha:'#1b1b1b',meia:'#1b1b1b',pele:'#f0bf98'},
+ verde:  {camisa:'#2f9a46',bermuda:'#1c1c1c',capacete:'#3fbf55',quadro:'#232323',sapatilha:'#ffffff',meia:'#ffffff',pele:'#8d5a3a'},
+ amarelo:{camisa:'#f4c20d',bermuda:'#1a1a1a',capacete:'#222222',quadro:'#c62828',sapatilha:'#f4c20d',meia:'#f4c20d',pele:'#e8b08a'}
+};
+const hx=c=>[1,3,5].map(i=>parseInt(c.slice(i,i+2),16));
+const rgb=a=>'rgb('+a.map(v=>Math.max(0,Math.min(255,Math.round(v)))).join(',')+')';
+const cache=new Map();
+function cor(c,papel,kit,escuro){
+ const key=c+papel+(kit?JSON.stringify(kit):'')+escuro;if(cache.has(key))return cache.get(key);
+ let v=hx(c);
+ if(kit&&papel&&kit[papel]){const b=hx(BASE[papel]),k=hx(kit[papel]);v=v.map((x,i)=>k[i]*Math.min(1.12,x/b[i]))}
+ if(escuro){const n=[20,26,46];v=v.map((x,i)=>x+(n[i]-x)*.45)}
+ const r=rgb(v);cache.set(key,r);return r;
+}
+// ---------- desenho ----------
+function segT(c,a0,b0,a,b){c.translate(a[0],a[1]);c.rotate(ang(sub(b,a))-ang(sub(b0,a0)));c.translate(-a0[0],-a0[1])}
+function rotT(c,p0,p,da){c.translate(p[0],p[1]);c.rotate(da);c.translate(-p0[0],-p0[1])}
+function parte(c,nome,kit,escuro,clip){
+ const P=D.partes[nome];if(!P)return;
+ for(const l of P.cam){
+  if(nome==='tronco'&&(l.p==='camisa')){  // camisa em cima da linha da cintura, bermuda embaixo
+   for(const [pap,lado] of [['camisa',-1],['bermuda',1]]){c.save();c.clip(CINT[lado<0?0:1]);c.fillStyle=cor(l.c,pap,kit,escuro);c.fill(l.path);c.restore()}
+  }else{c.fillStyle=cor(l.c,l.p,kit,escuro);c.fill(l.path)}
+ }
+}
+const CINT=(()=>{const [a,b]=D.cintura,u=sub(b,a),e=[a[0]-u[0]*5,a[1]-u[1]*5],f=[b[0]+u[0]*5,b[1]+u[1]*5];
+ const cima=new Path2D(),baixo=new Path2D();
+ cima.moveTo(e[0],e[1]);cima.lineTo(f[0],f[1]);cima.lineTo(f[0],-9999);cima.lineTo(e[0],-9999);cima.closePath();
+ baixo.moveTo(e[0],e[1]);baixo.lineTo(f[0],f[1]);baixo.lineTo(f[0],9999);baixo.lineTo(e[0],9999);baixo.closePath();return[cima,baixo]})();
+
+// pose: th = ângulo do pedivela (rad, y para baixo), roda = giro das rodas
+function pernaPose(th){
+ const ped=add(J.mov,[Math.cos(th)*PIV,Math.sin(th)*PIV]);
+ const dphi=-.15*(Math.sin(th)-Math.sin(TH0));                         // tornozelo: pé mais plano embaixo
+ const tz=add(ped,rot(sub(J.tornozelo,J.pedal),dphi));
+ const jo=ik(J.quadril,tz,L.coxa,L.canela,LADO_JOELHO);
+ return{ped,dphi,tz,jo};
+}
+function perna(c,th,kit,escuro){
+ const P=pernaPose(th);
+ c.save();segT(c,J.joelho,J.tornozelo,P.jo,P.tz);parte(c,'canela',kit,escuro);c.restore();
+ c.save();rotT(c,J.pedal,P.ped,P.dphi);parte(c,'sapatilha',kit,escuro);c.restore();
+ c.save();segT(c,J.quadril,J.joelho,J.quadril,P.jo);parte(c,'coxa',kit,escuro);c.restore();
+}
+function cicDecal(c,E){
+ const kit=E.kit,th=E.th;
+ c.save();rotT(c,J.eixoT,J.eixoT,E.roda);parte(c,'roda_t',kit);c.restore();
+ c.save();rotT(c,J.eixoD,J.eixoD,E.roda);parte(c,'roda_d',kit);c.restore();
+ perna(c,th+Math.PI,kit,true);                                           // perna de trás (escura, atrás do quadro)
+ parte(c,'quadro',kit);
+ c.save();rotT(c,J.mov,J.mov,th-TH0);parte(c,'coroa',kit);c.restore();
+ parte(c,'tronco',kit);
+ perna(c,th,kit,false);
+ parte(c,'cabeca',kit);
+ const co=ik(J.ombro,J.punho,L.braco,L.ante,LADO_COTOV);
+ c.save();segT(c,J.cotovelo,J.punho,co,J.punho);parte(c,'antebraco',kit);c.restore();
+ c.save();segT(c,J.ombro,J.cotovelo,J.ombro,co);parte(c,'braco',kit);c.restore();
+ parte(c,'luva',kit);
+}
+window.cicDecal=cicDecal;
+
+// ---------- página ----------
+const cv=document.getElementById('palco'),ctx=cv.getContext('2d');
+const REF=new Image();REF.src='ref_ciclista.jpg';REF.onload=()=>desenhar();
+const S={ver:'sobre',th:TH0,kit:null};
+const CORP={roda_t:'#e6194b',roda_d:'#3cb44b',quadro:'#ffe119',coroa:'#4363d8',canela:'#f58231',sapatilha:'#911eb4',coxa:'#46f0f0',tronco:'#f032e6',cabeca:'#bcf60c',braco:'#fabebe',antebraco:'#008080',luva:'#e6beff'};
+function desenhar(){
+ ctx.fillStyle='#1d2238';ctx.fillRect(0,0,1376,768);
+ if(S.ver!=='decal'&&REF.complete)ctx.drawImage(REF,0,0);
+ if(S.ver==='sobre'){ctx.globalAlpha=.5;cicDecal(ctx,{th:S.th,roda:0,kit:S.kit});ctx.globalAlpha=1}
+ if(S.ver==='decal')cicDecal(ctx,{th:S.th,roda:0,kit:S.kit});
+ if(S.ver==='partes'){ctx.globalAlpha=.55;for(const p in CORP){const P=D.partes[p];if(!P)continue;ctx.fillStyle=CORP[p];for(const l of P.cam.slice(0,1))ctx.fill(l.path)}ctx.globalAlpha=1}
+}
+window.TESTE={S,desenhar};
+document.querySelectorAll('[data-ver]').forEach(b=>b.onclick=()=>{S.ver=b.dataset.ver;document.querySelectorAll('[data-ver]').forEach(x=>x.classList.toggle('on',x===b));desenhar()});
+const ai=document.getElementById('ang');ai.oninput=()=>{const g=+ai.value;S.th=TH0+g*Math.PI/180;document.getElementById('angv').textContent=g?g+'°':'quadro 0';desenhar()};
+const kd=document.getElementById('kits');
+for(const k in KITS){const b=document.createElement('button');b.textContent=k;if(k==='referencia')b.classList.add('on');
+ b.onclick=()=>{S.kit=KITS[k];kd.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));desenhar()};kd.appendChild(b)}
+desenhar();
+</script>
+</body>
+</html>
