@@ -373,6 +373,13 @@ for p, mp, FONTE in ITENS:
     if mp.sum() < 20: continue
     mpH = cv2.resize(mp.astype(np.uint8), None, fx=F, fy=F, interpolation=cv2.INTER_NEAREST) > 0
     escH = linhaH
+    if p == 'cabeca':   # furos do capacete (transparentes na arte) -> fechados; viram cinza escuro da cabeça por dentro
+        from scipy.ndimage import binary_fill_holes
+        cheio = binary_fill_holes(mpH)
+        furos = cheio & ~mpH
+        imH = imH.copy(); imH[furos] = (48, 46, 46); alfaH = alfaH.copy(); alfaH[furos] = 255
+        labH = cv2.cvtColor(imH, cv2.COLOR_BGR2LAB).astype(np.float32)
+        mpH = cheio
     # paleta PRÓPRIA da parte (k-means só nos pixels dela): tons pequenos (nós dos dedos) não se perdem na paleta global
     sel_ = mpH & ~escH & (alfaH > 200)
     clsP = np.full(mpH.shape, -1, np.int32)

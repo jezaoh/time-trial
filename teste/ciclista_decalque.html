@@ -159,7 +159,8 @@ function silMembro(A,B,C,pa,pb,ext,fim=1){
  const pts=f1.concat(arco,f2,tr,cap);
  const fill=new Path2D();fill.moveTo(pts[0][0],pts[0][1]);for(const q of pts.slice(1))fill.lineTo(q[0],q[1]);fill.closePath();
  // contorno: tudo menos a ponta de cima (quadril/ombro, que entra no tronco)
- const corte=ext?4:2,borda=new Path2D(),ab=pts.slice(corte,pts.length-cap.length-corte);   // sem contorno perto do quadril (entra no bumbum)borda.moveTo(ab[0][0],ab[0][1]);for(const q of ab.slice(1))borda.lineTo(q[0],q[1]);
+ const corte=ext?4:2,borda=new Path2D(),ab=pts.slice(corte,pts.length-cap.length-corte);   // sem contorno perto do quadril (entra no bumbum)
+ borda.moveTo(ab[0][0],ab[0][1]);for(const q of ab.slice(1))borda.lineTo(q[0],q[1]);
  // clip do decalque: a silhueta + tudo atrás da ponta de cima (o decalque do quadril/ombro entra inteiro, sem emenda)
  const clip=new Path2D();clip.addPath(fill);clip.addPath(faixa(A,B,-.3,.12));
  return{fill,borda,clip,longe:faixa(A,B,.16,9)};
@@ -167,13 +168,20 @@ function silMembro(A,B,C,pa,pb,ext,fim=1){
 // faixa (quad grande) perpendicular ao osso A->B entre t0 e t1, para pintar bermuda/manga/meia dentro da silhueta
 function faixa(A,B,t0,t1){const d=sub(B,A),n=[-d[1]*3,d[0]*3],p0=add(A,[d[0]*t0,d[1]*t0]),p1=add(A,[d[0]*t1,d[1]*t1]),P=new Path2D();
  P.moveTo(p0[0]+n[0],p0[1]+n[1]);P.lineTo(p1[0]+n[0],p1[1]+n[1]);P.lineTo(p1[0]-n[0],p1[1]-n[1]);P.lineTo(p0[0]-n[0],p0[1]-n[1]);P.closePath();return P}
-const CONTORNO=3.6;
+const CONTORNO=2.8;
 function membro(c,S,cores,kit,escuro,desenhaDecal){
  // cor base só longe da ponta de cima (no quadril quem aparece é o bumbum do tronco: sem emenda de tom)
  c.save();c.clip(S.fill);c.clip(S.longe);c.fillStyle=cor(CB.pele,'pele',kit,escuro);c.fillRect(-9999,-9999,29999,29999);
  for(const [P,pap] of cores){c.fillStyle=cor(CB[pap],pap,kit,escuro);c.fill(P)}c.restore();
  c.save();c.clip(S.clip,'nonzero');desenhaDecal();c.restore();
  c.lineWidth=CONTORNO;c.lineJoin='round';c.lineCap='round';c.strokeStyle=cor(CB.linha,null,kit,escuro);c.stroke(S.borda);
+}
+function assento(c,kit){
+ const P=new Path2D();P.ellipse(582,331,31.5,15.5,0,0,Math.PI*2);   // medido: costas do bumbum em x≈549, topo do selim em y≈344
+ c.fillStyle=cor(CB.linha,null,kit);c.save();c.translate(0,0);c.lineWidth=CONTORNO*2;c.strokeStyle=c.fillStyle;c.stroke(P);c.restore();
+ c.fillStyle=cor(CB.bermuda,'bermuda',kit);c.fill(P);
+ // frente do quadril (virilha): bermuda por baixo, sem contorno, fecha a fresta quando a coxa desce
+ capsulas(c,[[604,318],[628,326]],[22,18]);
 }
 function perna(c,th,kit,escuro,hip){
  hip=hip||J.quadril;const P=pernaPose(th,hip);
@@ -254,12 +262,15 @@ function cicDecal(c,E){
  parte(c,'rodas',kit);rodasGiro(c,E.roda,kit);parte(c,'quadro',kit);
  c.save();rotT(c,J.mov,J.mov,angCoroa(th));parte(c,'coroa',kit);c.restore();
  pedivelaArte(c,th,kit,false);pedalArte(c,th,kit,false);
- c.save();corpoT(c,B);carneBase(c,[[[[578,322],[604,318]],[30,30],'bermuda']],kit);parte(c,'tronco',kit);c.restore();   // assento/quadril por baixo
+ // bumbum ASSENTADO no selim: forma lisa da bermuda que desce até o topo do selim (com contorno), por baixo do tronco
+ c.save();corpoT(c,B);assento(c,kit);parte(c,'tronco',kit);c.restore();
  perna(c,th,kit,false,hip);
  c.save();corpoT(c,B);parte(c,'cabeca',kit);c.restore();
  const co=ik(omb,J.punho,L.braco,L.ante,LADO_COTOV);
  // braço: a arte tem os DOIS braços juntos nesta região (o de longe aparece atrás) -> fica o decalque, sem silhueta lisa;
  // o braço quase não gira (só acompanha o balanço do tronco)
+ // carne por baixo do braço (só cor, sem contorno): fecha a fresta do cotovelo quando o braço dobra diferente da arte
+ c.fillStyle=cor(CB.pele,'pele',kit);capsulas(c,[lerp2(omb,co,.45),co,lerp2(co,J.punho,.5)],[13,11,10]);
  c.save();segT(c,J.cotovelo,J.punho,co,J.punho);parte(c,'antebraco',kit);c.restore();
  c.save();segT(c,J.ombro,J.cotovelo,omb,co);parte(c,'braco',kit);c.restore();
  parte(c,'luva',kit);
@@ -292,7 +303,7 @@ window.cicDecalBorda=cicDecalBorda;
 // ---------- página ----------
 const cv=document.getElementById('palco'),ctx=cv.getContext('2d');
 const REF=new Image();REF.src='ref_ciclista2_alinhada.png';REF.onload=()=>desenhar();
-const S={borda:1.3,ver:'anim',th:TH0,kit:null,rpm:80,roda:0,scroll:0,pausa:false,lento:false,jogo:false,esq:false};
+const S={borda:.55,ver:'anim',th:TH0,kit:null,rpm:80,roda:0,scroll:0,pausa:false,lento:false,jogo:false,esq:false};
 const IMG={};
 for(const n of ['cen_ceu','cen_campo','cen_veg','asph']){const i=new Image();i.onerror=()=>{if(!i._b){i._b=1;i.src='img/'+n+'.webp'}};i.src='../src/assets/imagens/'+n+'.webp';IMG[n]=i}
 const ok=i=>i&&i.complete&&i.naturalWidth>0;
