@@ -139,18 +139,27 @@ function pedivela(c,th,escuro){
 function coroaFundo(c){c.fillStyle='#141416';c.beginPath();c.arc(J.mov[0],J.mov[1],39,0,7);c.fill();
  c.fillStyle=CQ.coroa;c.beginPath();c.arc(J.mov[0],J.mov[1],36,0,7);c.fill();
  c.strokeStyle='#141416';c.lineWidth=2.5;c.beginPath();c.arc(J.mov[0],J.mov[1],27,0,7);c.stroke()}
+// transmissão com as peças da arte da bike: coroa (gira), pedivela (gira; o de trás é o mesmo, escurecido) e pedal
+// (acompanha o pé). O pedivela da arte é mais longo que o pedal da pose da referência: ajusta no comprimento.
+const BK=D.bike,ANG_PED=BK.angPed,LEN_PED=len(sub(BK.eixoPed,J.mov));
+// o pé gira na ponta da sapatilha (com as pernas da arte é o único ponto que alcança o pedal embaixo); o pedal fica
+// sob a planta do pé (BALL) e o pedivela liga a coroa até ele (ângulo e comprimento por quadro: ±5%, invisível).
+const BALL=[668,551],SOLA=.73;
+function pedPonto(th){const P=pernaPose(th);return{pp:add(P.ped,rot(sub(BALL,J.pedal),P.dphi)),dphi:P.dphi}}
+function pedivelaArte(c,th,kit,escuro){const {pp}=pedPonto(th),v=sub(pp,J.mov);
+ c.save();c.translate(J.mov[0],J.mov[1]);c.rotate(ang(v));c.scale(len(v)/LEN_PED,1);c.rotate(-ANG_PED);c.translate(-J.mov[0],-J.mov[1]);parte(c,'pedivela',kit,escuro);c.restore()}
+function pedalArte(c,th,kit,escuro){const {pp,dphi}=pedPonto(th);
+ c.save();c.translate(pp[0],pp[1]);c.rotate(dphi+SOLA);c.translate(-BK.eixoPed[0],-BK.eixoPed[1]);parte(c,'pedal',kit,escuro);c.restore()}
+function angCoroa(th){return ang(sub(pedPonto(th).pp,J.mov))-ANG_PED}
 function cicDecal(c,E){
  const kit=E.kit,th=E.th,B=corpo(th),hip=corpoP(B,J.quadril),omb=corpoP(B,J.ombro);
- pneus(c);
- c.save();rotT(c,J.eixoT,J.eixoT,E.roda);parte(c,'roda_t',kit);c.restore();
- c.save();rotT(c,J.eixoD,J.eixoD,E.roda);parte(c,'roda_d',kit);c.restore();
- pedivela(c,th+Math.PI,true);
- perna(c,th+Math.PI,kit,true,hip);                                           // perna de trás (escura, atrás do quadro)
- tubosEscondidos(c,kit);
- parte(c,'quadro',kit);
- coroaFundo(c);
- c.save();rotT(c,J.mov,J.mov,th-TH0);parte(c,'coroa',kit);c.restore();
- pedivela(c,th,false);
+ // lado de trás: do outro lado da bike, atrás de tudo (inclusive das rodas)
+ pedivelaArte(c,th+Math.PI,kit,true);pedalArte(c,th+Math.PI,kit,true);
+ perna(c,th+Math.PI,kit,true,hip);
+ // bike inteira, parada (rodas, quadro, corrente, câmbio, guidão)
+ parte(c,'rodas',kit);parte(c,'quadro',kit);
+ c.save();rotT(c,J.mov,J.mov,angCoroa(th));parte(c,'coroa',kit);c.restore();
+ pedivelaArte(c,th,kit,false);pedalArte(c,th,kit,false);
  c.save();corpoT(c,B);parte(c,'tronco',kit);c.restore();
  perna(c,th,kit,false,hip);
  c.save();corpoT(c,B);parte(c,'cabeca',kit);c.restore();

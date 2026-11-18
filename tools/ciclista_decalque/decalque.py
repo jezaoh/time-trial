@@ -15,7 +15,7 @@ Método:
     vetorial (findContours em 3x, suavizado, approxPolyDP) -> string SVG para Path2D.
 Coordenadas de saída = pixels da referência (1376x768).
 """
-import sys, json, cv2, numpy as np
+import sys, os, json, cv2, numpy as np
 
 REF, SAIDA = sys.argv[1], sys.argv[2]
 DBG = sys.argv[3] if len(sys.argv) > 3 else None
@@ -28,7 +28,7 @@ H, S, V = hsv[..., 0], hsv[..., 1], hsv[..., 2]
 
 # ---------------- articulações (medidas na referência) ----------------
 J = {
- 'eixoT': (517, 587), 'eixoD': (897, 587), 'mov': (677, 613), 'pedal': (682, 556),
+ 'eixoT': (517, 587), 'eixoD': (897, 587), 'mov': (677.5, 609.5), 'pedal': (682, 556),
  'quadril': (600, 322), 'joelho': (738, 383), 'tornozelo': (668, 478),
  'ombro': (752, 228), 'cotovelo': (790, 315), 'punho': (838, 360), 'pescoco': (790, 205),
 }
@@ -243,31 +243,69 @@ def papel(p, rgb, x, y):
     if p in ('quadro',): return 'quadro'
     return None
 
+# ---------------- bike sem o ciclista (mesmo enquadramento) ----------------
+# A bike vem inteira da imagem dela (nada inventado). O ciclista = onde a referência difere da bike.
+BIKE = REF.replace('.png', '_ref_bike.png')
+BIKE = BIKE if os.path.exists(BIKE) else None
+BPARTES = ['quadro', 'coroa', 'pedivela', 'pedal', 'rodas']
+bparte = None
+if BIKE:
+    bk = cv2.imread(BIKE, cv2.IMREAD_UNCHANGED)
+    balfa = bk[..., 3]
+    ra = ALFA if ALFA is not None else np.where(sujeito, 255, 0)
+    dif = np.abs(im.astype(int) - (bk[..., :3] * (balfa[..., None] / 255.)).astype(int)).max(-1)
+    ciclista = (ra > 100) & ((balfa < 100) | (dif > 45))
+    ciclista = cv2.morphologyEx(ciclista.astype(np.uint8), cv2.MORPH_OPEN, np.ones((3, 3), np.uint8)) > 0
+    ciclista = cv2.morphologyEx(ciclista.astype(np.uint8), cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8)) > 0
+    n_, lb_, st_, _ = cv2.connectedComponentsWithStats(ciclista.astype(np.uint8), 8)
+    ciclista = np.isin(lb_, [i for i in range(1, n_) if st_[i, cv2.CC_STAT_AREA] > 150])
+    # rótulos do ciclista: só dentro da silhueta; pixel do ciclista rotulado como bike -> peça do ciclista mais próxima
+    RIDER = [Z[q] for q in PARTES if q not in ('roda_t', 'roda_d', 'quadro', 'coroa')]
+    eh_r = np.isin(parte, RIDER)
+    conhec = (eh_r & ciclista).astype(np.uint8)
+    _, lbl = cv2.distanceTransformWithLabels(1 - conhec, cv2.DIST_L2, 3, labelType=cv2.DIST_LABEL_PIXEL)
+    ys0, xs0 = np.nonzero(conhec); tab = np.full(lbl.max() + 1, -1, np.int32); tab[lbl[ys0, xs0]] = parte[ys0, xs0]
+    novo = np.where(ciclista, tab[lbl], -1)
+    parte = novo.astype(parte.dtype)
+    # peças da bike (na imagem da bike): coroa e pedivela giram, pedal acompanha o pé, o resto fica parado
+    dm = np.hypot(xx - J['mov'][0], yy - J['mov'][1])
+    EIXO_PED = (710.0, 665.0)                     # ponta do pedivela na arte da bike (medido)
+    braco_m = (dist_seg(J['mov'], EIXO_PED) < 10.5) & (np.hypot(xx - EIXO_PED[0], yy - EIXO_PED[1]) < 64)
+    pedal_m = (dist_seg((704, 664), (737, 660)) < 9.5) & (dm > 50)
+    bparte = np.full(parte.shape, -1, np.int32)
+    bb = balfa > 100
+    bV = cv2.cvtColor(bk[..., :3], cv2.COLOR_BGR2HSV)[..., 2].astype(int)
+    bparte[bb] = 0
+    bparte[bb & (dm < 43.5) & ~((bV > 170) & (dm > 34))] = 1   # coroa (com as janelas da aranha); tubos brancos da borda ficam no quadro
+    bparte[bb & (bparte == 0) & (dist_seg((698, 664), (748, 662)) < 13) & (dm > 44)] = -1   # restos do pedal/pedivela parados
+    bparte[bb & braco_m] = 2
+    bparte[bb & pedal_m & ~braco_m] = 3
+    # rodas (pneu + aro + miolo), paleta própria: separadas do quadro (tubos brancos ficam no quadro)
+    for e_ in ((516.4, 587.3), (891.6, 587.0)):
+        dr = np.hypot(xx - e_[0], yy - e_[1])
+        bparte[bb & (bparte == 0) & (dr > 97) & (dr < 136) & (bV < 120)] = 4
+    dados_bike = {'eixoPed': EIXO_PED, 'angPed': float(np.arctan2(EIXO_PED[1] - J['mov'][1], EIXO_PED[0] - J['mov'][0])),
+                  'pedalC': (721.0, 662.0)}
+    print('ciclista px', int(ciclista.sum()), ' bike:', {n: int((bparte == i).sum()) for i, n in enumerate(BPARTES)})
+
 # ---------------- vetorização (na versão 2x, se existir) ----------------
 import os
-HI = REF.replace('.png', '_2x.png')
-F = 1
-imH = im
-if REF.endswith('.png') and os.path.exists(HI):
-    a4 = cv2.imread(HI, cv2.IMREAD_UNCHANGED); F = a4.shape[1] // Ww
-    imH = (a4[..., :3] * (a4[..., 3:4] / 255.)).astype(np.uint8)
-    alfaH = a4[..., 3]
-else:
-    alfaH = np.where(sujeito, 255, 0).astype(np.uint8)
-labH = cv2.cvtColor(imH, cv2.COLOR_BGR2LAB).astype(np.float32)
-best = np.full(imH.shape[:2], 1e12, np.float32); clsH = np.zeros(imH.shape[:2], np.uint8)
-for c in range(K):
-    dc = ((labH - cen[c]) ** 2).sum(-1); m = dc < best; best[m] = dc[m]; clsH[m] = c
-clsH = cv2.medianBlur(clsH, 5).astype(int)
-cinzaH = cv2.cvtColor(imH, cv2.COLOR_BGR2GRAY)
-# traço ADAPTATIVO: linha = quase preto, ou bem mais escuro que a vizinhança. Enchimento escuro (luva, pneu, coroa,
-# fita do guidão) não vira traço só por ser escuro.
-vizH = cv2.medianBlur(cinzaH, 2 * (7 * F) + 1).astype(np.float32)
-LIM_H = np.minimum(np.maximum(72., 72. + (vizH - 150.) * .3), np.maximum(34., vizH - 20.))   # limite por pixel (sobe em área clara: pega a borda antialiasada)
-linhaH = cinzaH < LIM_H
-# borda da silhueta (perto do transparente) também é traço: contorno externo nítido, sem halo claro por fora
-distT = cv2.distanceTransform((alfaH > 100).astype(np.uint8), cv2.DIST_L2, 3)
-bordaH = (alfaH > 40) & (distT < 2.2 * F)
+def fonte(hi_path, a1):
+    """arrays de cor/traço em 2x de uma imagem (referência ou bike), para vetorizar as partes dela."""
+    a4 = cv2.imread(hi_path, cv2.IMREAD_UNCHANGED)
+    f = a4.shape[1] // Ww
+    imH_ = (a4[..., :3] * (a4[..., 3:4] / 255.)).astype(np.uint8); alfa_ = a4[..., 3]
+    cz = cv2.cvtColor(imH_, cv2.COLOR_BGR2GRAY)
+    viz = cv2.medianBlur(cz, 2 * (7 * f) + 1).astype(np.float32)
+    # traço ADAPTATIVO: linha = quase preto, ou bem mais escuro que a vizinhança (enchimento escuro não vira traço)
+    lim = np.minimum(np.maximum(72., 72. + (viz - 150.) * .3), np.maximum(34., viz - 20.))
+    dT = cv2.distanceTransform((alfa_ > 100).astype(np.uint8), cv2.DIST_L2, 3)
+    return dict(F=f, imH=imH_, alfaH=alfa_, labH=cv2.cvtColor(imH_, cv2.COLOR_BGR2LAB).astype(np.float32), cinzaH=cz,
+                LIM_H=lim, linhaH=cz < lim, bordaH=(alfa_ > 40) & (dT < 2.2 * f))
+FREF = fonte(REF.replace('.png', '_2x.png'), im)
+FBIKE = fonte(BIKE.replace('.png', '_2x.png'), None) if BIKE else None
+F = FREF['F']; globals().update(FREF)
+clsH = np.zeros(imH.shape[:2], int)
 ESC = 2            # superamostragem extra na hora de achar os contornos
 LINHA = '#17171b'
 
@@ -310,8 +348,10 @@ for jc, a_, b_, r_, cima, baixo in JUNTAS:
     frente = ((xx - J[jc][0]) * -bis[0] + (yy - J[jc][1]) * -bis[1]) > 4
     MASCARA[baixo] = (parte == Z[baixo]) | (disco & (meia | frente))   # a parte de trás do disco ficaria saindo como lasca
     MASCARA[cima] = (parte == Z[cima]) & ~meia
-for p in PARTES:
-    mp = MASCARA.get(p, parte == Z[p])
+ITENS = [(p, MASCARA.get(p, parte == Z[p]), FREF) for p in PARTES if not (BIKE and p in ('roda_t', 'roda_d', 'quadro', 'coroa'))]
+if BIKE: ITENS += [(n, bparte == i, FBIKE) for i, n in enumerate(BPARTES)]
+for p, mp, FONTE in ITENS:
+    globals().update(FONTE)
     if mp.sum() < 20: continue
     mpH = cv2.resize(mp.astype(np.uint8), None, fx=F, fy=F, interpolation=cv2.INTER_NEAREST) > 0
     escH = linhaH
@@ -319,7 +359,7 @@ for p in PARTES:
     sel_ = mpH & ~escH & (alfaH > 200)
     clsP = np.full(mpH.shape, -1, np.int32)
     if sel_.sum() > 50:
-        kp = int(min(7, max(2, sel_.sum() // (300 * F * F))))
+        kp = int(min(8 if p in BPARTES else 7, max(2, sel_.sum() // (300 * F * F))))
         _, _, cenP = cv2.kmeans(labH[sel_][::2].astype(np.float32), kp, None, crit, 3, cv2.KMEANS_PP_CENTERS)
         ys_, xs_ = np.nonzero(mpH)
         dP = ((labH[ys_, xs_][:, None, :] - cenP[None]) ** 2).sum(-1)
@@ -335,7 +375,7 @@ for p in PARTES:
             cls_por_lbl[lbl[ys0, xs0]] = clsP[ys0, xs0]
             clsP[perto] = cls_por_lbl[lbl[perto]]
     clsH_ = clsH; clsH = clsP
-    claros = [c for c in range(7) if (mpH & (clsH == c) & ~escH).sum() > 4 * F * F]   # pequenas contam (nós dos dedos)
+    claros = [c for c in range(12) if (mpH & (clsH == c) & ~escH).sum() > (60 if p in BPARTES else 4) * F * F]   # pequenas contam (nós dos dedos)
     claros.sort(key=lambda c: -(mpH & (clsH == c)).sum())
     mpH5 = cv2.dilate(mpH.astype(np.uint8), np.ones((5, 5))) > 0
     camadas = []
@@ -351,7 +391,7 @@ for p in PARTES:
         mm = (cv2.dilate(mm.astype(np.uint8), np.ones((5, 5))) > 0) & mpH5 & (alfaH > 100)
         px = imH[mpH & (clsH == c) & ~escH]; bgr = np.median(px, 0); rgb = tuple(int(v) for v in bgr[::-1])
         cy, cx = np.mean(np.nonzero(mm), 1) / F
-        d = vetor(mm, .5, 3, 1.0)
+        d = vetor(mm, .5, 14 if p in BPARTES else 3, 1.0)   # bike: sem pontinhos da textura
         if d: camadas.append({'c': '#%02x%02x%02x' % rgb, 'p': papel(p, rgb, cx, cy), 'd': d})
     # traço: direto do tom de cinza (contínuo, sem k-means), dentro da parte
     # 'escuridão relativa' ao limite local: >0.5 = traço (contorno suave, alcança a borda antialiasada)
@@ -368,11 +408,12 @@ for p in PARTES:
         src = np.where(anelP, np.maximum(src, 1.), src)
     d = vetor(None, .5, 3, .6, src=src)
     if d: camadas.append({'c': LINHA, 'p': None, 'd': d})
-    dados['partes'][p] = {'z': Z[p], 'cam': camadas}
+    dados['partes'][p] = {'z': Z.get(p, -1), 'cam': camadas}
     clsH = clsH_
 
 # divide camisa/bermuda no tronco por clip (feito no JS com a linha da cintura)
 dados['cintura'] = [(540, 272), (700, 310)]
+if BIKE: dados['bike'] = dados_bike
 # pneus: elipses ajustadas nas bordas externa e interna de cada pneu (a arte não é um círculo perfeito: raio 125-131).
 # O pneu dianteiro não é concêntrico com o cubo na arte (~7 px). O JS desenha as faixas interpolando entre as duas elipses.
 def elipses_pneu(c):
@@ -409,6 +450,7 @@ def elipses_pneu(c):
 dados['pneu'] = {'T': elipses_pneu((517.5, 587.0)), 'D': elipses_pneu((889.8, 587.2))}
 print('pneus:', dados['pneu'])
 def cor_med(m):
+    if m.sum() == 0: return '#888888'
     bgr = np.median(im[m], 0); return '#%02x%02x%02x' % tuple(int(v) for v in bgr[::-1])
 mq = parte == Z['quadro']
 dados['cores'] = {
@@ -417,7 +459,7 @@ dados['cores'] = {
 }
 open(SAIDA, 'w').write('// gerado por tools/ciclista_decalque/decalque.py — não editar à mão\nconst DECAL=' +
                        json.dumps(dados, separators=(',', ':')) + ';\n')
-print('partes:', {p: (len(v['cam']), int((parte == Z[p]).sum())) for p, v in dados['partes'].items()})
+print('partes:', {p: len(v['cam']) for p, v in dados['partes'].items()})
 print('tamanho:', len(open(SAIDA).read()) // 1024, 'KB')
 
 if DBG:
@@ -430,5 +472,5 @@ if DBG:
         if len(xs): cv2.putText(vis, p, (int(np.median(xs)) - 20, int(np.median(ys))), 0, .45, (255, 255, 255), 1)
     for p, pls in SEM.items():
         for pl in pls: cv2.polylines(vis, [np.int32(np.round(pl))], False, (255, 255, 255), 1)
-    for k, v in J.items(): cv2.circle(vis, v, 4, (0, 0, 255), -1)
+    for k, v in J.items(): cv2.circle(vis, (int(v[0]), int(v[1])), 4, (0, 0, 255), -1)
     cv2.imwrite(DBG + '/partes.png', cv2.resize(vis[60:730, 380:1040], None, fx=1.4, fy=1.4))
