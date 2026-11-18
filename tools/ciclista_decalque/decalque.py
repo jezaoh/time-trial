@@ -194,6 +194,24 @@ for r, e in (('roda_t', 'eixoT'), ('roda_d', 'eixoD')):
     parte[(parte == Z[r]) & (dd2 > 45) & (dd2 < RODA - 16) & (V > 85)] = -1
     parte[(parte == Z[r]) & (dd2 > 45) & (V > 110)] = -1
 
+# rodas: o pneu é desenhado em código (anel liso, medido abaixo); do decalque fica só o miolo que gira (cubo, disco, cassete)
+for r, e in (('roda_t', 'eixoT'), ('roda_d', 'eixoD')):
+    dd2 = np.sqrt((xx - J[e][0]) ** 2 + (yy - J[e][1]) ** 2)
+    parte[(parte == Z[r]) & (dd2 > 46)] = -1
+# braço do pedivela da referência dentro do decalque da coroa: aponta para o pé de baixo (que não é desenhado).
+# Direção = média dos pixels escuros do 'pé de trás' logo fora da coroa; o braço some do decalque (o código desenha os pedivelas).
+dm = np.hypot(xx - J['mov'][0], yy - J['mov'][1])
+anel_pe = (parte == Z['pe_tras']) & (dm > 38) & (dm < 70) & (V < 90)
+if anel_pe.sum() > 20:
+    ang_pe = np.arctan2((yy[anel_pe] - J['mov'][1]).mean(), (xx[anel_pe] - J['mov'][0]).mean())
+    fim = (J['mov'][0] + 42 * np.cos(ang_pe), J['mov'][1] + 42 * np.sin(ang_pe))
+    braco_ref = (parte == Z['coroa']) & (dist_seg(J['mov'], fim) < 9) & (dm > 9)
+    parte[braco_ref] = -1
+    print('braço do pedivela da ref: %.0f°, %d px tirados' % (np.degrees(ang_pe), braco_ref.sum()))
+# restos claros do pé de baixo da referência (ficaram no quadro) -> fora
+caixa_pe = (xx > 690) & (xx < 760) & (yy > 625) & (yy < 680)
+parte[caixa_pe & (parte == Z['quadro'])] = -1   # pedal e sapato de baixo da ref (o código desenha os nossos)
+
 # ---------------- paleta ----------------
 lab3 = cv2.cvtColor(im, cv2.COLOR_BGR2LAB).reshape(-1, 3).astype(np.float32)
 sel = sujeito.reshape(-1)
@@ -247,6 +265,9 @@ cinzaH = cv2.cvtColor(imH, cv2.COLOR_BGR2GRAY)
 vizH = cv2.medianBlur(cinzaH, 2 * (7 * F) + 1).astype(np.float32)
 LIM_H = np.minimum(np.maximum(72., 72. + (vizH - 150.) * .3), np.maximum(34., vizH - 20.))   # limite por pixel (sobe em área clara: pega a borda antialiasada)
 linhaH = cinzaH < LIM_H
+# borda da silhueta (perto do transparente) também é traço: contorno externo nítido, sem halo claro por fora
+distT = cv2.distanceTransform((alfaH > 100).astype(np.uint8), cv2.DIST_L2, 3)
+bordaH = (alfaH > 40) & (distT < 2.2 * F)
 ESC = 2            # superamostragem extra na hora de achar os contornos
 LINHA = '#17171b'
 
@@ -280,6 +301,15 @@ for p in PARTES:
         dP = ((labH[ys_, xs_][:, None, :] - cenP[None]) ** 2).sum(-1)
         clsP[ys_, xs_] = dP.argmin(1)
         tmp = (clsP + 1).astype(np.uint8); tmp = cv2.medianBlur(tmp, 5); clsP = np.where(mpH, tmp.astype(np.int32) - 1, -1)
+        # transição do antialias junto do traço (cinza a meio caminho) -> cor de enchimento mais próxima
+        perto = (cv2.dilate(escH.astype(np.uint8), np.ones((5, 5))) > 0) & ~escH & mpH
+        conhec = (mpH & ~perto & ~escH & (clsP >= 0)).astype(np.uint8)
+        if conhec.any() and perto.any():
+            _, lbl = cv2.distanceTransformWithLabels(1 - conhec, cv2.DIST_L2, 3, labelType=cv2.DIST_LABEL_PIXEL)
+            ys0, xs0 = np.nonzero(conhec)
+            cls_por_lbl = np.zeros(lbl.max() + 1, np.int32) - 1
+            cls_por_lbl[lbl[ys0, xs0]] = clsP[ys0, xs0]
+            clsP[perto] = cls_por_lbl[lbl[perto]]
     clsH_ = clsH; clsH = clsP
     claros = [c for c in range(7) if (mpH & (clsH == c) & ~escH).sum() > 4 * F * F]   # pequenas contam (nós dos dedos)
     claros.sort(key=lambda c: -(mpH & (clsH == c)).sum())
@@ -302,6 +332,7 @@ for p in PARTES:
     # traço: direto do tom de cinza (contínuo, sem k-means), dentro da parte
     # 'escuridão relativa' ao limite local: >0.5 = traço (contorno suave, alcança a borda antialiasada)
     src = np.where(mpH5 & (alfaH > 40), .5 + (LIM_H - cinzaH.astype(np.float32)) / 40., 0)
+    src = np.where(mpH5 & bordaH, np.maximum(src, 1.), src)
     d = vetor(None, .5, 3, .6, src=src)
     if d: camadas.append({'c': LINHA, 'p': None, 'd': d})
     dados['partes'][p] = {'z': Z[p], 'cam': camadas}
@@ -309,6 +340,41 @@ for p in PARTES:
 
 # divide camisa/bermuda no tronco por clip (feito no JS com a linha da cintura)
 dados['cintura'] = [(540, 272), (700, 310)]
+# pneus: elipses ajustadas nas bordas externa e interna de cada pneu (a arte não é um círculo perfeito: raio 125-131).
+# O pneu dianteiro não é concêntrico com o cubo na arte (~7 px). O JS desenha as faixas interpolando entre as duas elipses.
+def elipses_pneu(c):
+    ex, inn = [], []
+    for ag in np.arange(0, 360, 2):
+        rr = np.arange(95, 140, .25); x = c[0] + rr * np.cos(np.radians(ag)); y = c[1] + rr * np.sin(np.radians(ag))
+        v = alfaH[(y * F).astype(int).clip(0, alfaH.shape[0] - 1), (x * F).astype(int).clip(0, alfaH.shape[1] - 1)] > 128
+        idx = np.nonzero(v)[0]
+        if len(idx) < 10: continue
+        seg = np.split(idx, np.nonzero(np.diff(idx) > 1)[0] + 1)[0]
+        if len(seg) < 40 or len(seg) > 130: continue          # bloqueado por tubo/sapato: ignora o raio
+        ex.append((x[seg[-1]], y[seg[-1]])); inn.append((x[seg[0]], y[seg[0]]))
+    def el(P):
+        P = np.float32(P)
+        for _ in range(3):                                    # tira os pontos que fogem (encostos)
+            (cx, cy), (w, h), ang = cv2.fitEllipse(P)
+            t = np.radians(ang); dx = P[:, 0] - cx; dy = P[:, 1] - cy
+            u = (dx * np.cos(t) + dy * np.sin(t)) / (w / 2); v_ = (-dx * np.sin(t) + dy * np.cos(t)) / (h / 2)
+            res = np.abs(np.hypot(u, v_) - 1) * (w + h) / 4
+            P = P[res < max(1.2, np.percentile(res, 75))]
+        (cx, cy), (w, h), ang = cv2.fitEllipse(P)
+        return [round(float(cx), 2), round(float(cy), 2), round(float(w) / 2, 2), round(float(h) / 2, 2), round(float(np.radians(ang)), 4)]
+    e, i = el(ex), el(inn)
+    # mesma elipse tem várias formas (ângulo ±180°, eixos trocados com ±90°): deixa a interna perto da externa p/ interpolar
+    best = None
+    for k in range(-2, 3):
+        for troca in (0, 1):
+            ang = i[4] + k * np.pi / 2
+            if (k % 2 == 1) != bool(troca): continue
+            ax, ay = (i[3], i[2]) if troca else (i[2], i[3])
+            d = abs(ang - e[4])
+            if best is None or d < best[0]: best = (d, [i[0], i[1], ax, ay, round(float(ang), 4)])
+    return {'ext': e, 'int': best[1]}
+dados['pneu'] = {'T': elipses_pneu((517.5, 587.0)), 'D': elipses_pneu((889.8, 587.2))}
+print('pneus:', dados['pneu'])
 def cor_med(m):
     bgr = np.median(im[m], 0); return '#%02x%02x%02x' % tuple(int(v) for v in bgr[::-1])
 mq = parte == Z['quadro']

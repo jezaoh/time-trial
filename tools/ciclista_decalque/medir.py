@@ -22,6 +22,16 @@ for i, p in enumerate(PARTES):
     a = cv2.imread(f'{D}/{p}.png', cv2.IMREAD_UNCHANGED)[..., 3] > 127
     iou = (a & m).sum() / max(1, (a | m).sum())
     linhas.append((p, int(m.sum()), 100 * iou, float(dE[m].mean()), 100 * float((dE[m] > 10).mean())))
+# pneus (desenhados em código): anel dos pneus que não pertence a nenhuma parte
+yy, xx = np.mgrid[0:rot.shape[0], 0:rot.shape[1]]
+anel = np.zeros_like(rot, bool)
+for c in ((517.5, 587.0), (889.8, 587.2)):
+    d = np.hypot(xx - c[0], yy - c[1]); anel |= (d > 103.4) & (d < 129.5)
+mp = anel & (rot < 0) & (ref[..., 3] > 128)
+if mp.sum():
+    a_ = cv2.imread(D + '/tudo.png', cv2.IMREAD_UNCHANGED)[..., 3] > 127
+    linhas.append(('pneus', int(mp.sum()), 100 * (a_ & mp).sum() / max(1, ((a_ & anel & (rot < 0)) | mp).sum()), float(dE[mp].mean()), 100 * float((dE[mp] > 10).mean())))
+rot = np.where(mp, 99, rot)
 linhas.sort(key=lambda l: l[3] + (100 - l[2]) * .5, reverse=True)
 print(f"{'parte':10} {'px':>6} {'cobert.':>8} {'ΔE':>6} {'>10':>6}")
 for l in linhas: print(f'{l[0]:10} {l[1]:6d} {l[2]:7.1f}% {l[3]:6.1f} {l[4]:5.1f}%')

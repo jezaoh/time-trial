@@ -67,7 +67,7 @@ function cor(c,papel,kit,escuro){
  const key=c+papel+(kit?JSON.stringify(kit):'')+escuro;if(cache.has(key))return cache.get(key);
  let v=hx(c);
  if(kit&&papel&&kit[papel]){const b=hx(BASE[papel]),k=hx(kit[papel]);v=v.map((x,i)=>k[i]*Math.min(1.12,x/b[i]))}
- if(escuro){const n=[20,26,46];v=v.map((x,i)=>x+(n[i]-x)*.45)}
+ if(escuro){const n=[34,36,50];v=v.map((x,i)=>x+(n[i]-x)*.22)}   // perna de trás: só um pouco mais escura (como no vídeo)
  const r=rgb(v);cache.set(key,r);return r;
 }
 // ---------- desenho ----------
@@ -107,9 +107,16 @@ function tubo(c,a,b,r,kit){
  capsula(c,a,b,r+3,'#141416');capsula(c,a,b,r,cor(CQ.quadroS,'quadro',kit));
  capsula(c,[a[0]-r*.25,a[1]-r*.3],[b[0]-r*.25,b[1]-r*.3],r*.62,cor(CQ.quadro,'quadro',kit));
 }
+// pneu em código: faixas entre a elipse externa (0) e a interna (1) medidas no PNG, com o perfil de cor medido
+// (contorno, borda escura, banda marrom, risco, aro cinza, contorno interno). Estático: o anel é simétrico.
+const PN=[[0,.17,'#0b0b0c'],[.15,.29,'#39342f'],[.27,.58,'#4d463e'],[.56,.68,'#1b1a16'],[.66,.9,'#3c3b3c'],[.88,1,'#0b0b0c']];
 function pneus(c){
- for(const e of [J.eixoT,J.eixoD]){c.lineWidth=17;c.strokeStyle='#141416';c.beginPath();c.arc(e[0],e[1],D.R-8,0,7);c.stroke();
-  c.lineWidth=11;c.strokeStyle=CQ.pneu;c.beginPath();c.arc(e[0],e[1],D.R-8,0,7);c.stroke()}
+ for(const k of ['T','D']){const E=D.pneu[k],a=E.ext,b=E.int,L=(f,i)=>a[i]+(b[i]-a[i])*f;
+  for(const [f0,f1,cor] of PN){c.beginPath();
+   c.ellipse(L(f0,0),L(f0,1),L(f0,2),L(f0,3),L(f0,4),0,Math.PI*2);
+   c.ellipse(L(f1,0),L(f1,1),L(f1,2),L(f1,3),L(f1,4),0,Math.PI*2,true);
+   c.fillStyle=cor;c.fill('evenodd')}
+ }
 }
 function tubosEscondidos(c,kit){tubo(c,[614,468],[672,598],12.5,kit);tubo(c,[616,434],[762,423],7,kit)}
 // pedivela (a referência mostra o de baixo dentro do 'pé de trás', que não é desenhado): braço afinando + pedal
