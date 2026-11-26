@@ -14,10 +14,15 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 #painel{position:fixed;top:0;right:0;bottom:0;width:min(340px,92vw);background:#0b0b0bf2;border-left:1px solid #333;
  padding:calc(12px + env(safe-area-inset-top,0px)) calc(14px + env(safe-area-inset-right,0px)) 16px 14px;
  overflow-y:auto;box-sizing:border-box;display:flex;flex-direction:column;gap:12px}
-#painel[hidden]{display:none}
-#painel h2{margin:0;font-size:15px;letter-spacing:.06em}
+#build{position:fixed;top:0;left:0;bottom:0;width:min(320px,92vw);background:#0b0b0bf2;border-right:1px solid #333;
+ padding:calc(12px + env(safe-area-inset-top,0px)) 14px 16px calc(14px + env(safe-area-inset-left,0px));
+ overflow-y:auto;box-sizing:border-box;display:flex;flex-direction:column;gap:12px}
+#abrirB{top:calc(120px + env(safe-area-inset-top,0px));left:calc(10px + env(safe-area-inset-left,0px))}
+#painel[hidden],#build[hidden]{display:none}
+#painel h2,#build h2{margin:0;font-size:15px;letter-spacing:.06em}
 #painel h3{margin:6px 0 0;font-size:12px;letter-spacing:.08em;color:var(--dim)}
-#sl{display:flex;flex-direction:column;gap:12px}
+#sl,#slb{display:flex;flex-direction:column;gap:12px}
+#resumo{color:var(--acc);font-weight:600;line-height:1.5}
 .lin{display:grid;grid-template-columns:1fr auto;gap:2px 8px}
 .lin label{font-weight:600}
 .lin output{color:var(--acc)}
@@ -32,6 +37,13 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 <canvas id="cv"></canvas>
 <button class="bt" id="reini" type="button">REINICIAR</button>
 <button class="bt" id="abrir" type="button">AJUSTES</button>
+<button class="bt" id="abrirB" type="button">BUILD</button>
+<aside id="build" hidden>
+ <h2>BUILD</h2>
+ <div id="slb"></div>
+ <div id="resumo"></div>
+ <div class="acoes"><button class="bt" id="fecharB" type="button">FECHAR</button></div>
+</aside>
 <aside id="painel" hidden>
  <h2>AJUSTES</h2>
  <div id="sl"></div>
@@ -45,15 +57,22 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='26/11/2026 00:05';
+const VERSAO='26/11/2026 00:25';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:208,toque:5,morde:12,come:6,tauIn:.06,volta:.1,desg:15,dureza:2,cansa:2.5,vazio:3,
- ts:63,tela:1600,zoomV:.2,exag:7,empurra:1.5,vento:1,perto:1};
+ sprintApos:1.2,batVolta:4,fadBat:25,
+ ts:63,tela:1600,zoomV:.2,exag:7,empurra:1.5,vento:1,perto:1,
+ nvSprint:8,nvFolego:0,nvRec:0,nvEsc:0};
 const P=Object.assign({},PADRAO);
+const SLB=[
+ ['ftp','Motor: FTP (W)',120,400,1,'Sua força de 1 hora. Tudo é medido em % dela.'],
+ ['nvSprint','Sprint (nível)',0,10,1,'Pico = 700 + 40 W por nível (8 = 1.020 W) e +5% de bateria por nível.'],
+ ['nvFolego','Fôlego (nível)',0,10,1,'−5% de fadiga por nível.'],
+ ['nvRec','Recuperação (nível)',0,10,1,'Bateria do sprint recarrega +6% mais rápido por nível.'],
+ ['nvEsc','Escalada (nível)',0,10,1,'−1 kg por nível (75 kg no nível 0).']];
 const SL=[
  ['BARRA'],
- ['ftp','FTP (W)',120,400,1,'Sua força de 1 hora. Tudo é medido em % dela.'],
  ['toque','Mordida do toque (%)',0,20,.5,'Pedaço que some na hora que o dedo encosta.'],
  ['morde','Mordida pela força (%)',0,40,.5,'Pedaço extra conforme os watts.'],
  ['come','Come segurando (%/s)',0,30,.5,'Enquanto segura, a barra continua sendo comida.'],
@@ -63,6 +82,10 @@ const SL=[
  ['dureza','Dureza no final',0,6,.1,'Com a barra baixa a mordida cresce e a volta demora.'],
  ['cansa','Fadiga por stamina gasta (%)',0,20,.5,'Cada 100 de stamina mordida (no FTP) come isso do teto. Toque forte pesa mais.'],
  ['vazio','Castigo de segurar vazio (/s)',0,15,.5,'Segurando com a barra zerada, o teto cai isso por segundo.'],
+ ['SPRINT'],
+ ['sprintApos','Sprint liga depois de (s)',.4,3,.1,'Segurando mais que isso, o turbo liga e a barra para de ser mordida.'],
+ ['batVolta','Recarga da bateria (%/s)',0,15,.5,'Pedalando abaixo do FTP. Sem força nenhuma recarrega no máximo.'],
+ ['fadBat','Fadiga por bateria gasta',0,60,1,'Gastar 100% da bateria come isso do teto.'],
  ['VELOCIDADE E CÂMERA'],
  ['ts','Tempo acelerado (×)',1,100,1,'Como no jogo: 1 s real = N s de prova. 48 = prova de 50 km.'],
  ['tela','Metros na tela',300,4000,50,'Câmera. Mais = mais longe, terreno grande.'],
@@ -91,32 +114,48 @@ function alt(x){if(x<=0)return 0;estende(x+DX*3);const i=Math.floor(x/DX),u=x/DX
 function rampa(x){if(x<=0)return 0;estende(x+DX*3);const i=Math.floor(x/DX),u=x/DX-i;return GR_[i]+(GR_[i+1]-GR_[i])*u}
 // ---------------------------------------------------------------------------------------------
 let S,FX;
-function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,
+function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,bat:100,pico:0,holdAnt:false,sprintAnt:false,
  camY:null,zoom:1,kmhAnt:0,acc:0,camOff:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
 // ---------------------------------------------------------------------------------------------
 // Passo: barra e watts em segundos reais; distância em tempo de prova (× ts), como no jogo
-const M=83,CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6;
+const CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function barra(){return Math.max(0,S.teto-S.mord)}
+// build (igual à Carreira): Sprint = pico 700+40/nível e +5% de bateria/nível · Fôlego −5% fadiga/nível ·
+// Recuperação +6%/nível na recarga da bateria · Escalada −1 kg/nível
+const B=()=>({pMax:700+40*P.nvSprint,Wp:4000*(1+.05*P.nvSprint),fol:1-.05*P.nvFolego,rec:1+.06*P.nvRec,massa:75-P.nvEsc+8});
+function alvoDe(h){const F=P.ftp,k=F/250,sa=P.sprintApos;return F*.8+k*(120*h+(h>sa?500*(h-sa)**1.5:0))}
+function holdPara(pw){if(pw<=alvoDe(0))return 0;let a=0,b=12;for(let i=0;i<30;i++){const m=(a+b)/2;alvoDe(m)<pw?a=m:b=m}return a}
 function passo(dt){
- S.t+=dt;if(S.hold)S.holdT+=dt;else S.holdT=0;
- const F=P.ftp,k=F/250;
- const alvoW=F*.8+k*(120*S.holdT+(S.holdT>2.5?500*(S.holdT-2.5)**1.5:0));
- if(S.hold&&S.pw<alvoW)S.pw+=(alvoW-S.pw)*Math.min(1,dt*10);
+ const F=P.ftp,bd=B();
+ S.t+=dt;
+ if(S.hold&&!S.holdAnt)S.holdT=holdPara(S.pw);   // apertou de novo: continua de onde os watts estão
+ if(S.hold)S.holdT+=dt;else S.holdT=0;S.holdAnt=S.hold;
+ const sprint=S.hold&&S.holdT>P.sprintApos;
+ if(sprint&&!S.sprintAnt)S.pico=0;S.sprintAnt=sprint;
+ const alvoW=alvoDe(S.holdT);
+ if(S.hold){if(S.pw<alvoW)S.pw+=(alvoW-S.pw)*Math.min(1,dt*10)}   // segurando nunca cai
  else S.pw*=Math.exp(-dt*Math.LN2/(S.pw>F?.6:3));
- const b=barra(),pMax=F*4.6,tetoW=F*.75+(pMax-F*.75)*Math.pow(clamp(b/60,0,1),1.5);
- S.pw=Math.min(S.pw,tetoW);
+ // tetos: a bateria do sprint manda no pico; a barra só segura fora do sprint
+ const b=barra(),tetoBat=F*1.05+(bd.pMax-F*1.05)*Math.pow(clamp(S.bat/35,0,1),1.2),
+  tetoBarra=sprint?Infinity:F*.75+(bd.pMax-F*.75)*Math.pow(clamp(b/60,0,1),1.5);
+ S.pw=Math.min(S.pw,bd.pMax,tetoBat);                              // pico e bateria: trava na hora
+ if(S.pw>tetoBarra)S.pw+=(tetoBarra-S.pw)*Math.min(1,dt*6);         // barra: trava suave
+ if(sprint)S.pico=Math.max(S.pico,S.pw);
  const r=S.pw/F,baixa=1-b/100,dur=1+P.dureza*baixa*baixa;
- if(S.hold){S.acum+=P.come*r*dur*dt;
+ if(S.hold&&!sprint){S.acum+=P.come*r*dur*dt;
   const alvo=(P.toque+P.morde*Math.pow(r,1.6))*dur+S.acum;
   const m0=S.mord;S.mord+=(alvo-S.mord)*Math.min(1,dt/P.tauIn);
-  S.teto-=Math.max(0,S.mord-m0)*P.cansa/100*r*r*r;   // gastar stamina come fadiga
-  if(b<3)S.teto-=P.vazio*dt}
- else{S.acum=0;S.mord*=Math.exp(-dt/(P.volta*dur))}
- S.teto=Math.max(0,S.teto-P.desg/60*Math.pow(Math.max(0,(r-.4)/.6),2)*dt);
+  S.teto-=Math.max(0,S.mord-m0)*P.cansa/100*r*r*r*bd.fol;   // gastar stamina come fadiga
+  if(b<3)S.teto-=P.vazio*bd.fol*dt}
+ else if(!S.hold){S.acum=0;S.mord*=Math.exp(-dt/(P.volta*dur))}   // no sprint a barra fica parada
+ // bateria do sprint: gasta acima do FTP (come fadiga), recarrega abaixo
+ if(S.pw>F){const g=(S.pw-F)*dt/bd.Wp*100;S.bat=Math.max(0,S.bat-g);S.teto-=g*P.fadBat/100*bd.fol}
+ else S.bat=Math.min(100,S.bat+P.batVolta*bd.rec*clamp((F-S.pw)/(.3*F),0,1)*dt);
+ S.teto=Math.max(0,S.teto-P.desg/60*Math.pow(Math.max(0,(Math.min(r,1.5)-.4)/.6),2)*bd.fol*dt);   // acima de 150% quem cobra é a bateria
  S.mord=clamp(S.mord,0,S.teto);
  // física (inércia acelerada como no jogo)
- const g=rampa(S.x)/100,sn=g/Math.sqrt(1+g*g),cs=1/Math.sqrt(1+g*g);
+ const M=bd.massa,g=rampa(S.x)/100,sn=g/Math.sqrt(1+g*g),cs=1/Math.sqrt(1+g*g);
  for(let i=0;i<4;i++){const h=dt/4,v=S.v,
   a=(ETA*S.pw/Math.max(v,2)-M*GRV*(CRR*cs+sn)-.5*RHO*CDA*v*v)/M;
   S.v=clamp(v+a*h*KIN,0,30);S.x+=S.v*h*P.ts}
@@ -207,6 +246,10 @@ function desenha(dt){
  ctx.strokeStyle='#444';ctx.lineWidth=1;ctx.strokeRect(bxL+.5,byT+.5,bw-1,bh-1);
  txt('STAMINA '+fmt(barra(),0),bxL,byT-8*u,15*u,'#f2f2f2');
  txt('teto '+fmt(S.teto,0),bxL+bw,byT-8*u,15*u,'#8a8a8a','right',500);
+ // bateria do sprint (fina, branca, logo abaixo) + pico do último sprint
+ const sbY=byT+bh+4;ctx.fillStyle='#1a1a1a';ctx.fillRect(bxL,sbY,bw,5);
+ ctx.fillStyle=S.bat<35?'#888':'#f2f2f2';ctx.fillRect(bxL,sbY,bw*S.bat/100,5);
+ txt('SPRINT '+fmt(S.bat,0)+'%'+(S.pico>0?' · PICO '+fmt(S.pico,0)+' W':''),bxL,sbY+5+14*u,13*u,'#8a8a8a','left',600);
  const br=52*u+10,bX=W-m-br,bY=H-m-br;
  ctx.beginPath();ctx.arc(bX,bY,br,0,7);ctx.fillStyle=S.hold?acc:'#111';ctx.fill();
  ctx.lineWidth=2;ctx.strokeStyle=S.hold?acc:'#555';ctx.stroke();
@@ -225,17 +268,22 @@ cv.addEventListener('contextmenu',e=>e.preventDefault());
 // ---------------------------------------------------------------------------------------------
 const painel=document.getElementById('painel'),slBox=document.getElementById('sl'),texto=document.getElementById('texto');
 const casas=st=>st<1?(st<.1?2:1):0;
-function montaPainel(){slBox.innerHTML='';SL.forEach(([k,rot,mi,ma,st,aj])=>{
- if(rot===undefined){const h=document.createElement('h3');h.textContent=k;slBox.appendChild(h);return}
+function montaLista(lista,box){box.innerHTML='';lista.forEach(([k,rot,mi,ma,st,aj])=>{
+ if(rot===undefined){const h=document.createElement('h3');h.textContent=k;box.appendChild(h);return}
  const d=document.createElement('div');d.className='lin';
  d.innerHTML=`<label for="s_${k}">${rot}</label><output></output><input type="range" id="s_${k}" min="${mi}" max="${ma}" step="${st}"><small>${aj}</small>`;
- slBox.appendChild(d);const i=d.querySelector('input'),o=d.querySelector('output');i.value=P[k];o.textContent=fmt(+P[k],casas(st));
- i.addEventListener('input',()=>{P[k]=+i.value;o.textContent=fmt(P[k],casas(st));numeros();salva()})});numeros()}
-function numeros(){texto.value='BARRA '+VERSAO+'\n'+SL.filter(s=>s.length>1).map(([k,rot])=>rot+': '+P[k]).join('\n')}
+ box.appendChild(d);const i=d.querySelector('input'),o=d.querySelector('output');i.value=P[k];o.textContent=fmt(+P[k],casas(st));
+ i.addEventListener('input',()=>{P[k]=+i.value;o.textContent=fmt(P[k],casas(st));numeros();salva()})})}
+function montaPainel(){montaLista(SL,slBox);montaLista(SLB,document.getElementById('slb'));numeros()}
+function numeros(){const b=B();document.getElementById('resumo').innerHTML=
+ `Pico ${fmt(b.pMax,0)} W<br>Bateria do sprint ${fmt(b.Wp/1000,1)} kJ<br>Fadiga ×${fmt(b.fol,2)} · recarga ×${fmt(b.rec,2)}<br>Peso ${b.massa-8} kg (+8 bike) · ${fmt(P.ftp/(b.massa-8),2)} W/kg`;
+ texto.value='BARRA '+VERSAO+'\nBUILD: '+SLB.map(([k,rot])=>rot+' '+P[k]).join(' · ')+'\n'+SL.filter(s=>s.length>1).map(([k,rot])=>rot+': '+P[k]).join('\n')}
 function salva(){try{localStorage.setItem('barra_respira2',JSON.stringify(P))}catch(e){}}
 try{const s=JSON.parse(localStorage.getItem('barra_respira2')||'null');if(s)Object.assign(P,s)}catch(e){}
 document.getElementById('abrir').onclick=()=>{painel.hidden=false};
 document.getElementById('fechar').onclick=()=>{painel.hidden=true};
+document.getElementById('abrirB').onclick=()=>{document.getElementById('build').hidden=false};
+document.getElementById('fecharB').onclick=()=>{document.getElementById('build').hidden=true};
 document.getElementById('reini').onclick=e=>{e.currentTarget.blur();reiniciar()};
 document.getElementById('padrao').onclick=()=>{Object.assign(P,PADRAO);salva();montaPainel()};
 document.getElementById('copiar').onclick=()=>{numeros();const b=document.getElementById('copiar');
