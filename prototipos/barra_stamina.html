@@ -45,11 +45,11 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='25/11/2026 23:55';
+const VERSAO='26/11/2026 00:05';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
-const PADRAO={ftp:208,toque:5,morde:12,come:6,tauIn:.06,volta:.1,desg:15,dureza:2,
- ts:48,tela:1600,zoomV:.2,exag:7,empurra:1.5,vento:1,perto:1};
+const PADRAO={ftp:208,toque:5,morde:12,come:6,tauIn:.06,volta:.1,desg:15,dureza:2,cansa:2.5,vazio:3,
+ ts:63,tela:1600,zoomV:.2,exag:7,empurra:1.5,vento:1,perto:1};
 const P=Object.assign({},PADRAO);
 const SL=[
  ['BARRA'],
@@ -61,6 +61,8 @@ const SL=[
  ['volta','Velocidade da volta (s)',.05,2,.05,'Menor = volta mais rápido quando solta.'],
  ['desg','Desgaste (%/min no FTP)',0,60,1,'O que não volta mais (hachurado). Em minutos reais.'],
  ['dureza','Dureza no final',0,6,.1,'Com a barra baixa a mordida cresce e a volta demora.'],
+ ['cansa','Fadiga por stamina gasta (%)',0,20,.5,'Cada 100 de stamina mordida (no FTP) come isso do teto. Toque forte pesa mais.'],
+ ['vazio','Castigo de segurar vazio (/s)',0,15,.5,'Segurando com a barra zerada, o teto cai isso por segundo.'],
  ['VELOCIDADE E CÂMERA'],
  ['ts','Tempo acelerado (×)',1,100,1,'Como no jogo: 1 s real = N s de prova. 48 = prova de 50 km.'],
  ['tela','Metros na tela',300,4000,50,'Câmera. Mais = mais longe, terreno grande.'],
@@ -107,7 +109,9 @@ function passo(dt){
  const r=S.pw/F,baixa=1-b/100,dur=1+P.dureza*baixa*baixa;
  if(S.hold){S.acum+=P.come*r*dur*dt;
   const alvo=(P.toque+P.morde*Math.pow(r,1.6))*dur+S.acum;
-  S.mord+=(alvo-S.mord)*Math.min(1,dt/P.tauIn)}
+  const m0=S.mord;S.mord+=(alvo-S.mord)*Math.min(1,dt/P.tauIn);
+  S.teto-=Math.max(0,S.mord-m0)*P.cansa/100*r*r*r;   // gastar stamina come fadiga
+  if(b<3)S.teto-=P.vazio*dt}
  else{S.acum=0;S.mord*=Math.exp(-dt/(P.volta*dur))}
  S.teto=Math.max(0,S.teto-P.desg/60*Math.pow(Math.max(0,(r-.4)/.6),2)*dt);
  S.mord=clamp(S.mord,0,S.teto);
