@@ -180,7 +180,7 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 </aside>
 
 <script>
-const VERSAO='28/11/2026 HUD clean, gel do furgão, moedas no chão';
+const VERSAO='28/11/2026 velocímetro de volta, números em cima da barra';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
@@ -866,20 +866,30 @@ function hud(u){
  ctx.fillStyle='#e8453c';ctx.fillRect(x1+larg*pB,byB,larg*(1-pB),bh);
  ctx.fillStyle=S.spr||S.gas>0?'#ffe066':'#f5c518';ctx.fillRect(x1,byB,larg*pB,bh);
  ctx.fillStyle='rgba(255,255,255,.18)';ctx.fillRect(x1,byB,larg,bh*.35);ctx.restore();
- if(S.pico>0)txt('PICO '+fmt(S.pico,0)+' W',x1+larg,byB-8*u,15*u,'#fff','right',700);
- // painel de números
- const vMed=tp>0?(S.x-S.x0)/(tp*P.ts)*3.6:0,col=[[fmt(kmh,0),'km/h','Velocidade'],[fmt(vMed,1),'km/h','Velocidade média'],
+ if(S.pico>0)txt('PICO '+fmt(S.pico,0)+' W',x1+larg,byB+bh+16*u,13*u,'#fff','right',700);
+ // números em cima da barra, centralizados nela: velocidade grande com o velocímetro; o resto menor
+ const vMed=tp>0?(S.x-S.x0)/(tp*P.ts)*3.6:0,col=[[fmt(vMed,1),'km/h','Velocidade média'],
   [fmt(media,0),'W','Potência média'],[fmt(F,0),'W','FTP'],[fmt(media/F*100,0)+'%','','do FTP']];
- const pw2=Math.min(W-2*(m+2*br+24*u),920*u),cwid=pw2/col.length,phh=62*u+6,px2=W/2-pw2/2,py2=byB-16*u-phh;
  ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=7*u;
- // fonte encolhe para caber na coluna (painel sempre centralizado na tela)
- let fv=30*u;ctx.font='italic 900 '+fv+'px system-ui,sans-serif';
- const larM=Math.max(...col.map(([v,un])=>ctx.measureText(v).width+(un?ctx.measureText(' '+un).width*.6:0)));if(larM>cwid*.86)fv*=cwid*.86/larM;
- const fu=fv*.56,fr=Math.min(14*u,cwid*.1);
- col.forEach(([v,un,rot],i)=>{const cx=px2+cwid*(i+.5),cor=i===4?'#f5c518':'#fff';
-  ctx.font='italic 900 '+fv+'px system-ui,sans-serif';const vw=ctx.measureText(v).width;ctx.font='italic 800 '+fu+'px system-ui,sans-serif';const uw=un?ctx.measureText(' '+un).width:0;
-  txt(v,cx-(vw+uw)/2,py2+phh*.52,fv,cor,'left',900);if(un)txt(' '+un,cx-(vw+uw)/2+vw,py2+phh*.52,fu,cor,'left',800);
-  txt(rot,cx,py2+phh*.86,fr,'#e6ecf2','center',700)});
+ const meio=x1+larg/2,base=byB-14*u;
+ let fs=28*u,fv=52*u;const gr=28*u;
+ const largV=()=>{ctx.font='italic 900 '+fv+'px system-ui,sans-serif';const a=ctx.measureText(fmt(kmh,0)).width;ctx.font='italic 800 '+(fv*.45)+'px system-ui,sans-serif';return gr*2+12*u+a+ctx.measureText(' km/h').width};
+ const largC=()=>{ctx.font='italic 900 '+fs+'px system-ui,sans-serif';return Math.max(...col.map(([v,un,r])=>{const a=ctx.measureText(v+(un?' '+un:'')).width;ctx.font='italic 700 '+(fs*.55)+'px system-ui,sans-serif';const b=ctx.measureText(r).width;ctx.font='italic 900 '+fs+'px system-ui,sans-serif';return Math.max(a,b)}))+18*u};
+ let wV=largV(),wC=largC(),tot=wV+col.length*wC+20*u;
+ if(tot>larg){const k=larg/tot;fs*=k;fv*=k;wV=largV();wC=largC();tot=wV+col.length*wC+20*u}
+ let xx=meio-tot/2;
+ // velocímetro (o de antes) + velocidade
+ {const gx=xx+gr,gy=base-fv*.32;ctx.lineCap='round';ctx.lineWidth=5*u+1;ctx.strokeStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.arc(gx,gy,gr,Math.PI*1.08,Math.PI*1.92);ctx.stroke();
+  const fvv=clamp(kmh/80,0,1);ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(gx,gy,gr,Math.PI*1.08,Math.PI*(1.08+.84*fvv));ctx.stroke();
+  const an=Math.PI*(1.08+.84*fvv);ctx.lineWidth=3*u+1;ctx.beginPath();ctx.moveTo(gx,gy-3*u);ctx.lineTo(gx+Math.cos(an)*gr*.75,gy+Math.sin(an)*gr*.75);ctx.stroke();
+  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(gx,gy-3*u,4.5*u,0,7);ctx.fill();ctx.lineCap='butt';
+  const vx=xx+gr*2+12*u;txt(fmt(kmh,0),vx,base,fv,'#fff','left',900);ctx.font='italic 900 '+fv+'px system-ui,sans-serif';
+  txt(' km/h',vx+ctx.measureText(fmt(kmh,0)).width,base,fv*.45,'#fff','left',800)}
+ xx+=wV+20*u;
+ col.forEach(([v,un,rot],i)=>{const cx=xx+wC*(i+.5),cor=i===3?'#f5c518':'#fff';
+  ctx.font='italic 900 '+fs+'px system-ui,sans-serif';const vw=ctx.measureText(v).width;ctx.font='italic 800 '+(fs*.6)+'px system-ui,sans-serif';const uw=un?ctx.measureText(' '+un).width:0;
+  txt(v,cx-(vw+uw)/2,base-fs*.62,fs,cor,'left',900);if(un)txt(' '+un,cx-(vw+uw)/2+vw,base-fs*.62,fs*.6,cor,'left',800);
+  txt(rot,cx,base,fs*.55,'#e6ecf2','center',700)});
  ctx.shadowBlur=6*u;
  // botão de força
  ctx.beginPath();ctx.arc(bX,bYr,br,0,7);ctx.fillStyle=S.hold?'rgba(245,197,24,.9)':'rgba(28,38,52,.55)';ctx.fill();
