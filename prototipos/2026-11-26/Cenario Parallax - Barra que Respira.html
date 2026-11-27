@@ -61,12 +61,12 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='27/11/2026 11:40 barra amarela, sprint queima, em pé';
+const VERSAO='27/11/2026 11:56 sprint vira fadiga, amarelo volta até o vermelho';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:208,toque:5,morde:12,come:6,tauIn:.06,volta:.1,dureza:2,vazio:3,
  fadH:80,fadExp:4.2,fadAcima:5.8,tetoVazio:85,escuro:10,
- sprintApos:1.5,sprMin:25,queimaVolta:0,sprCheia:5,sprMeio:3,sprPicoMeio:60,sprCusto:35,
+ sprintApos:1.5,sprMin:25,sprCheia:5,sprMeio:3,sprPicoMeio:60,sprCusto:35,
  empeLiga:115,empeSai:100,
  ts:40,dist:9,zoomV:.12,empurra:1.5,vento:1,
  vis:23,tam:.4,faixa:.3,larg:22,incl:1,dia:4,neblina:1,
@@ -101,8 +101,7 @@ const SL=[
  ['sprCheia','Sprint com barra cheia (s)',1,12,.5,'Duração no pico com a barra 100%.'],
  ['sprMeio','Sprint com meia barra (s)',1,10,.5,'Duração com a barra em 50% (e abaixo).'],
  ['sprPicoMeio','Pico com meia barra (%)',20,100,1,'Quanto do pico (acima do FTP) sai com meia barra. Barra cheia = 100%.'],
- ['sprCusto','Parte do sprint que vira fadiga (%)',0,100,1,'O sprint queima o amarelo que usou. Essa parte vira fadiga (água/gel devolvem); o resto é stamina queimada (iso/banana devolvem).'],
- ['queimaVolta','Stamina queimada volta sozinha (%/s)',0,5,.1,'0 = só volta com item (isotônico, banana). Só conta com o botão solto.'],
+ ['sprCusto','Parte do sprint que vira fadiga (%)',0,100,1,'Do amarelo que o sprint gasta, essa parte vira vermelho para sempre (água/gel devolvem). Soltou, o amarelo volta só até o vermelho.'],
  ['CICLISTA EM PÉ'],
  ['empeLiga','Fica em pé acima de (% FTP)',90,200,1,'Por 0,3 s seguidos.'],
  ['empeSai','Senta abaixo de (% FTP)',50,150,1,'Diferença para não ficar piscando.'],
@@ -126,10 +125,10 @@ const SL=[
  ['aguaSeg','Água: duração do gole (s)',.5,6,.5,'Em quanto tempo o efeito entra.'],
  ['isoQ','Isotônico: goles',0,10,1,'Quantos na largada. Tecla 2.'],
  ['isoFad','Isotônico: tira de fadiga',0,30,1,'Por gole.'],
- ['isoSta','Isotônico: devolve de stamina',0,60,1,'Por gole, devolve stamina (primeiro a queimada pelo sprint), em 1,5 s.'],
+ ['isoSta','Isotônico: devolve de stamina',0,60,1,'Por gole, enche a barra na hora (1,5 s).'],
  ['bananaQ','Banana: quantidade',0,10,1,'Tecla 3.'],
  ['bananaFad','Banana: tira de fadiga',0,30,1,''],
- ['bananaSta','Banana: devolve de stamina',0,100,1,'Devolve stamina (primeiro a queimada pelo sprint), em 1,5 s.'],
+ ['bananaSta','Banana: devolve de stamina',0,100,1,'Enche a barra (em 1,5 s).'],
  ['gelQ','Gel: quantidade',0,10,1,'Tecla 4.'],
  ['gelFrac','Gel: tira da fadiga acumulada (%)',0,100,1,'Na hora. 2º gel rende 75%, 3º 55%, depois 40%.'],
  ['SOM'],
@@ -177,11 +176,11 @@ function hv(x){if(x<=0)return 0;if(HVi!==P.incl){HV=[0];HVi=P.incl}estende(x+DX*
 let S,FX,pausado=false;
 function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,pico:0,tw:9999,holdAnt:false,sprintAnt:false,
  zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:0,fim:false,ganho:0,
- it:{agua:P.aguaQ,iso:P.isoQ,banana:P.bananaQ,gel:P.gelQ},efe:[],nGel:0,msg:null,spr:null,sprFeito:false,queima:0,verdeIni:100,empe:false,empeT:0,empeA:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
+ it:{agua:P.aguaQ,iso:P.isoQ,banana:P.bananaQ,gel:P.gelQ},efe:[],nGel:0,msg:null,spr:null,sprFeito:false,verdeIni:100,empe:false,empeT:0,empeA:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
 // ---------------------------------------------------------------------------------------------
 const CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-function barra(){return Math.max(0,S.teto-S.mord-S.queima)}   // amarelo = teto − mordida (volta) − queimada pelo sprint (só item)
+function barra(){return Math.max(0,S.teto-S.mord)}   // amarelo = teto (até o vermelho) − mordida (volta ao soltar)
 const B=()=>({pMax:700+40*P.nvSprint,fol:Math.pow(.92,P.nvFolego),folSpr:1-.02*P.nvFolego,rec:1+.06*P.nvRec,massa:75-P.nvEsc+8});
 // fadiga por hora de PROVA em função de r = watts/FTP: abaixo do FTP r^curva; acima cresce rápido (punitivo)
 function fadHora(r){return P.fadH*(r<=1?Math.pow(Math.max(0,r),P.fadExp):1+P.fadAcima*Math.pow(r-1,1.5))}
@@ -199,10 +198,10 @@ function passo(dt){
  if(S.hold&&!S.holdAnt){S.holdT=Math.min(holdPara(S.pw),P.sprintApos*.6);S.verdeIni=barra()}   // amarelo de antes da mordida
  if(S.hold)S.holdT+=dt;else{S.holdT=0;S.spr=null;S.sprFeito=false}
  S.holdAnt=S.hold;
- // 27/11: barra AMARELA (stamina) e VERMELHA (fadiga) coladas. O sprint queima o amarelo que usa: não volta sozinho (só item).
- // Sem amarelo não sai sprint nem watts altos (teto = tetoVazio% do FTP).
+ // 27/11: barra AMARELA (stamina) e VERMELHA (fadiga) coladas. O sprint gasta o amarelo (pode zerar; zerou, acabou o sprint);
+ // parte do gasto vira fadiga; soltou, o amarelo volta até o vermelho. Só a fadiga no fim derruba (QUEBROU).
  if(S.hold&&!S.spr&&!S.sprFeito&&S.holdT>P.sprintApos){
-  if(S.verdeIni>=P.sprMin){S.spr=Object.assign(sprintPlano(S.verdeIni),{t:0});S.pico=0}else S.sprFeito=true}
+  if(S.verdeIni>=P.sprMin){S.spr=Object.assign(sprintPlano(S.verdeIni),{t:0,mb:Math.min(S.mord,S.verdeIni)});S.pico=0}else S.sprFeito=true}   // mb = mordida do arranque (conta como amarelo do sprint)
  const sprint=!!S.spr;S.sprintAnt=sprint;
  if(sprint){S.pw+=(S.spr.pico-S.pw)*Math.min(1,dt*10);S.pw=Math.min(S.pw,S.spr.pico)}
  else if(S.hold){const al=alvoDe(S.holdT);S.pw+=(al-S.pw)*Math.min(1,dt*10)}
@@ -213,14 +212,14 @@ function passo(dt){
  else S.tw=S.pw;
  if(sprint)S.pico=Math.max(S.pico,S.pw);
  const r=S.pw/F,baixa=1-b/100,dur=1+P.dureza*baixa*baixa;
- if(sprint){const sp=S.spr,resta=Math.max(dt,sp.dur-sp.t),tem=barra()+S.mord,d=tem*Math.min(1,dt/resta),fc=clamp(P.sprCusto/100*bd.folSpr,0,1);
-  const dm=Math.min(S.mord,d);S.mord-=dm;                         // queima primeiro a mordida do arranque (a barra não pula), depois o amarelo
-  S.teto-=d*fc;S.queima+=d*(1-fc);                              // o que o sprint usa queima: parte vira fadiga, o resto só volta com item
-  sp.t+=dt;if(sp.t>=sp.dur||barra()+S.mord<.5){S.spr=null;S.sprFeito=true}}
+ if(sprint){const sp=S.spr,resta=Math.max(dt,sp.dur-sp.t),d=(barra()+sp.mb)*Math.min(1,dt/resta),cf=sp.custo*Math.min(dt,resta)/sp.dur;
+  const db=Math.min(sp.mb,d);sp.mb-=db;                         // gasta primeiro a mordida do arranque (a barra não pula), depois o amarelo
+  S.teto-=cf;S.mord=Math.max(0,S.mord+(d-db)-cf);              // o preço (sprCusto% do amarelo do arranque) vira fadiga; o resto volta ao soltar
+  sp.t+=dt;if(sp.t>=sp.dur||barra()+sp.mb<.5){S.spr=null;S.sprFeito=true}}
  else if(S.hold){S.acum+=P.come*r*dur*dt;                          // respiração do toque (igual à do dono)
   const alvo=(P.toque+P.morde*Math.pow(Math.min(r,1.3),1.6))*dur+S.acum;
-  S.mord=Math.min(S.teto-S.queima,S.mord+Math.max(0,alvo-S.mord)*Math.min(1,dt/P.tauIn))}
- else{S.acum=0;S.mord*=Math.exp(-dt*bd.rec/(P.volta*dur));S.queima=Math.max(0,S.queima-P.queimaVolta*bd.rec*dt)}
+  S.mord=Math.min(S.teto,S.mord+Math.max(0,alvo-S.mord)*Math.min(1,dt/P.tauIn))}
+ else{S.acum=0;S.mord*=Math.exp(-dt*bd.rec/(P.volta*dur))}
  if(S.hold&&!sprint&&b<3)S.teto-=P.vazio*bd.fol*dt;   // segurando com o verde vazio: o vermelho avança rápido até quebrar
  if(!sprint)S.teto-=fadHora(r)*bd.fol*dt*P.ts/3600;   // fadiga do tempo de PROVA (o sprint tem preço próprio)
  S.teto=Math.max(0,S.teto);
@@ -230,8 +229,8 @@ function passo(dt){
  S.empeA=clamp((S.empeA||0)+(S.empe?dt:-dt)/.15,0,1);
  // itens: efeito aos poucos (fadiga volta para o teto; stamina enche a barra)
  S.efe=S.efe.filter(e=>{const k=Math.min(1,dt/e.seg);const qf=Math.min(e.fad,e.f0*k),qs=Math.min(e.sta,e.s0*k);
-  e.fad-=qf;e.sta-=qs;S.teto=Math.min(100,S.teto+qf);const qq=Math.min(S.queima,qs);S.queima-=qq;S.mord=Math.max(0,S.mord-(qs-qq));return e.fad>.01||e.sta>.01});
- S.queima=clamp(S.queima,0,S.teto);S.mord=clamp(S.mord,0,S.teto-S.queima);
+  e.fad-=qf;e.sta-=qs;S.teto=Math.min(100,S.teto+qf);S.mord=Math.max(0,S.mord-qs);return e.fad>.01||e.sta>.01});
+ S.mord=clamp(S.mord,0,S.teto);
  if(S.teto<=.5&&!S.fim){S.fim=true;abrePausa('QUEBROU','Acabou o fôlego no km '+fmt(S.x/1000,1));return}
  const M=bd.massa,g=rampa(S.x)/100,sn=g/Math.sqrt(1+g*g),cs=1/Math.sqrt(1+g*g),alt0=alt(S.x);
  for(let i=0;i<4;i++){const h=dt/4,v=S.v,
