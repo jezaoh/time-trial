@@ -60,14 +60,16 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='27/11/2026 00:47 estrada curva + barra única';
+const VERSAO='27/11/2026 01:10 itens + som';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:208,toque:5,morde:12,come:6,tauIn:.06,volta:.1,desg:15,dureza:2,cansa:2.5,vazio:3,
  sprintApos:1.5,fadBat:25,wSprint:22,cheia:20,
  ts:22,dist:9,zoomV:.12,empurra:1.5,vento:1,
  vis:23,tam:.4,faixa:.3,larg:22,incl:1,dia:4,neblina:1,
- nvSprint:2,nvFolego:3,nvRec:3,nvEsc:2};
+ nvSprint:2,nvFolego:3,nvRec:3,nvEsc:2,
+ aguaQ:5,aguaFad:8,aguaSeg:2,isoQ:5,isoFad:9,isoSta:12,bananaQ:2,bananaFad:6,bananaSta:40,gelQ:2,gelFrac:40,
+ som:1,musica:.5,efeitos:.8};
 const P=Object.assign({},PADRAO);
 const SLB=[
  ['ftp','Motor: FTP (W)',120,400,1,'Sua força de 1 hora. Tudo é medido em % dela.'],
@@ -104,7 +106,23 @@ const SL=[
  ['neblina','Neblina entre camadas',0,2,.1,'Névoa de profundidade nas montanhas.'],
  ['zoomV','Câmera afasta na velocidade',0,.6,.01,'Quanto a câmera abre quando está rápido.'],
  ['empurra','Empurrão da câmera',0,5,.1,'Acelerou: o ciclista avança na tela.'],
- ['vento','Linhas de vento',0,3,.1,'Riscos que passam acima de ~25 km/h.']];
+ ['vento','Linhas de vento',0,3,.1,'Riscos que passam acima de ~25 km/h.'],
+ ['ITENS (valem ao reiniciar)'],
+ ['aguaQ','Água: garrafas',0,10,1,'Quantas na largada. Tecla 1.'],
+ ['aguaFad','Água: tira de fadiga',0,30,1,'Devolve isso do teto da barra, aos poucos.'],
+ ['aguaSeg','Água: duração do gole (s)',.5,6,.5,'Em quanto tempo o efeito entra.'],
+ ['isoQ','Isotônico: goles',0,10,1,'Quantos na largada. Tecla 2.'],
+ ['isoFad','Isotônico: tira de fadiga',0,30,1,'Por gole.'],
+ ['isoSta','Isotônico: devolve de stamina',0,60,1,'Por gole, enche a barra na hora (1,5 s).'],
+ ['bananaQ','Banana: quantidade',0,10,1,'Tecla 3.'],
+ ['bananaFad','Banana: tira de fadiga',0,30,1,''],
+ ['bananaSta','Banana: devolve de stamina',0,100,1,'Enche a barra (em 1,5 s).'],
+ ['gelQ','Gel: quantidade',0,10,1,'Tecla 4.'],
+ ['gelFrac','Gel: tira da fadiga acumulada (%)',0,100,1,'Na hora. 2º gel rende 75%, 3º 55%, depois 40%.'],
+ ['SOM'],
+ ['som','Som ligado',0,1,1,'0 = mudo.'],
+ ['musica','Volume da música',0,1,.05,''],
+ ['efeitos','Volume dos efeitos',0,1,.05,'Pedalada, roda livre e itens.']];
 // ---------------------------------------------------------------------------------------------
 // Imagens: camadas da arte (todas 3344×941, alinhadas e emendáveis) + sprite pedalando (17 quadros 320×292)
 const IW=3344,IH=941,FW=320,FH=292,NQ=17,PE=284; // PE = linha do pneu no quadro
@@ -114,6 +132,7 @@ const CAM=[['02-montanhas-distantes',.06,.30,.03],['03-montanhas-intermediarias'
  ['05-campo-e-arvores',.45,0,.16]].map(([n,f,nev,fv])=>({img:carrega('cenario-parallax/'+n+'.png'),f,nev,fv}));
 const FRENTE={img:carrega('cenario-parallax/08-vegetacao-desfocada.png'),f:1.7};
 const SPR=carrega('ciclista branco/sprite pedalando/pedalando_sheet.webp');
+const ITEM=[['agua','Digit1'],['iso','Digit2'],['banana','Digit3'],['gel','Digit4']].map(([id,k])=>({id,k,img:carrega('itens/'+id+'.webp')}));
 const ok=i=>i.complete&&i.naturalWidth>0;
 // ---------------------------------------------------------------------------------------------
 // Terreno (igual ao protótipo): subida → topo → descida → vale
@@ -142,7 +161,8 @@ function hv(x){if(x<=0)return 0;if(HVi!==P.incl){HV=[0];HVi=P.incl}estende(x+DX*
 // ---------------------------------------------------------------------------------------------
 let S,FX,pausado=false;
 function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,pico:0,tw:9999,holdAnt:false,sprintAnt:false,
- zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:0,fim:false,ganho:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
+ zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:0,fim:false,ganho:0,
+ it:{agua:P.aguaQ,iso:P.isoQ,banana:P.bananaQ,gel:P.gelQ},efe:[],nGel:0,msg:null};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
 // ---------------------------------------------------------------------------------------------
 const CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -174,6 +194,9 @@ function passo(dt){
  else{S.acum=0;S.mord*=Math.exp(-dt*bd.rec/(P.volta*dur))}
  if(S.hold&&b<3)S.teto-=P.vazio*bd.fol*dt;   // segurando com a barra vazia: a fadiga avança rápido até quebrar
  S.teto=Math.max(0,S.teto-P.desg/60*Math.pow(Math.max(0,(Math.min(r,1.5)-.4)/.6),2)*bd.fol*dt);
+ // itens: efeito aos poucos (fadiga volta para o teto; stamina enche a barra)
+ S.efe=S.efe.filter(e=>{const k=Math.min(1,dt/e.seg);const qf=Math.min(e.fad,e.f0*k),qs=Math.min(e.sta,e.s0*k);
+  e.fad-=qf;e.sta-=qs;S.teto=Math.min(100,S.teto+qf);S.mord=Math.max(0,S.mord-qs);return e.fad>.01||e.sta>.01});
  S.mord=clamp(S.mord,0,S.teto);
  if(S.teto<=.5&&!S.fim){S.fim=true;abrePausa('QUEBROU','Acabou o fôlego no km '+fmt(S.x/1000,1));return}
  const M=bd.massa,g=rampa(S.x)/100,sn=g/Math.sqrt(1+g*g),cs=1/Math.sqrt(1+g*g),alt0=alt(S.x);
@@ -341,7 +364,7 @@ function desenhaCiclista(s,dt,u){
 }
 // ---------------------------------------------------------------------------------------------
 // HUD no estilo da referência
-let botPausa={x:0,y:0,w:0,h:0},botRaio={x:0,y:0,r:0};
+let botPausa={x:0,y:0,w:0,h:0},botRaio={x:0,y:0,r:0},botItens=[];
 function hud(u){
  const F=P.ftp,kmh=S.v*3.6,m=22*u+10,media=S.t>0?S.soma/S.t:0,PL='rgba(28,38,52,.78)';
  ctx.save();ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=6*u;
@@ -402,6 +425,15 @@ function hud(u){
  txt(fmt(S.pw,0)+' w',bX,bYr-br-18*u,30*u,'#fff','center');
  ctx.restore();
  if(S.t<4)txt('Toque ou segure em qualquer lugar da tela (ou Espaço)',W/2,H*.42,20*u,'#fff','center',700);
+ // itens: coluna no canto esquerdo (toque no item ou teclas 1–4)
+ const ih=58*u+8,iw=ih*.8;botItens=[];
+ ITEM.forEach((I,i)=>{const x=m,y=H-m-(i+1)*(ih+8*u),n=S.it[I.id],ativo=S.efe.some(e=>e.id===I.id);botItens.push({id:I.id,x,y,w:iw,h:ih});
+  rr(ctx,x,y,iw,ih,12*u);ctx.fillStyle=ativo?'rgba(245,197,24,.55)':'rgba(28,38,52,.62)';ctx.fill();
+  if(ok(I.img)){const im=I.img,k2=Math.min((iw-10*u)/im.width,(ih-10*u)/im.height);ctx.globalAlpha=n?1:.3;
+   ctx.drawImage(im,x+iw/2-im.width*k2/2,y+ih/2-im.height*k2/2,im.width*k2,im.height*k2);ctx.globalAlpha=1}
+  ctx.beginPath();ctx.arc(x+iw-4*u,y+6*u,11*u+3,0,7);ctx.fillStyle=n?'#f5c518':'#55606e';ctx.fill();
+  txt(String(n),x+iw-4*u,y+11*u,15*u+2,'#1c2634','center',800,false)});
+ if(S.msg&&S.t-S.msg.t<1.6){ctx.globalAlpha=clamp(1.6-(S.t-S.msg.t),0,1);ctx.font='italic 800 '+(22*u)+'px system-ui,sans-serif';const mw=ctx.measureText(S.msg.txt).width+36*u;pilula(W/2-mw/2,H*.5-26*u,mw,36*u,'rgba(20,30,44,.82)');txt(S.msg.txt,W/2,H*.5,22*u,'#8fe0ff','center');ctx.globalAlpha=1}
 }
 function perfil(u,m){
  const pw=Math.min(W*.3,440*u),ph=66*u+10,bh=18*u+4,px=W/2-pw/2,py=H-m-bh-10*u-26*u-ph;
@@ -423,17 +455,43 @@ function recorde(){try{return +localStorage.getItem('cenario_rec_'+P.dist)||0}ca
 function chegada(){S.fim=true;const t=S.t*P.ts,r=recorde();let novo=!r||t<r;if(novo)try{localStorage.setItem('cenario_rec_'+P.dist,t)}catch(e){}
  abrePausa('CHEGADA',relogio(t)+(novo?' • novo recorde!':' • recorde '+relogio(r)))}
 // ---------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------
+// Itens
+const GEL_RENDE=[1,.75,.55,.4];
+function usar(id){if(pausado||S.fim||!S.it[id]||S.efe.some(e=>e.id===id))return;S.it[id]--;let txtm='';
+ if(id==='gel'){const k=GEL_RENDE[Math.min(S.nGel++,3)],q=(100-S.teto)*P.gelFrac/100*k;S.teto=Math.min(100,S.teto+q);txtm='GEL −'+fmt(q,0)+' FADIGA'+(k<1?' (rendeu '+Math.round(k*100)+'%)':'')}
+ else{const f=id==='agua'?P.aguaFad:id==='iso'?P.isoFad:P.bananaFad,s=id==='agua'?0:id==='iso'?P.isoSta:P.bananaSta;
+  S.efe.push({id,fad:f,sta:s,f0:f,s0:s,seg:id==='agua'?P.aguaSeg:1.5});
+  txtm=(id==='agua'?'ÁGUA':id==='iso'?'ISOTÔNICO':'BANANA')+' −'+f+' FADIGA'+(s?' · +'+s+' STAMINA':'')}
+ S.msg={t:S.t,txt:txtm};som('bonus');if(navigator.vibrate)try{navigator.vibrate(18)}catch(e){}}
+// ---------------------------------------------------------------------------------------------
+// Som (Web Audio, liga no 1º toque): música, pedalada e roda livre em loop, "bonus" ao usar item
+let AC=null,gMus,gSfx,BUF={},LP={};
+function somLiga(){if(AC){if(AC.state==='suspended')AC.resume();return}
+ try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){return}
+ gMus=AC.createGain();gSfx=AC.createGain();gMus.gain.value=0;gSfx.gain.value=0;gMus.connect(AC.destination);gSfx.connect(AC.destination);
+ ['game','pedal','freewheel','bonus'].forEach(k=>fetch('sons/'+k+'.mp3').then(r=>r.arrayBuffer()).then(b=>new Promise((ok,no)=>AC.decodeAudioData(b,ok,no)))
+  .then(d=>{BUF[k]=d;if(k!=='bonus'){const s=AC.createBufferSource();s.buffer=d;s.loop=true;const g=AC.createGain();g.gain.value=0;s.connect(g);g.connect(k==='game'?gMus:gSfx);s.start();LP[k]={s,g}}}).catch(()=>{}))}
+function som(k){if(!AC||!BUF[k])return;const s=AC.createBufferSource();s.buffer=BUF[k];s.connect(gSfx);s.start()}
+function somTick(){if(!AC)return;const t=AC.currentTime,kmh=S.v*3.6,on=P.som>.5,cor=!pausado&&!S.fim,
+ ped=cor&&S.pw>=25?clamp(.3+kmh/45*.7,0,1):0,livre=cor&&S.pw<25&&kmh>3?clamp(.35+kmh/50*.65,0,1):0;
+ gMus.gain.setTargetAtTime(on?P.musica*.5*(pausado?.4:1):0,t,.1);gSfx.gain.setTargetAtTime(on?P.efeitos:0,t,.08);
+ if(LP.pedal){LP.pedal.g.gain.setTargetAtTime(ped*.85,t,.12);LP.pedal.s.playbackRate.setTargetAtTime(clamp(.75+kmh/40*.55,.7,1.5),t,.15)}
+ if(LP.freewheel){LP.freewheel.g.gain.setTargetAtTime(livre*1.2,t,.12);LP.freewheel.s.playbackRate.setTargetAtTime(clamp(.8+kmh/50*.5,.7,1.4),t,.15)}
+ if(LP.game)LP.game.g.gain.setTargetAtTime(1,t,.3)}
 const pausaEl=document.getElementById('pausa');
 function abrePausa(t='PAUSA',sub=''){pausado=true;document.getElementById('pTit').textContent=t;document.getElementById('pSub').textContent=sub;
  document.getElementById('continuar').hidden=S.fim;pausaEl.hidden=false;dedos.clear();teclado=false;atualizaHold()}
 function fechaPausa(){pausaEl.hidden=true;pausado=false;ult=performance.now()}
 const dedos=new Set();let teclado=false;
 function atualizaHold(){const h=dedos.size>0||teclado;if(h&&!S.hold&&navigator.vibrate)try{navigator.vibrate(10)}catch(e){}S.hold=h}
-cv.addEventListener('pointerdown',e=>{e.preventDefault();const p=botPausa;
+cv.addEventListener('pointerdown',e=>{e.preventDefault();somLiga();const p=botPausa;
  if(e.clientX>=p.x&&e.clientX<=p.x+p.w&&e.clientY>=p.y&&e.clientY<=p.y+p.h){abrePausa();return}
+ for(const b of botItens)if(e.clientX>=b.x&&e.clientX<=b.x+b.w&&e.clientY>=b.y&&e.clientY<=b.y+b.h){usar(b.id);return}
  dedos.add(e.pointerId);try{cv.setPointerCapture(e.pointerId)}catch(_){}atualizaHold()});
 ['pointerup','pointercancel','lostpointercapture'].forEach(n=>cv.addEventListener(n,e=>{dedos.delete(e.pointerId);atualizaHold()}));
-addEventListener('keydown',e=>{if(e.code==='Space'&&!pausado){e.preventDefault();teclado=true;atualizaHold()}
+addEventListener('keydown',e=>{somLiga();if(e.code==='Space'&&!pausado){e.preventDefault();teclado=true;atualizaHold()}
+ for(const I of ITEM)if(e.code===I.k||e.code==='Numpad'+I.k.slice(5))usar(I.id);
  if(e.code==='Escape'||e.code==='KeyP'){pausado?(!S.fim&&fechaPausa()):abrePausa()}});
 addEventListener('keyup',e=>{if(e.code==='Space'){teclado=false;atualizaHold()}});
 cv.addEventListener('contextmenu',e=>e.preventDefault());
@@ -466,7 +524,7 @@ document.getElementById('ver').textContent='Versão '+VERSAO;
 // ---------------------------------------------------------------------------------------------
 tam();reiniciar();montaPainel();
 let ult=performance.now();
-function loop(t){const dt=Math.min(.05,(t-ult)/1000);ult=t;if(!pausado)passo(dt);desenha(pausado?0:dt);requestAnimationFrame(loop)}
+function loop(t){const dt=Math.min(.05,(t-ult)/1000);ult=t;if(!pausado)passo(dt);desenha(pausado?0:dt);somTick();requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 </script>
 </body></html>
