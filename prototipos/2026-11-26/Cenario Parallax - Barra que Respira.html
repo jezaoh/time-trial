@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Cenário Parallax</title>
+<style>
+/* Cenário parallax (estilo Alto's) + Barra que Respira + HUD em pílulas */
+:root{--acc:#f5c518;--pill:rgba(28,38,52,.78);--fg:#f4f6f8;--dim:#b8c2cc;color-scheme:dark}
+html,body{height:100%;margin:0;background:#0b1020;color:var(--fg);overflow:hidden;
+ font:14px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-variant-numeric:tabular-nums}
+canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:block}
+.bt{background:#1c2634;color:var(--fg);border:1px solid #3a4658;border-radius:10px;
+ padding:10px 14px;font:700 13px system-ui,sans-serif;letter-spacing:.05em;cursor:pointer}
+.bt:focus-visible{outline:2px solid var(--acc)}
+#pausa{position:fixed;inset:0;background:rgba(8,12,22,.55);display:flex;align-items:center;justify-content:center}
+#pausa[hidden],#painel[hidden],#build[hidden]{display:none}
+#pausa .box{background:#141c28f2;border:1px solid #33404f;border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:10px;min-width:220px}
+#pausa h2{margin:0 0 6px;font:italic 800 20px system-ui,sans-serif;letter-spacing:.04em;text-align:center}
+#pausa p{margin:0 0 6px;text-align:center;color:var(--dim)}
+#painel,#build{position:fixed;top:0;bottom:0;width:min(340px,92vw);background:#0b0f18f2;
+ padding:calc(12px + env(safe-area-inset-top,0px)) 14px 16px;overflow-y:auto;box-sizing:border-box;display:flex;flex-direction:column;gap:12px}
+#painel{right:0;border-left:1px solid #2c3644}
+#build{left:0;border-right:1px solid #2c3644}
+#painel h2,#build h2{margin:0;font-size:15px;letter-spacing:.06em}
+#painel h3{margin:6px 0 0;font-size:12px;letter-spacing:.08em;color:var(--dim)}
+#sl,#slb{display:flex;flex-direction:column;gap:12px}
+#resumo{color:var(--acc);font-weight:600;line-height:1.5}
+.lin{display:grid;grid-template-columns:1fr auto;gap:2px 8px}
+.lin label{font-weight:600}
+.lin output{color:var(--acc)}
+.lin input{grid-column:1/-1;width:100%;accent-color:var(--acc)}
+.lin small{grid-column:1/-1;color:var(--dim);line-height:1.3}
+.acoes{display:flex;gap:8px;flex-wrap:wrap}
+#texto{width:100%;box-sizing:border-box;background:#000;color:var(--fg);border:1px solid #333;border-radius:6px;font:12px ui-monospace,monospace;padding:6px}
+#ver{color:var(--dim);font-size:11px}
+</style></head><body>
+
+<canvas id="cv"></canvas>
+
+<div id="pausa" hidden><div class="box">
+ <h2 id="pTit">PAUSA</h2><p id="pSub"></p>
+ <button class="bt" id="continuar" type="button">CONTINUAR</button>
+ <button class="bt" id="reini" type="button">REINICIAR</button>
+ <button class="bt" id="abrir" type="button">AJUSTES</button>
+ <button class="bt" id="abrirB" type="button">BUILD</button>
+</div></div>
+
+<aside id="build" hidden>
+ <h2>BUILD</h2><div id="slb"></div><div id="resumo"></div>
+ <div class="acoes"><button class="bt" id="fecharB" type="button">FECHAR</button></div>
+</aside>
+<aside id="painel" hidden>
+ <h2>AJUSTES</h2><div id="sl"></div>
+ <div class="acoes">
+  <button class="bt" id="copiar" type="button">COPIAR NÚMEROS</button>
+  <button class="bt" id="padrao" type="button">VOLTAR AO PADRÃO</button>
+  <button class="bt" id="fechar" type="button">FECHAR</button>
+ </div>
+ <textarea id="texto" rows="4" readonly aria-label="Números atuais"></textarea>
+ <div id="ver"></div>
+</aside>
+
+<script>
+const VERSAO='26/11/2026 cenário 2';
+// ---------------------------------------------------------------------------------------------
+// Números ajustáveis
+const PADRAO={ftp:208,toque:5,morde:12,come:6,tauIn:.06,volta:.1,desg:15,dureza:2,cansa:2.5,vazio:3,
+ sprintApos:1.8,batVolta:4,fadBat:25,
+ ts:22,dist:9,zoomV:.12,empurra:1.5,vento:1,
+ vis:23,tam:.4,faixa:764,incl:1.5,dia:4,neblina:1,
+ nvSprint:2,nvFolego:3,nvRec:3,nvEsc:2};
+const P=Object.assign({},PADRAO);
+const SLB=[
+ ['ftp','Motor: FTP (W)',120,400,1,'Sua força de 1 hora. Tudo é medido em % dela.'],
+ ['nvSprint','Sprint (nível)',0,10,1,'Pico = 700 + 40 W por nível e +5% de bateria por nível.'],
+ ['nvFolego','Fôlego (nível)',0,10,1,'−5% de fadiga por nível.'],
+ ['nvRec','Recuperação (nível)',0,10,1,'Bateria do sprint recarrega +6% mais rápido por nível.'],
+ ['nvEsc','Escalada (nível)',0,10,1,'−1 kg por nível (75 kg no nível 0).']];
+const SL=[
+ ['BARRA'],
+ ['toque','Mordida do toque (%)',0,20,.5,'Pedaço que some na hora que o dedo encosta.'],
+ ['morde','Mordida pela força (%)',0,40,.5,'Pedaço extra conforme os watts.'],
+ ['come','Come segurando (%/s)',0,30,.5,'Enquanto segura, a barra continua sendo comida.'],
+ ['tauIn','Velocidade da mordida (s)',.02,.4,.01,'Menor = some mais rápido.'],
+ ['volta','Velocidade da volta (s)',.05,2,.05,'Menor = volta mais rápido quando solta.'],
+ ['desg','Desgaste (%/min no FTP)',0,60,1,'O que não volta mais (hachurado).'],
+ ['dureza','Dureza no final',0,6,.1,'Com a barra baixa a mordida cresce e a volta demora.'],
+ ['cansa','Fadiga por stamina gasta (%)',0,20,.5,'Cada 100 de stamina mordida (no FTP) come isso do teto.'],
+ ['vazio','Castigo de segurar vazio (/s)',0,15,.5,'Segurando com a barra zerada, o teto cai isso por segundo.'],
+ ['SPRINT'],
+ ['sprintApos','Sprint liga depois de (s)',.4,3,.1,'Segurando mais que isso, o turbo liga.'],
+ ['batVolta','Recarga da bateria (%/s)',0,15,.5,'Pedalando abaixo do FTP.'],
+ ['fadBat','Fadiga por bateria gasta',0,60,1,'Gastar 100% da bateria come isso do teto.'],
+ ['PROVA'],
+ ['ts','Tempo acelerado (×)',1,100,1,'1 s real = N s de prova.'],
+ ['dist','Distância da prova (km)',2,100,1,'Barra de progresso lá em cima.'],
+ ['CENÁRIO'],
+ ['vis','Velocidade visual do cenário',5,150,1,'Quantos pixels a estrada anda por m/s. Só visual.'],
+ ['tam','Tamanho do ciclista',.1,1,.01,'Em relação à arte do cenário.'],
+ ['faixa','Posição na estrada',740,830,1,'Linha da arte (em px) onde a roda encosta. Faixa de cima ≈ 742–770, de baixo ≈ 780–810.'],
+ ['incl','Inclinação da câmera',0,4,.1,'Quanto o mundo inclina nas subidas e descidas.'],
+ ['dia','Ciclo do dia (min reais)',0,20,.5,'Dia → pôr do sol → noite → amanhecer. 0 = sempre dia.'],
+ ['neblina','Neblina entre camadas',0,2,.1,'Névoa de profundidade nas montanhas.'],
+ ['zoomV','Câmera afasta na velocidade',0,.6,.01,'Quanto a câmera abre quando está rápido.'],
+ ['empurra','Empurrão da câmera',0,5,.1,'Acelerou: o ciclista avança na tela.'],
+ ['vento','Linhas de vento',0,3,.1,'Riscos que passam acima de ~25 km/h.']];
+// ---------------------------------------------------------------------------------------------
+// Imagens: camadas da arte (todas 3344×941, alinhadas e emendáveis) + sprite pedalando (17 quadros 320×292)
+const IW=3344,IH=941,FW=320,FH=292,NQ=17,PE=284; // PE = linha do pneu no quadro
+const carrega=s=>{const i=new Image();i.src=encodeURI(s);return i};
+const CAM=[['02-montanhas-distantes',.06,.30],['03-montanhas-intermediarias',.14,.20],['04-colinas-distantes',.28,.10],
+ ['05-campo-e-arvores',.45,0],['06-estrada',1,0],['07-acostamento-gramado',1.2,0],['08-vegetacao-desfocada',1.7,0]]
+ .map(([n,f,nev])=>({img:carrega('cenario-parallax/'+n+'.png'),f,nev}));
+const SPR=carrega('ciclista branco/sprite pedalando/pedalando_sheet.webp');
+const ok=i=>i.complete&&i.naturalWidth>0;
+// ---------------------------------------------------------------------------------------------
+// Terreno (igual ao protótipo): subida → topo → descida → vale
+const DX=10;let GR_,HT,seg,semente;
+function rnd(){semente=(semente*16807)%2147483647;return semente/2147483647}
+const ri=(a,b)=>a+(b-a)*rnd();
+function terrenoNovo(){semente=1+Math.floor(Math.random()*1e6);GR_=[0];HT=[0];seg={fase:-1,x0:0,len:1500,g:0,g0:0}}
+function proxSeg(){const f=(seg.fase+1)%4,x0=seg.x0+seg.len,g0=seg.g;let len,g;
+ if(f===0){len=ri(900,3500);g=ri(3,9.5)}
+ else if(f===1){len=ri(150,700);g=ri(-.5,1.5)}
+ else if(f===2){len=ri(900,3200);g=-ri(3,10)}
+ else{len=ri(150,900);g=ri(-1,1)}
+ if(rnd()<.2&&f===0){len=ri(400,900);g=ri(2,4)}
+ seg={fase:f,x0,len,g,g0}}
+function estende(ate){while(GR_.length*DX<ate){const x=GR_.length*DX;while(x>seg.x0+seg.len)proxSeg();
+ const tr=Math.min(450,seg.len*.45),u=Math.min(1,(x-seg.x0)/tr),s=u*u*(3-2*u),g=seg.g0+(seg.g-seg.g0)*s;
+ HT.push(HT[HT.length-1]+DX*(GR_[GR_.length-1]+g)/200);GR_.push(g)}}
+function alt(x){if(x<=0)return 0;estende(x+DX*3);const i=Math.floor(x/DX),u=x/DX-i;return HT[i]+(HT[i+1]-HT[i])*u}
+function rampa(x){if(x<=0)return 0;estende(x+DX*3);const i=Math.floor(x/DX),u=x/DX-i;return GR_[i]+(GR_[i+1]-GR_[i])*u}
+// ---------------------------------------------------------------------------------------------
+let S,FX,pausado=false;
+function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,bat:100,pico:0,holdAnt:false,sprintAnt:false,
+ zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:0,fim:false,ganho:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
+// ---------------------------------------------------------------------------------------------
+const CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function barra(){return Math.max(0,S.teto-S.mord)}
+const B=()=>({pMax:700+40*P.nvSprint,Wp:4000*(1+.05*P.nvSprint),fol:1-.05*P.nvFolego,rec:1+.06*P.nvRec,massa:75-P.nvEsc+8});
+function alvoDe(h){const F=P.ftp,k=F/250,sa=P.sprintApos;return F*.8+k*(120*h+(h>sa?500*(h-sa)**1.5:0))}
+function holdPara(pw){if(pw<=alvoDe(0))return 0;let a=0,b=12;for(let i=0;i<30;i++){const m=(a+b)/2;alvoDe(m)<pw?a=m:b=m}return a}
+function passo(dt){
+ const F=P.ftp,bd=B();
+ S.t+=dt;
+ if(S.hold&&!S.holdAnt)S.holdT=holdPara(S.pw);
+ if(S.hold)S.holdT+=dt;else S.holdT=0;S.holdAnt=S.hold;
+ const sprint=S.hold&&S.holdT>P.sprintApos;
+ if(sprint&&!S.sprintAnt)S.pico=0;S.sprintAnt=sprint;
+ const alvoW=alvoDe(S.holdT);
+ if(S.hold){if(S.pw<alvoW)S.pw+=(alvoW-S.pw)*Math.min(1,dt*10)}
+ else S.pw*=Math.exp(-dt*Math.LN2/(S.pw>F?.6:3));
+ const b=barra(),tetoBat=F*1.05+(bd.pMax-F*1.05)*Math.pow(clamp(S.bat/35,0,1),1.2),
+  tetoBarra=sprint?Infinity:F*.75+(bd.pMax-F*.75)*Math.pow(clamp(b/60,0,1),1.5);
+ S.pw=Math.min(S.pw,bd.pMax,tetoBat);
+ if(S.pw>tetoBarra)S.pw+=(tetoBarra-S.pw)*Math.min(1,dt*6);
+ if(sprint)S.pico=Math.max(S.pico,S.pw);
+ const r=S.pw/F,baixa=1-b/100,dur=1+P.dureza*baixa*baixa;
+ if(S.hold&&!sprint){S.acum+=P.come*r*dur*dt;
+  const alvo=(P.toque+P.morde*Math.pow(r,1.6))*dur+S.acum;
+  const m0=S.mord;S.mord+=(alvo-S.mord)*Math.min(1,dt/P.tauIn);
+  S.teto-=Math.max(0,S.mord-m0)*P.cansa/100*r*r*r*bd.fol;
+  if(b<3)S.teto-=P.vazio*bd.fol*dt}
+ else if(!S.hold){S.acum=0;S.mord*=Math.exp(-dt/(P.volta*dur))}
+ if(S.pw>F){const g=(S.pw-F)*dt/bd.Wp*100;S.bat=Math.max(0,S.bat-g);S.teto-=g*P.fadBat/100*bd.fol}
+ else S.bat=Math.min(100,S.bat+P.batVolta*bd.rec*clamp((F-S.pw)/(.3*F),0,1)*dt);
+ S.teto=Math.max(0,S.teto-P.desg/60*Math.pow(Math.max(0,(Math.min(r,1.5)-.4)/.6),2)*bd.fol*dt);
+ S.mord=clamp(S.mord,0,S.teto);
+ const M=bd.massa,g=rampa(S.x)/100,sn=g/Math.sqrt(1+g*g),cs=1/Math.sqrt(1+g*g),alt0=alt(S.x);
+ for(let i=0;i<4;i++){const h=dt/4,v=S.v,
+  a=(ETA*S.pw/Math.max(v,2)-M*GRV*(CRR*cs+sn)-.5*RHO*CDA*v*v)/M;
+  S.v=clamp(v+a*h*KIN,0,30);S.x+=S.v*h*P.ts}
+ S.ganho+=Math.max(0,alt(S.x)-alt0);
+ S.soma+=S.pw*dt;
+ const kmh=S.v*3.6;if(dt>0){S.acc+=((kmh-S.kmhAnt)/dt-S.acc)*Math.min(1,dt/.15)}S.kmhAnt=kmh;
+ // cenário: rolagem visual (independe do tempo acelerado) e pedalada
+ S.roll+=S.v*P.vis*dt;
+ const rpm=S.pw<25?0:clamp(62+38*(r-.6),55,125);
+ S.quadro=(S.quadro+rpm/60*NQ*dt)%NQ;
+ if(S.x>=P.dist*1000&&!S.fim)chegada();
+}
+// ---------------------------------------------------------------------------------------------
+// Céu: ciclo do dia (topo, horizonte, cor que tinge o cenário, força da tinta, estrelas, sol baixo 0..1)
+const CEU=[
+ ['#5b9bd0','#f4ead2','#ffffff',0,0,.15],   // dia
+ ['#5a78b0','#f7c27e','#ff9a40',.16,0,.6],  // tarde dourada
+ ['#2c2f62','#e2786a','#7a3a6a',.34,.3,1],  // pôr do sol
+ ['#070b22','#1e2a58','#0c1236',.6,1,1.4],  // noite
+ ['#33467a','#f0b19c','#8a6a9a',.28,.4,.9]];// amanhecer
+const hx=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16));
+const mix=(a,b,t)=>{const A=hx(a),Bc=hx(b);return 'rgb('+A.map((v,i)=>Math.round(v+(Bc[i]-v)*t)).join(',')+')'};
+const mixRgb=(a,b,t)=>{const A=hx(a),Bc=hx(b);return A.map((v,i)=>Math.round(v+(Bc[i]-v)*t))};
+function ceuAgora(){if(P.dia<=0)return{top:CEU[0][0],hor:CEU[0][1],tint:hx(CEU[0][2]),ta:0,est:0,sol:CEU[0][5],c:CEU[0]};
+ // dia dura mais que as transições
+ const pesos=[.38,.14,.1,.24,.14];let f=(S.t/(P.dia*60))%1,i=0;
+ while(f>pesos[i]){f-=pesos[i];i++}let t=f/pesos[i];t=t*t*(3-2*t);
+ const a=CEU[i],b=CEU[(i+1)%5];
+ return{top:mix(a[0],b[0],t),hor:mix(a[1],b[1],t),tint:mixRgb(a[2],b[2],t),ta:a[3]+(b[3]-a[3])*t,est:a[4]+(b[4]-a[4])*t,sol:a[5]+(b[5]-a[5])*t}}
+// ---------------------------------------------------------------------------------------------
+const cv=document.getElementById('cv'),ctx=cv.getContext('2d',{alpha:false});
+const oc=document.createElement('canvas'),ox=oc.getContext('2d');let W,H,DPR;
+function tam(){DPR=Math.min(2,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;
+ cv.width=oc.width=W*DPR;cv.height=oc.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);ox.setTransform(DPR,0,0,DPR,0,0)}
+addEventListener('resize',tam);
+const fmt=(n,c=0)=>n.toLocaleString('pt-BR',{minimumFractionDigits:c,maximumFractionDigits:c});
+function relogio(t){const s=Math.floor(t),h=Math.floor(s/3600),m=Math.floor(s/60)%60;return[h,m,s%60].map(v=>String(v).padStart(2,'0')).join(':')}
+function txt(s,x,y,tf,cor,al='left',peso=800,it=true){ctx.font=(it?'italic ':'')+peso+' '+tf+'px system-ui,-apple-system,Segoe UI,Roboto,sans-serif';
+ ctx.fillStyle=cor;ctx.textAlign=al;ctx.fillText(s,x,y)}
+const hash=n=>{const s=Math.sin(n*127.1)*43758.5453;return s-Math.floor(s)};
+function rr(c,x,y,w,h,r){c.beginPath();c.moveTo(x+r,y);c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath()}
+function pilula(x,y,w,h,cor='rgba(28,38,52,.78)'){rr(ctx,x,y,w,h,h/2);ctx.fillStyle=cor;ctx.fill()}
+function raio(x,y,s,cor){ctx.fillStyle=cor;ctx.beginPath();
+ [[.15,-.5],[-.3,.08],[-.02,.08],[-.15,.5],[.3,-.1],[.02,-.1]].forEach(([a,b],i)=>i?ctx.lineTo(x+a*s,y+b*s):ctx.moveTo(x+a*s,y+b*s));ctx.closePath();ctx.fill()}
+function montanha(x,y,s,cor){ctx.fillStyle=cor;ctx.beginPath();ctx.moveTo(x-s*.6,y+s*.35);ctx.lineTo(x-.05*s,y-s*.4);ctx.lineTo(x+.15*s,y-.1*s);ctx.lineTo(x+.28*s,y-.25*s);ctx.lineTo(x+s*.6,y+s*.35);ctx.closePath();ctx.fill()}
+// ---------------------------------------------------------------------------------------------
+function desenhaCeu(c,u){
+ const g=ctx.createLinearGradient(0,0,0,H*.7);g.addColorStop(0,c.top);g.addColorStop(1,c.hor);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ if(c.est>.02){ctx.fillStyle='#fff';for(let i=0;i<90;i++){ctx.globalAlpha=c.est*(.3+.7*hash(i+.5))*(.7+.3*Math.sin(S.t*2+i));
+  ctx.fillRect(hash(i)*W,hash(i+50)*H*.55,1.4,1.4)}ctx.globalAlpha=1}
+ // sol (ou lua) — desce com o fim do dia
+ const sx=W*.24,sy=H*(.3+.22*Math.min(c.sol,1.1)),sr=48*u,lua=c.sol>1.2;
+ const gl=ctx.createRadialGradient(sx,sy,sr*.6,sx,sy,sr*5);gl.addColorStop(0,lua?'rgba(220,230,255,.25)':'rgba(255,236,180,.55)');gl.addColorStop(1,'rgba(255,236,180,0)');
+ ctx.fillStyle=gl;ctx.fillRect(0,0,W,H);
+ ctx.fillStyle=lua?'#e8ecf6':'#fff3cf';ctx.beginPath();ctx.arc(sx,lua?H*.2:sy,lua?sr*.6:sr,0,7);ctx.fill();
+ // nuvens: elipses suaves, parallax bem lento
+ ctx.fillStyle='rgba(255,255,255,'+(.85-c.est*.6)+')';
+ const nv=5,larg=W*1.4;
+ for(let i=0;i<nv;i++){const x=((hash(i+9)*larg-S.roll*.01*(.5+hash(i))*u)%larg+larg)%larg-W*.2,y=H*(.12+hash(i+3)*.25),k=(.6+hash(i+4)*.8)*u;
+  ctx.beginPath();ctx.ellipse(x,y,120*k,22*k,0,0,7);ctx.ellipse(x-20*k,y-16*k,55*k,30*k,0,0,7);ctx.ellipse(x+35*k,y-10*k,45*k,22*k,0,0,7);ctx.fill()}
+}
+function camadaTile(L,s,bx,mg,y0){const iw=IW*s,o=((S.roll*L.f*s)%iw+iw)%iw;
+ let x=Math.floor((-bx-mg+o)/iw)*iw-o;for(;x<W-bx+mg;x+=iw)ox.drawImage(L.img,Math.floor(x),y0,Math.ceil(iw)+1,IH*s)}
+function desenha(dt){
+ const u=Math.min(W,H*1.78)/1000,kmh=S.v*3.6,F=P.ftp,c=ceuAgora();
+ desenhaCeu(c,u);
+ // câmera: escala da arte, afasta com a velocidade, empurra para a frente ao acelerar, inclina na rampa
+ S.zoom+=(1+P.zoomV*clamp((kmh-15)/45,0,1)-S.zoom)*Math.min(1,dt*2);
+ const s=Math.min(H*1.25,W)/IH/S.zoom;   // celular em pé: não deixa a arte gigante
+ const alvoOff=clamp(S.acc*P.empurra*6*u,-W*.08,W*.1);S.camOff+=(alvoOff-S.camOff)*Math.min(1,dt/.35);
+ const bx=W*.17+S.camOff,by=H*.8;   // ciclista no canto esquerdo
+ const alvoAng=clamp(Math.atan(rampa(S.x)/100*P.incl),-.17,.17);S.ang+=(alvoAng-S.ang)*Math.min(1,dt*1.5);
+ let tremX=0,tremY=0;const tr=clamp((S.pw/F-1.4)/1.5,0,1)*3*u+clamp((kmh-55)/20,0,1)*2*u;
+ if(tr>0){tremX=(Math.random()-.5)*tr;tremY=(Math.random()-.5)*tr}
+ // mundo no canvas de trás (transparente) para tingir só o cenário
+ ox.save();ox.setTransform(DPR,0,0,DPR,0,0);ox.clearRect(0,0,W,H);
+ ox.translate(bx+tremX,by+tremY);ox.rotate(-S.ang);
+ const mg=H*.6,y0=-P.faixa*s,Y=r=>(r-P.faixa)*s;
+ CAM.forEach((L,i)=>{
+  if(i===4){ox.fillStyle='#2a5462';ox.fillRect(-bx-mg,Y(900),W+2*mg,H*2)}       // chão abaixo da arte (aparece ao inclinar/afastar)
+  if(ok(L.img))camadaTile(L,s,bx,mg,y0);
+  if(L.nev>0&&P.neblina>0){ox.globalCompositeOperation='source-atop';            // neblina de profundidade
+   const g=ox.createLinearGradient(0,Y(330),0,Y(780));g.addColorStop(0,c.hor);g.addColorStop(1,c.hor);
+   ox.globalAlpha=clamp(L.nev*P.neblina,0,.9);ox.fillStyle=g;ox.fillRect(-bx-mg,Y(0),W+2*mg,IH*s*1.5);
+   ox.globalAlpha=1;ox.globalCompositeOperation='source-over'}
+  if(i===5)desenhaCiclista(s,dt,u);                                              // ciclista entre o acostamento e a vegetação da frente
+ });
+ if(c.ta>.01){ox.globalCompositeOperation='source-atop';ox.fillStyle='rgba('+c.tint.join(',')+','+c.ta+')';ox.fillRect(-bx-mg,-H*2,W+2*mg,H*4);ox.globalCompositeOperation='source-over'}
+ ox.restore();
+ ctx.drawImage(oc,0,0,W,H);
+ // linhas de vento
+ const vel=S.v*P.vis*s*1.4;
+ FX.ventoAcum+=clamp((kmh-25)/25,0,2)*14*P.vento*dt;
+ while(FX.ventoAcum>=1){FX.ventoAcum--;FX.vento.push({x:W+20,y:H*(.3+Math.random()*.5),l:(30+kmh*1.6)*u*(.6+Math.random()*.8),k:1.6+Math.random()*1.4,a:.15+Math.random()*.3})}
+ ctx.strokeStyle='#fff';ctx.lineWidth=1.2;FX.vento=FX.vento.filter(w=>{w.x-=(vel*w.k+250*u)*dt;if(w.x+w.l<0)return false;
+  ctx.globalAlpha=w.a;ctx.beginPath();ctx.moveTo(w.x,w.y);ctx.lineTo(w.x+w.l,w.y);ctx.stroke();return true});ctx.globalAlpha=1;
+ // visão de túnel com a barra baixa / fadiga
+ const tunel=.8*Math.pow(clamp(1-barra()/100,0,1),2.2)+.35*Math.pow(1-S.teto/100,2);
+ if(tunel>.01){const gr=ctx.createRadialGradient(W/2,H*.6,Math.min(W,H)*.25,W/2,H*.6,Math.max(W,H)*.75);
+  gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,'+clamp(tunel,0,.92)+')');ctx.fillStyle=gr;ctx.fillRect(0,0,W,H)}
+ hud(u);
+}
+function desenhaCiclista(s,dt,u){
+ const k=s*P.tam,w=FW*k,h=FH*k,kmh=S.v*3.6;
+ // poeira atrás da roda traseira em alta velocidade
+ const taxa=clamp((kmh-30)/25,0,1)*40;FX.poAcum+=taxa*dt;
+ while(FX.poAcum>=1){FX.poAcum--;FX.po.push({x:-w*.3,y:-2,vx:-(60+Math.random()*80)*u,vy:-(15+Math.random()*40)*u,t:0,vida:.4+Math.random()*.4})}
+ ox.fillStyle='#c9c2b0';FX.po=FX.po.filter(p=>{p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=120*u*dt;const a=1-p.t/p.vida;
+  if(a<=0)return false;ox.globalAlpha=a*.6;ox.beginPath();ox.arc(p.x,p.y,1.8*u+.6,0,7);ox.fill();return true});ox.globalAlpha=1;
+ // sombra
+ ox.fillStyle='rgba(0,0,0,.22)';ox.beginPath();ox.ellipse(0,0,w*.42,h*.035,0,0,7);ox.fill();
+ if(ok(SPR)){const q=Math.floor(S.quadro)%NQ;ox.drawImage(SPR,q*FW,0,FW,FH,-w/2,-PE*k,w,h)}
+ else{ox.fillStyle='#fff';ox.beginPath();ox.arc(0,-h*.4,h*.2,0,7);ox.fill()}
+}
+// ---------------------------------------------------------------------------------------------
+// HUD no estilo da referência
+let botPausa={x:0,y:0,w:0,h:0},botRaio={x:0,y:0,r:0};
+function hud(u){
+ const F=P.ftp,kmh=S.v*3.6,m=22*u+10,media=S.t>0?S.soma/S.t:0,PL='rgba(28,38,52,.78)';
+ ctx.save();ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=6*u;
+ // ── topo esquerdo: pausa + relógio, watts
+ const ph=54*u+6;botPausa={x:m,y:m,w:ph,h:ph};
+ rr(ctx,m,m,ph,ph,ph*.28);ctx.fillStyle=PL;ctx.fill();
+ ctx.fillStyle='#fff';ctx.fillRect(m+ph*.33,m+ph*.27,ph*.12,ph*.46);ctx.fillRect(m+ph*.55,m+ph*.27,ph*.12,ph*.46);
+ const rx=m+ph+16*u,rw=196*u+16;pilula(rx,m+2*u,rw,ph-4*u);
+ ctx.strokeStyle='#fff';ctx.lineWidth=2.4*u+.5;ctx.beginPath();ctx.arc(rx+30*u,m+ph/2+2*u,12*u+2,0,7);ctx.moveTo(rx+30*u,m+ph/2+2*u);ctx.lineTo(rx+36*u,m+ph/2-5*u);
+ ctx.moveTo(rx+26*u,m+ph/2-14*u);ctx.lineTo(rx+34*u,m+ph/2-14*u);ctx.stroke();
+ txt(relogio(S.t*P.ts),rx+54*u,m+ph/2+11*u,30*u,'#fff');
+ // ── topo centro: progresso da prova
+ const km=Math.max(0,S.x/1000),pc=clamp(km/P.dist,0,1),bw=Math.min(W*.3,520*u),bL=W/2-bw/2,bY=m+44*u;
+ const rec=recorde();
+ txt(fmt(km,1)+' km • '+(rec?'recorde '+relogio(rec):'meta '+fmt(P.dist,0)+' km'),W/2,m+26*u,26*u,'#fff','center');
+ pilula(bL,bY,bw,12*u+2,'rgba(28,38,52,.75)');pilula(bL,bY,Math.max(12*u+2,bw*pc),12*u+2,'rgba(245,197,24,.35)');
+ ctx.fillStyle='#f5c518';ctx.beginPath();ctx.arc(bL+bw*pc,bY+6*u+1,13*u+2,0,7);ctx.fill();ctx.strokeStyle='#33404f';ctx.lineWidth=3*u;ctx.stroke();
+ const fq=6*u;for(let i=0;i<3;i++)for(let j=0;j<4;j++){ctx.fillStyle=(i+j)%2?'#222':'#fff';ctx.fillRect(bL+bw-6*u+j*fq,bY-6*u+i*fq,fq,fq)}
+ // velocímetro + km/h
+ const gr=40*u,gx=W/2-190*u+gr,gy=m+128*u;
+ ctx.lineCap='round';ctx.lineWidth=7*u+1;ctx.strokeStyle='rgba(255,255,255,.35)';ctx.beginPath();ctx.arc(gx,gy,gr,Math.PI*1.08,Math.PI*1.92);ctx.stroke();
+ const fv=clamp(kmh/80,0,1);ctx.strokeStyle='#fff';ctx.beginPath();ctx.arc(gx,gy,gr,Math.PI*1.08,Math.PI*(1.08+.84*fv));ctx.stroke();
+ const an=Math.PI*(1.08+.84*fv);ctx.lineWidth=4*u+1;ctx.beginPath();ctx.moveTo(gx,gy-4*u);ctx.lineTo(gx+Math.cos(an)*gr*.75,gy+Math.sin(an)*gr*.75);ctx.stroke();
+ ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(gx,gy-4*u,6*u,0,7);ctx.fill();ctx.lineCap='butt';
+ txt(fmt(kmh,0),gx+gr+18*u,gy,48*u,'#fff');
+ const kw=ctx.measureText(fmt(kmh,0)).width;txt('km/h',gx+gr+26*u+kw,gy,24*u,'#fff');
+ const vMed=S.t>0?S.x/(S.t*P.ts)*3.6:0;txt('Média '+fmt(vMed,1)+' km/h',gx+gr+18*u,gy+24*u,16*u,'#e6ecf2','left',700);
+ // média de watts e % do FTP (da média)
+ const mx=W/2+215*u;txt('MÉDIA '+fmt(media,0)+'w',mx,gy-12*u,24*u,'#fff','right');
+ txt('FTP '+F+'w',mx,gy+12*u,16*u,'#e6ecf2','right',700);
+ const pw=86*u+10;pilula(mx+16*u,gy-42*u,pw,40*u+4);txt(fmt(media/F*100,0)+'%',mx+16*u+pw/2,gy-12*u,24*u,'#f5c518','center');
+ // ── topo direito: rampa e elevação ganha
+ const rp=rampa(S.x),tw=230*u+20,tx=W-m-tw;pilula(tx,m,tw,ph);
+ montanha(tx+54*u,m+ph/2,40*u,'#fff');
+ txt((rp<0?'−':'')+fmt(Math.abs(rp),1)+'%',W-m-24*u,m+ph/2+13*u,36*u,'#fff','right');
+ montanha(W-m-150*u,m+ph+38*u,34*u,'#fff');txt('+'+fmt(S.ganho,0)+' m',W-m-24*u,m+ph+46*u,26*u,'#fff','right'); ctx.restore();
+ // ── perfil dos próximos 10 km
+ perfil(u,m);
+ // ── base: stamina (⚡) e bateria do sprint (🔥)
+ const bh=18*u+4,larg=Math.min(W*.26,420*u),gap=60*u,byB=H-m-bh-10*u,x1=W/2-gap/2-larg,x2=W/2+gap/2+30*u;
+ raio(x1-22*u,byB+bh/2,40*u,'#f5c518');
+ pilula(x1,byB,larg,bh,'rgba(28,38,52,.8)');
+ const pT=S.teto/100,pB=barra()/100;
+ ctx.save();rr(ctx,x1,byB,larg,bh,bh/2);ctx.clip();
+ ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=2;ctx.beginPath();for(let x=x1+larg*pT-bh;x<x1+larg;x+=7){ctx.moveTo(x,byB+bh);ctx.lineTo(x+bh,byB)}ctx.stroke();
+ ctx.fillStyle='rgba(245,197,24,.35)';ctx.fillRect(x1+larg*pB,byB,larg*(pT-pB),bh);
+ ctx.fillStyle='#f5c518';ctx.fillRect(x1,byB,larg*pB,bh);ctx.restore();
+ txt('🔥',x2-24*u,byB+bh/2+12*u,30*u,'#fff','center',400,false);
+ pilula(x2,byB,larg,bh,'rgba(28,38,52,.8)');
+ ctx.save();rr(ctx,x2,byB,larg,bh,bh/2);ctx.clip();ctx.fillStyle=S.bat<35?'#a0442c':'#ff6a2b';ctx.fillRect(x2,byB,larg*S.bat/100,bh);ctx.restore();
+ if(S.pico>0)txt('PICO '+fmt(S.pico,0)+' W',x2+larg,byB-8*u,15*u,'#fff','right',700);
+ // botão de força
+ const br=58*u+10,bX=W-m-br,bYr=H-m-br;botRaio={x:bX,y:bYr,r:br};
+ ctx.beginPath();ctx.arc(bX,bYr,br,0,7);ctx.fillStyle=S.hold?'rgba(245,197,24,.9)':'rgba(28,38,52,.55)';ctx.fill();
+ ctx.lineWidth=4*u+1;ctx.strokeStyle=S.hold?'#f5c518':'rgba(255,255,255,.85)';ctx.stroke();
+ raio(bX,bYr,br*.95,S.hold?'#1c2634':'#fff');
+ // potência agora (% do FTP + watts) em cima do botão
+ ctx.save();ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=8*u;
+ const pctA=S.pw/F*100,corP=pctA>120?'#ff6a2b':pctA>=90?'#f5c518':'#fff';
+ txt(fmt(pctA,0)+'%',bX,bYr-br-58*u,40*u,corP,'center');
+ txt(fmt(S.pw,0)+' w',bX,bYr-br-18*u,30*u,'#fff','center');
+ ctx.restore();
+ if(S.t<4)txt('Toque ou segure em qualquer lugar da tela (ou Espaço)',W/2,H*.42,20*u,'#fff','center',700);
+}
+function perfil(u,m){
+ const pw=Math.min(W*.3,440*u),ph=66*u+10,bh=18*u+4,px=W/2-pw/2,py=H-m-bh-10*u-26*u-ph;
+ rr(ctx,px,py,pw,ph,14*u);ctx.fillStyle='rgba(28,38,52,.62)';ctx.fill();
+ txt('próximos 10 km',px+14*u,py+19*u,14*u,'#e6ecf2','left',700);
+ const x0=S.x-500,x1=x0+10000,n=80,ix=px+14*u,iw=pw-28*u,iy=py+26*u,ih=ph-36*u;
+ let lo=Infinity,hi=-Infinity;const hs=[];for(let i=0;i<=n;i++){const h=alt(Math.max(0,x0+(x1-x0)*i/n));hs.push(h);lo=Math.min(lo,h);hi=Math.max(hi,h)}
+ const esc=Math.max(hi-lo,60),Xp=i=>ix+iw*i/n,Yp=h=>iy+ih-(h-lo)/esc*ih;
+ ctx.beginPath();ctx.moveTo(Xp(0),iy+ih);hs.forEach((h,i)=>ctx.lineTo(Xp(i),Yp(h)));ctx.lineTo(Xp(n),iy+ih);ctx.closePath();
+ ctx.fillStyle='rgba(255,255,255,.14)';ctx.fill();
+ ctx.beginPath();hs.forEach((h,i)=>i?ctx.lineTo(Xp(i),Yp(h)):ctx.moveTo(Xp(i),Yp(h)));ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=2*u+.5;ctx.stroke();
+ const meta=P.dist*1000;if(meta>x0&&meta<x1){const fx=ix+iw*(meta-x0)/(x1-x0);ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillRect(fx-1,iy,2,ih)}
+ const cx=ix+iw*(S.x-x0)/(x1-x0),cy=Yp(alt(S.x));
+ ctx.fillStyle='rgba(245,197,24,.55)';ctx.fillRect(ix,iy+ih-1,cx-ix,2*u+1);
+ ctx.beginPath();ctx.arc(cx,cy,5*u+1.5,0,7);ctx.fillStyle='#f5c518';ctx.fill();ctx.strokeStyle='#1c2634';ctx.lineWidth=2*u;ctx.stroke()}
+// ---------------------------------------------------------------------------------------------
+// recorde e chegada
+function recorde(){try{return +localStorage.getItem('cenario_rec_'+P.dist)||0}catch(e){return 0}}
+function chegada(){S.fim=true;const t=S.t*P.ts,r=recorde();let novo=!r||t<r;if(novo)try{localStorage.setItem('cenario_rec_'+P.dist,t)}catch(e){}
+ abrePausa('CHEGADA',relogio(t)+(novo?' • novo recorde!':' • recorde '+relogio(r)))}
+// ---------------------------------------------------------------------------------------------
+const pausaEl=document.getElementById('pausa');
+function abrePausa(t='PAUSA',sub=''){pausado=true;document.getElementById('pTit').textContent=t;document.getElementById('pSub').textContent=sub;
+ document.getElementById('continuar').hidden=S.fim;pausaEl.hidden=false;dedos.clear();teclado=false;atualizaHold()}
+function fechaPausa(){pausaEl.hidden=true;pausado=false;ult=performance.now()}
+const dedos=new Set();let teclado=false;
+function atualizaHold(){const h=dedos.size>0||teclado;if(h&&!S.hold&&navigator.vibrate)try{navigator.vibrate(10)}catch(e){}S.hold=h}
+cv.addEventListener('pointerdown',e=>{e.preventDefault();const p=botPausa;
+ if(e.clientX>=p.x&&e.clientX<=p.x+p.w&&e.clientY>=p.y&&e.clientY<=p.y+p.h){abrePausa();return}
+ dedos.add(e.pointerId);try{cv.setPointerCapture(e.pointerId)}catch(_){}atualizaHold()});
+['pointerup','pointercancel','lostpointercapture'].forEach(n=>cv.addEventListener(n,e=>{dedos.delete(e.pointerId);atualizaHold()}));
+addEventListener('keydown',e=>{if(e.code==='Space'&&!pausado){e.preventDefault();teclado=true;atualizaHold()}
+ if(e.code==='Escape'||e.code==='KeyP'){pausado?(!S.fim&&fechaPausa()):abrePausa()}});
+addEventListener('keyup',e=>{if(e.code==='Space'){teclado=false;atualizaHold()}});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+// ---------------------------------------------------------------------------------------------
+const painel=document.getElementById('painel'),slBox=document.getElementById('sl'),texto=document.getElementById('texto');
+const casas=st=>st<1?(st<.1?2:1):0;
+function montaLista(lista,box){box.innerHTML='';lista.forEach(([k,rot,mi,ma,st,aj])=>{
+ if(rot===undefined){const h=document.createElement('h3');h.textContent=k;box.appendChild(h);return}
+ const d=document.createElement('div');d.className='lin';
+ d.innerHTML=`<label for="s_${k}">${rot}</label><output></output><input type="range" id="s_${k}" min="${mi}" max="${ma}" step="${st}"><small>${aj}</small>`;
+ box.appendChild(d);const i=d.querySelector('input'),o=d.querySelector('output');i.value=P[k];o.textContent=fmt(+P[k],casas(st));
+ i.addEventListener('input',()=>{P[k]=+i.value;o.textContent=fmt(P[k],casas(st));numeros();salva()})})}
+function montaPainel(){montaLista(SL,slBox);montaLista(SLB,document.getElementById('slb'));numeros()}
+function numeros(){const b=B();document.getElementById('resumo').innerHTML=
+ `Pico ${fmt(b.pMax,0)} W<br>Bateria do sprint ${fmt(b.Wp/1000,1)} kJ<br>Fadiga ×${fmt(b.fol,2)} · recarga ×${fmt(b.rec,2)}<br>Peso ${b.massa-8} kg (+8 bike) · ${fmt(P.ftp/(b.massa-8),2)} W/kg`;
+ texto.value='CENÁRIO '+VERSAO+'\nBUILD: '+SLB.map(([k,rot])=>rot+' '+P[k]).join(' · ')+'\n'+SL.filter(s=>s.length>1).map(([k,rot])=>rot+': '+P[k]).join('\n')}
+function salva(){try{localStorage.setItem('cenario_parallax2',JSON.stringify(P))}catch(e){}}
+try{const s=JSON.parse(localStorage.getItem('cenario_parallax2')||'null');if(s)Object.assign(P,s)}catch(e){}
+document.getElementById('continuar').onclick=fechaPausa;
+document.getElementById('abrir').onclick=()=>{painel.hidden=false};
+document.getElementById('fechar').onclick=()=>{painel.hidden=true};
+document.getElementById('abrirB').onclick=()=>{document.getElementById('build').hidden=false};
+document.getElementById('fecharB').onclick=()=>{document.getElementById('build').hidden=true};
+document.getElementById('reini').onclick=()=>{reiniciar();painel.hidden=true;document.getElementById('build').hidden=true;fechaPausa()};
+document.getElementById('padrao').onclick=()=>{Object.assign(P,PADRAO);salva();montaPainel()};
+document.getElementById('copiar').onclick=()=>{numeros();const b=document.getElementById('copiar');
+ const okc=()=>{b.textContent='COPIADO';setTimeout(()=>b.textContent='COPIAR NÚMEROS',1500)};
+ try{navigator.clipboard.writeText(texto.value).then(okc,()=>{texto.select()})}catch(e){texto.select()}};
+document.getElementById('ver').textContent='Versão '+VERSAO;
+// ---------------------------------------------------------------------------------------------
+tam();reiniciar();montaPainel();
+let ult=performance.now();
+function loop(t){const dt=Math.min(.05,(t-ult)/1000);ult=t;if(!pausado)passo(dt);desenha(pausado?0:dt);requestAnimationFrame(loop)}
+requestAnimationFrame(loop);
+</script>
+</body></html>
