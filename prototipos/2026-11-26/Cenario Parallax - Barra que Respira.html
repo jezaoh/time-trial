@@ -61,14 +61,14 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='27/11/2026 15:42 animação de levantar/sentar';
+const VERSAO='27/11/2026 15:58 altimetria com escala fixa';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
  fadH:80,fadExp:4.2,fadAcima:5.8,tetoVazio:85,escuro:5,
  sprintApos:3,sprMin:25,sprCheia:5,sprMeio:3,sprPicoMeio:60,sprCusto:50,sprVolta:.1,
  empeLiga:115,empeSai:100,levDur:.5,
- ts:40,dist:100,zoomV:.12,empurra:1,tremor:.3,vento:2.5,
+ ts:40,dist:100,altEsc:250,zoomV:.12,empurra:1,tremor:.3,vento:2.5,
  vis:55,tam:.25,faixa:.24,larg:25,incl:1,dia:4,neblina:1.2,
  nvSprint:8,nvFolego:6,nvRec:7,nvEsc:5,
  aguaQ:5,aguaFad:2,aguaSeg:2,isoQ:5,isoFad:5,isoSta:5,bananaQ:2,bananaFad:6,bananaSta:5,gelQ:5,gelFrac:10,
@@ -110,6 +110,7 @@ const SL=[
  ['PROVA'],
  ['ts','Tempo acelerado (×)',1,100,1,'1 s real = N s de prova. 40 ≈ 30 km em 1:30, 100 km em ~5 min.'],
  ['dist','Distância da prova (km)',2,100,1,'Barra de progresso lá em cima.'],
+ ['altEsc','Altimetria: altura da escala (m)',30,800,10,'O gráfico "próximos 10 km" usa pelo menos essa altura. Maior = morrinho fica pequeno e serra fica grande (antes: 60, todo morro parecia igual).'],
  ['CENÁRIO'],
  ['vis','Velocidade visual do cenário',5,150,1,'Quantos pixels a estrada anda por m/s. Só visual.'],
  ['tam','Tamanho do ciclista',.1,1,.01,'Em relação à arte do cenário.'],
@@ -486,7 +487,7 @@ function perfil(u,m){
  txt('próximos 10 km',px+14*u,py+19*u,14*u,'#e6ecf2','left',700);
  const x0=S.x-500,x1=x0+10000,n=80,ix=px+14*u,iw=pw-28*u,iy=py+26*u,ih=ph-36*u;
  let lo=Infinity,hi=-Infinity;const hs=[];for(let i=0;i<=n;i++){const h=alt(Math.max(0,x0+(x1-x0)*i/n));hs.push(h);lo=Math.min(lo,h);hi=Math.max(hi,h)}
- const esc=Math.max(hi-lo,60),Xp=i=>ix+iw*i/n,Yp=h=>iy+ih-(h-lo)/esc*ih;
+ const esc=Math.max(hi-lo,P.altEsc),Xp=i=>ix+iw*i/n,Yp=h=>iy+ih-(h-lo)/esc*ih;
  ctx.beginPath();ctx.moveTo(Xp(0),iy+ih);hs.forEach((h,i)=>ctx.lineTo(Xp(i),Yp(h)));ctx.lineTo(Xp(n),iy+ih);ctx.closePath();
  ctx.fillStyle='rgba(255,255,255,.14)';ctx.fill();
  ctx.beginPath();hs.forEach((h,i)=>i?ctx.lineTo(Xp(i),Yp(h)):ctx.moveTo(Xp(i),Yp(h)));ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=2*u+.5;ctx.stroke();
