@@ -159,7 +159,7 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
   <li><b>Itens</b>: toque no ícone ou teclas 1–5. Compre na Loja da Central.</li>
   <li><b>Vácuo</b>: atrás de outro ciclista ou do caminhão o vento é menor.</li>
   <li><b>Caminhão de banana</b>: fique no vácuo até a barra encher e o macaco joga uma banana.</li>
-  <li><b>Torcedor</b>: passe perto e ganhe água. <b>Furgão do raio</b>: passe por cima do energético que ele derruba.</li>
+  <li><b>Torcedor</b>: passe perto e ganhe água. <b>Furgão do raio</b>: derruba um gel, passe por cima e ele vai para os seus itens.</li>
  </ul></details>
  <button class="lp peq" id="opFechar" type="button">FECHAR</button>
 </div></div>
@@ -180,7 +180,7 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 </aside>
 
 <script>
-const VERSAO='28/11/2026 etapa 2: NPCs, Rachão, Corrida, HUD novo';
+const VERSAO='28/11/2026 HUD clean, gel do furgão, moedas no chão';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
@@ -722,16 +722,16 @@ function eventosPasso(dt){S.vac=0;if(MODO==='abertura'||!EV||!CAMV.sk||S.fim)ret
    else c.v+=2.5*dt;
    c.mac=clamp(c.mac+(c.fase==='joga'&&c.jt<1.1?dt*4:-dt*3),0,1);
    vacV=c.fase==='vai'?0:curva([[-60,0],[0,1],[230,1],[470,0]],g/q)*C.vac}
-  else{c.v=Math.max(c.v,S.v+20/3.6);   // furgão: passa rápido e derruba um energético na sua frente
+  else{c.v=Math.max(c.v,S.v+20/3.6);   // furgão: passa rápido e derruba um gel na sua frente
    if(!c.solto&&rx>bx+460*q){c.solto=true;EV.energ.push({d:S.x+(620*q)/sk+S.v*.8*P.ts,t:0,x0:rx+40*q})}   // cai onde você vai estar
    vacV=curva([[-60,0],[0,1],[150,1],[300,0]],g/q)*C.vac*.6}
   c.d+=c.v*dt*P.ts;
   if((c.fase==='vai'||c.tipo==='furgao')&&!EV.pulo&&rx>W+80)EV.cam=null}
  if(EV.pulo){EV.pulo.t+=dt;if(EV.pulo.t>=.75){EV.pulo=null;S.it.banana++;if(!LAB()){CS.inv.banana++;csSalvar()}
   S.msg={t:S.t,txt:'+1 BANANA DO MACACO!'};som('bonus')}}
- // energético: cai no asfalto; passou por cima, stamina cheia + 4 s de gás
- for(const e of EV.energ){e.t+=dt;const x=bx+(e.d-S.x)*sk;if(!e.ok&&e.t>.8&&x<bx+cw*.35&&x>bx-cw*.45){e.ok=true;S.mord=0;S.ms=0;S.acum=0;S.gas=4;
-  S.msg={t:S.t,txt:'ENERGÉTICO! GÁS!'};som('bonus')}}
+ // gel do furgão: cai no asfalto; passou por cima, vai para os seus itens (como no jogo antigo)
+ for(const e of EV.energ){e.t+=dt;const x=bx+(e.d-S.x)*sk;if(!e.ok&&e.t>.8&&x<bx+cw*.35&&x>bx-cw*.45){e.ok=true;S.it.gel++;if(!LAB()){CS.inv.gel++;csSalvar()}
+  S.msg={t:S.t,txt:'+1 GEL NO BOLSO!'};som('bonus')}}
  EV.energ=EV.energ.filter(e=>!e.ok&&bx+(e.d-S.x)*sk>-60);
  // torcedor com água: garrafa com espaço = +1 gole; cheia = bebe ali mesmo
  if(S.x>=EV.proxTorc){EV.torcs.push({d:S.x+(W-bx+120*q)/sk,ok:false,fase:Math.random()*6});EV.proxTorc=S.x+mr(9,15)*(1+km/30)*1000}
@@ -798,16 +798,16 @@ function latinha(c,x,y,k){c.save();c.translate(x,y);c.scale(k,k);const w=40,h=70
  rr(c,-w/2,-h/2,w,h,9);c.fillStyle='#14161c';c.fill();c.lineWidth=4;c.strokeStyle='#0a0b0e';c.stroke();
  c.fillStyle='#c9ced6';c.fillRect(-w/2+3,-h/2+3,w-6,7);c.fillRect(-w/2+3,h/2-10,w-6,7);
  c.beginPath();c.moveTo(4,-22);c.lineTo(-10,4);c.lineTo(0,4);c.lineTo(-5,24);c.lineTo(11,-4);c.lineTo(1,-4);c.closePath();c.fillStyle='#f5c518';c.fill();c.restore()}
-function desenhaCoisas(sk,bx,yT,RT,cw){if(!EV)return;const r=cw*.085;
+function desenhaCoisas(sk,bx,yT,RT,cw){if(!EV)return;const r=cw*.13;
  // torcedor atrás da pista (pés na borda de trás) com balão
- for(const o of EV.torcs){const x=bx+(o.d-S.x)*sk;if(x<-cw||x>W+cw||!ok(TORC))continue;const h=cw*1.25,w=h*TORC.width/TORC.height,y=yT(o.d)-1,bal=Math.sin(S.t*7+o.fase);
+ for(const o of EV.torcs){const x=bx+(o.d-S.x)*sk;if(x<-cw||x>W+cw||!ok(TORC))continue;const h=cw*.82,w=h*TORC.width/TORC.height,y=yT(o.d)-1,bal=Math.sin(S.t*7+o.fase);
   ox.save();ox.translate(x,y);ox.rotate(bal*.04);ox.drawImage(TORC,-w/2,-h,w,h);ox.restore();
   if(!o.ok)balao(x+w*.2,y-h-12*CAMV.u+Math.sin(S.t*5+o.fase)*3,'ÁGUA! ÁGUA!')}
- for(const m of EV.moedas){const x=bx+(m.d-S.x)*sk;if(x<-30||x>W+30)continue;const y=yT(m.d)+RT*P.faixa-cw*.55+Math.sin(S.t*4+m.d)*r*.25;
+ for(const m of EV.moedas){const x=bx+(m.d-S.x)*sk;if(x<-30||x>W+30)continue;const y=yT(m.d)+RT*P.faixa-r*1.02;   // em pé no asfalto
   moedaIc(ox,x,y,r,S.t*10+m.d*.01)}
- for(const e of EV.energ){const p=clamp(e.t/.8,0,1),x1=bx+(e.d-S.x)*sk,x=e.x0+(x1-e.x0)*p,y=(yT(e.d)+RT*P.faixa-cw*.12)-Math.sin(Math.PI*p)*cw*.6;
+ for(const e of EV.energ){const p=clamp(e.t/.8,0,1),x1=bx+(e.d-S.x)*sk,x=e.x0+(x1-e.x0)*p,y=(yT(e.d)+RT*P.faixa)-Math.sin(Math.PI*p)*cw*.6;
   if(x<-30||x>W+30)continue;if(p>=1){ox.globalAlpha=.3+.2*Math.sin(S.t*6);ox.fillStyle='#fff';ox.beginPath();ox.ellipse(x,y+cw*.06,cw*.16,cw*.05,0,0,7);ox.fill();ox.globalAlpha=1}
-  latinha(ox,x,y,cw/300*.9)}}
+  const G=ITEM[3].img;if(ok(G)){const gh=cw*.3,gw=gh*G.width/G.height;ox.drawImage(G,x-gw/2,y-gh*.75,gw,gh)}}}
 function balao(x,y,s){const u=CAMV.u;ox.font='italic 900 '+Math.round(14*u+5)+'px system-ui,sans-serif';const w=ox.measureText(s).width+20*u,h=26*u+8;
  rr(ox,x-w/2,y-h,w,h,h*.35);ox.fillStyle='#fff';ox.fill();ox.lineWidth=2;ox.strokeStyle='#111';ox.stroke();
  ox.beginPath();ox.moveTo(x-6*u,y-1);ox.lineTo(x-14*u,y+10*u);ox.lineTo(x+4*u,y-1);ox.closePath();ox.fillStyle='#fff';ox.fill();
@@ -857,8 +857,8 @@ function hud(u){
  montanha(W-m-150*u,m+ph+38*u,34*u,'#fff');txt('+'+fmt(S.ganho,0)+' m',W-m-24*u,m+ph+46*u,26*u,'#fff','right');
  // ── base: botão, barra e painel de números (centralizados entre os itens e o botão)
  const br=58*u+10,bh=18*u+4,bX=W-m-br,bYr=H-m-br;botRaio={x:bX,y:bYr,r:br};
- const lista=ITEM.filter(I=>S.it[I.id]>0),ih=54*u+8,iw=ih*.8,ig=8*u,itFim=lista.length?m+lista.length*(iw+ig)-ig:m;
- const x1=Math.max(itFim+56*u,m+56*u),xMax=bX-br-24*u,larg=Math.max(80,xMax-x1),byB=H-m-bh-10*u;
+ const lista=ITEM.filter(I=>S.it[I.id]>0),ih=54*u+8,iw=ih*.8,ig=8*u,itFim=m+ITEM.length*(iw+ig)-ig;   // lugar dos 5 itens fica sempre reservado
+ const x1=itFim+56*u,xMax=bX-br-24*u,larg=Math.max(80,xMax-x1),byB=H-m-bh-10*u;
  raio(x1-22*u,byB+bh/2,40*u,'#f5c518');
  pilula(x1,byB,larg,bh,'rgba(28,38,52,.8)');
  const pB=barra()/100;
@@ -871,7 +871,7 @@ function hud(u){
  const vMed=tp>0?(S.x-S.x0)/(tp*P.ts)*3.6:0,col=[[fmt(kmh,0),'km/h','Velocidade'],[fmt(vMed,1),'km/h','Velocidade média'],
   [fmt(media,0),'W','Potência média'],[fmt(F,0),'W','FTP'],[fmt(media/F*100,0)+'%','','do FTP']];
  const pw2=Math.min(W-2*(m+2*br+24*u),920*u),cwid=pw2/col.length,phh=62*u+6,px2=W/2-pw2/2,py2=byB-16*u-phh;
- rr(ctx,px2,py2,pw2,phh,phh*.3);ctx.fillStyle=PL;ctx.fill();ctx.shadowBlur=0;
+ ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=7*u;
  // fonte encolhe para caber na coluna (painel sempre centralizado na tela)
  let fv=30*u;ctx.font='italic 900 '+fv+'px system-ui,sans-serif';
  const larM=Math.max(...col.map(([v,un])=>ctx.measureText(v).width+(un?ctx.measureText(' '+un).width*.6:0)));if(larM>cwid*.86)fv*=cwid*.86/larM;
@@ -879,8 +879,7 @@ function hud(u){
  col.forEach(([v,un,rot],i)=>{const cx=px2+cwid*(i+.5),cor=i===4?'#f5c518':'#fff';
   ctx.font='italic 900 '+fv+'px system-ui,sans-serif';const vw=ctx.measureText(v).width;ctx.font='italic 800 '+fu+'px system-ui,sans-serif';const uw=un?ctx.measureText(' '+un).width:0;
   txt(v,cx-(vw+uw)/2,py2+phh*.52,fv,cor,'left',900);if(un)txt(' '+un,cx-(vw+uw)/2+vw,py2+phh*.52,fu,cor,'left',800);
-  txt(rot,cx,py2+phh*.86,fr,'#e6ecf2','center',700);
-  if(i)ctx.fillStyle='rgba(255,255,255,.12)',ctx.fillRect(px2+cwid*i,py2+phh*.2,1,phh*.6)});
+  txt(rot,cx,py2+phh*.86,fr,'#e6ecf2','center',700)});
  ctx.shadowBlur=6*u;
  // botão de força
  ctx.beginPath();ctx.arc(bX,bYr,br,0,7);ctx.fillStyle=S.hold?'rgba(245,197,24,.9)':'rgba(28,38,52,.55)';ctx.fill();
@@ -904,8 +903,7 @@ function hud(u){
  ctx.restore();
  // vácuo: aviso em cima do ciclista
  if(S.vac>.05){const a=clamp(S.vac/.3,0,1),{bx,cw}=CAMV,y=CAMV.yc-cw*1.15;ctx.globalAlpha=.35+.65*a;
-  ctx.font='italic 900 '+(18*u+4)+'px system-ui,sans-serif';const s='VÁCUO −'+Math.round(S.vac*100)+'% VENTO',w=ctx.measureText(s).width+26*u;
-  pilula(bx-w/2,y-16*u,w,30*u+4,'rgba(20,80,120,.85)');txt(s,bx,y+5*u,18*u+4,'#bfefff','center',900);ctx.globalAlpha=1}
+  ctx.save();ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=4*u;txt('VÁCUO −'+Math.round(S.vac*100)+'%',bx,y+12*u,13*u+3,'#d8f4ff','center',800);ctx.restore();ctx.globalAlpha=1}
  if(S.msg&&S.t-S.msg.t<1.6){ctx.globalAlpha=clamp(1.6-(S.t-S.msg.t),0,1);ctx.font='italic 800 '+(22*u)+'px system-ui,sans-serif';const mw=ctx.measureText(S.msg.txt).width+36*u;pilula(W/2-mw/2,H*.5-26*u,mw,36*u,'rgba(20,30,44,.82)');txt(S.msg.txt,W/2,H*.5,22*u,'#8fe0ff','center');ctx.globalAlpha=1}
 }
 function perfil(u,py,pw){
@@ -1010,7 +1008,7 @@ function somTick(){if(!AC)return;const t=AC.currentTime,kmh=S.v*3.6,on=P.som>.5,
  gMus.gain.setTargetAtTime(on?P.musica*.5*(pausado?.4:1):0,t,.1);gSfx.gain.setTargetAtTime(on?P.efeitos:0,t,.08);
  if(LP.pedal){LP.pedal.g.gain.setTargetAtTime(ped*.85,t,.12);LP.pedal.s.playbackRate.setTargetAtTime(clamp(.75+kmh/40*.55,.7,1.5),t,.15)}
  if(LP.freewheel){LP.freewheel.g.gain.setTargetAtTime(livre*1.2,t,.12);LP.freewheel.s.playbackRate.setTargetAtTime(clamp(.8+kmh/50*.5,.7,1.4),t,.15)}
- const men=MODO==='abertura';if(LP.game)LP.game.g.gain.setTargetAtTime(men?0:1,t,.6);if(LP.menu)LP.menu.g.gain.setTargetAtTime(men?1:0,t,.6);
+ if(LP.game)LP.game.g.gain.setTargetAtTime(0,t,.6);if(LP.menu)LP.menu.g.gain.setTargetAtTime(1,t,.6);   // 28/11 (dono): a música do menu toca no jogo inteiro
  if(LP.caminhao){const c=EV&&EV.cam,d=c&&cor?Math.abs(CAMV.bx+(c.d-S.x)*CAMV.sk+c.tw/2-CAMV.bx):1e9;LP.caminhao.g.gain.setTargetAtTime(clamp(1-d/(W*.9),0,1)*.7,t,.2)}}
 const pausaEl=document.getElementById('pausa');
 function abrePausa(t='PAUSA',sub=''){pausado=true;document.getElementById('pTit').textContent=t;document.getElementById('pSub').textContent=sub;
