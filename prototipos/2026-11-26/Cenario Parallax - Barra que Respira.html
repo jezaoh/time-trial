@@ -61,13 +61,13 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='27/11/2026 15:37 padrão = ajustes do dono';
+const VERSAO='27/11/2026 15:42 animação de levantar/sentar';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
  fadH:80,fadExp:4.2,fadAcima:5.8,tetoVazio:85,escuro:5,
  sprintApos:3,sprMin:25,sprCheia:5,sprMeio:3,sprPicoMeio:60,sprCusto:50,sprVolta:.1,
- empeLiga:115,empeSai:100,
+ empeLiga:115,empeSai:100,levDur:.5,
  ts:40,dist:100,zoomV:.12,empurra:1,tremor:.3,vento:2.5,
  vis:55,tam:.25,faixa:.24,larg:25,incl:1,dia:4,neblina:1.2,
  nvSprint:8,nvFolego:6,nvRec:7,nvEsc:5,
@@ -106,6 +106,7 @@ const SL=[
  ['CICLISTA EM PÉ'],
  ['empeLiga','Fica em pé acima de (% FTP)',90,200,1,'Por 0,3 s seguidos.'],
  ['empeSai','Senta abaixo de (% FTP)',50,150,1,'Diferença para não ficar piscando.'],
+ ['levDur','Duração de levantar/sentar (s)',.15,1.5,.05,'Animação do vídeo "levantando da bike" (12 quadros). Sentar = a mesma de trás para a frente.'],
  ['PROVA'],
  ['ts','Tempo acelerado (×)',1,100,1,'1 s real = N s de prova. 40 ≈ 30 km em 1:30, 100 km em ~5 min.'],
  ['dist','Distância da prova (km)',2,100,1,'Barra de progresso lá em cima.'],
@@ -148,6 +149,8 @@ const FRENTE={img:carrega('cenario-parallax/08-vegetacao-desfocada.png'),f:1.7};
 const SPR=carrega('ciclista branco/sprite pedalando/pedalando_sheet.webp');
 // em pé: 18 quadros 314×326 numa linha; pneu na linha 315; rodas na mesma escala do sentado (entre-eixos 180 × 179 px), +1,5 px para alinhar
 const EMPE={img:carrega('ciclista branco/sprite em pe/em_pe_sheet.webp'),fw:314,fh:326,pe:315,dx:1.5};
+// levantando: 12 quadros do vídeo jef-levantando_da_bike (13→24), mesma grade da folha em pé
+const LEV={img:carrega('ciclista branco/sprite levantando/levantando_sheet.webp'),n:12};
 const ITEM=[['agua','Digit1'],['iso','Digit2'],['banana','Digit3'],['gel','Digit4']].map(([id,k])=>({id,k,img:carrega('itens/'+id+'.webp')}));
 const ok=i=>i.complete&&i.naturalWidth>0;
 // ---------------------------------------------------------------------------------------------
@@ -228,7 +231,7 @@ function passo(dt){
  // em pé: acima de empeLiga% do FTP por 0,3 s; senta abaixo de empeSai%
  const pc=r*100;S.empeT=pc>P.empeLiga?(S.empeT||0)+dt:0;
  if(!S.empe&&S.empeT>.3)S.empe=true;else if(S.empe&&pc<P.empeSai)S.empe=false;
- S.empeA=clamp((S.empeA||0)+(S.empe?dt:-dt)/.15,0,1);
+ S.empeA=clamp((S.empeA||0)+(S.empe?dt:-dt)/Math.max(.05,P.levDur),0,1);   // 0 sentado → 1 em pé (no meio toca a animação de levantar)
  // itens: efeito aos poucos (fadiga volta para o teto; stamina enche a barra)
  S.efe=S.efe.filter(e=>{const k=Math.min(1,dt/e.seg);const qf=Math.min(e.fad,e.f0*k),qs=Math.min(e.sta,e.s0*k);
   e.fad-=qf;e.sta-=qs;S.teto=Math.min(100,S.teto+qf);const qm=Math.min(S.ms,qs);S.ms-=qm;S.mord=Math.max(0,S.mord-(qs-qm));return e.fad>.01||e.sta>.01});
@@ -394,10 +397,13 @@ function desenhaCiclista(s,dt,u){
   if(a<=0)return false;ox.globalAlpha=a*.6;ox.beginPath();ox.arc(p.x,p.y,1.8*u+.6,0,7);ox.fill();return true});ox.globalAlpha=1;
  // sombra
  ox.fillStyle='rgba(0,0,0,.22)';ox.beginPath();ox.ellipse(0,0,w*.42,h*.035,0,0,7);ox.fill();
- const ea=ok(EMPE.img)?S.empeA:0;
- if(ok(SPR)&&ea<1){const q=Math.floor(S.quadro)%NQ;ox.globalAlpha=1-ea;ox.drawImage(SPR,q*FW,0,FW,FH,-w/2,-PE*k,w,h);ox.globalAlpha=1}
- if(ea>0){const E=EMPE,n=Math.max(1,Math.round(E.img.naturalWidth/E.fw)),q=Math.floor(S.quadro/NQ*n)%n;
-  ox.globalAlpha=ea;ox.drawImage(E.img,q*E.fw,0,E.fw,E.fh,(E.dx-E.fw/2)*k,-E.pe*k,E.fw*k,E.fh*k);ox.globalAlpha=1}
+ const tr=ok(EMPE.img)?S.empeA:0,E=EMPE;let aS=1-tr,aT=0,aE=tr;
+ if(ok(LEV.img)&&tr>0&&tr<1){const e=.12;aS=tr<e?1-tr/e:0;aE=tr>1-e?(tr-1+e)/e:0;aT=1-Math.max(aS,aE)}   // pontas: esmaece 12% para entrar/sair da animação
+ if(ok(SPR)&&aS>0){const q=Math.floor(S.quadro)%NQ;ox.globalAlpha=aS;ox.drawImage(SPR,q*FW,0,FW,FH,-w/2,-PE*k,w,h)}
+ if(aT>0){const q=clamp(Math.round(tr*(LEV.n-1)),0,LEV.n-1);ox.globalAlpha=aT;ox.drawImage(LEV.img,q*E.fw,0,E.fw,E.fh,(E.dx-E.fw/2)*k,-E.pe*k,E.fw*k,E.fh*k)}
+ if(aE>0){const n=Math.max(1,Math.round(E.img.naturalWidth/E.fw)),q=Math.floor(S.quadro/NQ*n)%n;
+  ox.globalAlpha=aE;ox.drawImage(E.img,q*E.fw,0,E.fw,E.fh,(E.dx-E.fw/2)*k,-E.pe*k,E.fw*k,E.fh*k)}
+ ox.globalAlpha=1;
  if(!ok(SPR)){ox.fillStyle='#fff';ox.beginPath();ox.arc(0,-h*.4,h*.2,0,7);ox.fill()}
 }
 // ---------------------------------------------------------------------------------------------
