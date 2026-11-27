@@ -13,7 +13,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 .bt:focus-visible{outline:2px solid var(--acc)}
 #pausa{position:fixed;inset:0;background:rgba(8,12,22,.55);display:flex;align-items:center;justify-content:center}
 #pausa[hidden],#painel[hidden],#build[hidden]{display:none}
-#pausa .box{background:#141c28f2;border:1px solid #33404f;border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:10px;min-width:220px}
+#pausa .box{max-height:calc(100vh - 20px);overflow-y:auto;box-sizing:border-box;background:#141c28f2;border:1px solid #33404f;border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:10px;min-width:220px}
 #pausa h2{margin:0 0 6px;font:italic 800 20px system-ui,sans-serif;letter-spacing:.04em;text-align:center}
 #pausa p{margin:0 0 6px;text-align:center;color:var(--dim)}
 #painel,#build{position:fixed;top:0;bottom:0;width:min(340px,92vw);background:#0b0f18f2;
@@ -32,16 +32,103 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 .acoes{display:flex;gap:8px;flex-wrap:wrap}
 #texto{width:100%;box-sizing:border-box;background:#000;color:var(--fg);border:1px solid #333;border-radius:6px;font:12px ui-monospace,monospace;padding:6px}
 #ver{color:var(--dim);font-size:11px}
+/* 27/11 noite — abertura, Central do Ciclista e resultado (visual low poly: cortes em ângulo, facetas, amarelo do raio) */
+.gm-so{display:none}
+body.gm .gm-so{display:revert}
+#inicio{position:fixed;left:0;right:0;bottom:calc(22px + env(safe-area-inset-bottom,0px));display:flex;gap:16px;justify-content:center;
+ flex-wrap:wrap;padding:0 16px;transition:opacity .7s,transform .7s;filter:drop-shadow(0 6px 14px rgba(0,0,0,.35))}
+#inicio.fora{opacity:0;transform:translateY(40px);pointer-events:none}
+.lp{border:0;cursor:pointer;font:italic 900 clamp(17px,2.4vw,24px) system-ui,sans-serif;letter-spacing:.06em;padding:15px 38px;
+ color:#1c2634;background:linear-gradient(135deg,#ffe066 0 38%,#f5c518 38% 72%,#e0b010 72%);clip-path:polygon(7% 0,100% 0,93% 100%,0 100%)}
+.lp.sec{color:#f4f6f8;background:linear-gradient(135deg,#2a3a50 0 38%,#1c2634 38% 72%,#151d29 72%)}
+.lp:disabled{filter:grayscale(1) brightness(.7);cursor:default}
+.lp:focus-visible{outline:3px solid #fff;outline-offset:3px}
+.lp.peq{font-size:15px;padding:10px 22px}
+#central,#fim{position:fixed;inset:0;box-sizing:border-box}
+#central{background:linear-gradient(160deg,rgba(9,14,28,.86),rgba(20,30,48,.93));display:flex;flex-direction:column;gap:12px;
+ padding:calc(12px + env(safe-area-inset-top,0px)) 16px calc(12px + env(safe-area-inset-bottom,0px))}
+#central[hidden],#fim[hidden],#inicio[hidden]{display:none}
+#central header{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+#central h1{margin:0;font:italic 900 clamp(19px,3vw,30px) system-ui,sans-serif;letter-spacing:.04em}
+#central h1 b{color:var(--acc)}
+.saldo{margin-left:auto;display:flex;gap:14px;align-items:center;font:italic 800 18px system-ui,sans-serif}
+.saldo span{display:flex;gap:6px;align-items:center}
+.moeda{width:20px;height:20px;border-radius:50%;flex:none;background:radial-gradient(circle at 35% 30%,#fff1a8,#f5c518 50%,#b8860b);
+ box-shadow:inset 0 0 0 2px #a87a00;display:inline-block}
+nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.aba{flex:none;border:0;cursor:pointer;font:italic 800 14px system-ui,sans-serif;letter-spacing:.06em;padding:10px 20px;color:var(--dim);
+ background:#1c2634;clip-path:polygon(10% 0,100% 0,90% 100%,0 100%)}
+.aba[aria-selected=true]{color:#1c2634;background:var(--acc)}
+.aba .bol{display:inline-block;min-width:18px;margin-left:6px;border-radius:9px;background:#e8453c;color:#fff;font-size:11px;font-style:normal;padding:1px 4px}
+#conteudo{flex:1;overflow-y:auto;display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(min(100%,250px),1fr));align-content:start;padding-bottom:8px}
+.card{background:linear-gradient(140deg,rgba(255,255,255,.07) 0 28%,transparent 28% 64%,rgba(0,0,0,.12) 64%),rgba(28,38,52,.9);
+ clip-path:polygon(0 0,100% 0,100% calc(100% - 16px),calc(100% - 16px) 100%,0 100%);padding:14px 16px 18px;display:flex;flex-direction:column;gap:8px}
+.card.larga{grid-column:1/-1}
+.card h3{margin:0;font:italic 900 19px system-ui,sans-serif;letter-spacing:.04em}
+.card p{margin:0;color:var(--dim);line-height:1.4}
+.card .ac{color:var(--acc);font-weight:700}
+.card .linha{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card img{height:64px;width:auto;object-fit:contain}
+.card.off{opacity:.55}
+.selo{align-self:flex-start;font:italic 800 11px system-ui,sans-serif;letter-spacing:.08em;padding:3px 8px;background:#33404f;color:#dfe6ee}
+.pips{display:flex;gap:3px}
+.pips i{width:14px;height:10px;background:#33404f;clip-path:polygon(25% 0,100% 0,75% 100%,0 100%)}
+.pips i.on{background:var(--acc)}
+.xp{height:10px;background:#33404f;clip-path:polygon(1% 0,100% 0,99% 100%,0 100%)}
+.xp i{display:block;height:100%;background:var(--acc)}
+.mais{width:44px;height:40px;border:0;cursor:pointer;font:900 24px system-ui;color:#1c2634;background:var(--acc);clip-path:polygon(12% 0,100% 0,88% 100%,0 100%)}
+.mais:disabled{background:#33404f;color:#6f7b88;cursor:default}
+#central footer{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+#fim{background:rgba(8,12,22,.62);display:flex;align-items:center;justify-content:center;padding:16px}
+#fim .card{width:min(460px,100%);max-height:100%;overflow-y:auto}
+#fim h2{margin:0;font:italic 900 30px system-ui,sans-serif;letter-spacing:.04em;color:var(--acc)}
+#fimL div{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid #2c3644}
+#fimL div b{color:var(--acc)}
+@media (max-height:460px){#central{gap:8px;padding-top:calc(8px + env(safe-area-inset-top,0px))}#central h1{font-size:19px}
+ .aba{padding:8px 16px;font-size:13px}.card{padding:10px 12px 14px;gap:6px}.card h3{font-size:16px}.card p{font-size:13px}
+ .card img{height:46px}.lp.peq{font-size:14px;padding:8px 18px}#fim h2{font-size:24px}#fimL div{padding:2px 0;font-size:13px}}
 </style></head><body>
 
 <canvas id="cv"></canvas>
 
+<div id="inicio" class="fora">
+ <button class="lp" id="btPedalar" type="button">PEDALAR AGORA</button>
+ <button class="lp sec" id="btCentral" type="button">CENTRAL</button>
+</div>
+
+<section id="central" hidden aria-label="Central do Ciclista">
+ <header><h1>CENTRAL DO <b>CICLISTA</b></h1>
+  <div class="saldo"><span id="cNivel"></span><span><i class="moeda"></i><b id="cMoedas">0</b></span></div></header>
+ <nav class="abas" role="tablist">
+  <button class="aba" role="tab" data-aba="pedalar" type="button">PEDALAR</button>
+  <button class="aba" role="tab" data-aba="habil" type="button">HABILIDADES</button>
+  <button class="aba" role="tab" data-aba="loja" type="button">LOJA</button>
+  <button class="aba" role="tab" data-aba="garagem" type="button">GARAGEM</button>
+  <button class="aba" role="tab" data-aba="conq" type="button">CONQUISTAS</button>
+ </nav>
+ <div id="conteudo"></div>
+ <footer><button class="lp sec peq" id="cVoltar" type="button">VOLTAR</button>
+  <span class="gm-so" style="color:var(--dim);font-size:12px">GM:
+   <button class="bt" id="gmMoedas" type="button">+500 moedas</button>
+   <button class="bt" id="gmNivel" type="button">+1 nível</button>
+   <button class="bt" id="gmZera" type="button">zerar save</button></span></footer>
+</section>
+
+<div id="fim" hidden><div class="card">
+ <h2 id="fimT">QUEBROU</h2><p id="fimS"></p><div id="fimL"></div>
+ <div class="linha"><button class="lp peq" id="fimDeNovo" type="button">PEDALAR DE NOVO</button>
+  <button class="lp sec peq" id="fimCentral" type="button">CENTRAL</button></div>
+</div></div>
+
 <div id="pausa" hidden><div class="box">
  <h2 id="pTit">PAUSA</h2><p id="pSub"></p>
  <button class="bt" id="continuar" type="button">CONTINUAR</button>
- <button class="bt" id="reini" type="button">REINICIAR</button>
- <button class="bt" id="abrir" type="button">AJUSTES</button>
- <button class="bt" id="abrirB" type="button">BUILD</button>
+ <button class="bt" id="encerrar" type="button">ENCERRAR PEDALADA</button>
+ <button class="bt gm-so" id="reini" type="button">REINICIAR</button>
+ <button class="bt gm-so" id="abrir" type="button">AJUSTES</button>
+ <button class="bt gm-so" id="abrirB" type="button">BUILD</button>
+ <button class="bt gm-so" id="lab" type="button">LAB</button>
+ <button class="bt gm-so" id="paraInicio" type="button">VOLTAR AO INÍCIO</button>
  <button class="bt" id="cheia" type="button">TELA CHEIA</button>
 </div></div>
 
@@ -61,7 +148,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='27/11/2026 15:58 altimetria com escala fixa';
+const VERSAO='27/11/2026 22:00 abertura + Central (etapa 1)';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
@@ -72,7 +159,7 @@ const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio
  vis:55,tam:.25,faixa:.24,larg:25,incl:1,dia:4,neblina:1.2,
  nvSprint:8,nvFolego:6,nvRec:7,nvEsc:5,
  aguaQ:5,aguaFad:2,aguaSeg:2,isoQ:5,isoFad:5,isoSta:5,bananaQ:2,bananaFad:6,bananaSta:5,gelQ:5,gelFrac:10,
- som:1,musica:.5,efeitos:.8};
+ som:1,musica:.5,efeitos:.8,lab:1};   // lab: só GM (?gm=1): build e itens dos ajustes
 const P=Object.assign({},PADRAO);
 const SLB=[
  ['ftp','Motor: FTP (W)',120,400,1,'Sua força de 1 hora. Tudo é medido em % dela.'],
@@ -152,15 +239,25 @@ const SPR=carrega('ciclista branco/sprite pedalando/pedalando_sheet.webp');
 const EMPE={img:carrega('ciclista branco/sprite em pe/em_pe_sheet.webp'),fw:314,fh:326,pe:315,dx:1.5};
 // levantando: 12 quadros do vídeo jef-levantando_da_bike (13→24), mesma grade da folha em pé
 const LEV={img:carrega('ciclista branco/sprite levantando/levantando_sheet.webp'),n:12};
-const ITEM=[['agua','Digit1'],['iso','Digit2'],['banana','Digit3'],['gel','Digit4']].map(([id,k])=>({id,k,img:carrega('itens/'+id+'.webp')}));
+// itens low poly do dono (elementos/): água e isotônico com 6 desenhos (5 goles → vazia); gel azul = gel recolorido (provisório)
+const GARRAFA=id=>id==='agua'||id==='iso';
+const ITEM=[['agua','Digit1'],['iso','Digit2'],['banana','Digit3'],['gel','Digit4'],['azul','Digit5']].map(([id,k])=>({id,k,
+ img:carrega('elementos/'+(GARRAFA(id)?id+'_5':id)+'.webp'),niv:GARRAFA(id)?[0,1,2,3,4,5].map(i=>carrega('elementos/'+id+'_'+i+'.webp')):null}));
+const CAMI={img:carrega('elementos/caminhao.webp'),mac:carrega('elementos/macaco.webp'),ban:carrega('elementos/banana.webp')};
+const LOGO=carrega('elementos/logo.webp');
 const ok=i=>i.complete&&i.naturalWidth>0;
 // ---------------------------------------------------------------------------------------------
 // Terreno (igual ao protótipo): subida → topo → descida → vale
 const DX=10;let GR_,HT,seg,semente;
 function rnd(){semente=(semente*16807)%2147483647;return semente/2147483647}
 const ri=(a,b)=>a+(b-a)*rnd();
-function terrenoNovo(){semente=1+Math.floor(Math.random()*1e6);GR_=[0];HT=[0];HV=[0];seg={fase:-1,x0:0,len:1500,g:0,g0:0}}
+function terrenoNovo(){semente=1+Math.floor(Math.random()*1e6);GR_=[0];HT=[0];HV=[0];
+ seg=DESCE?{fase:2,x0:0,len:ri(1500,3000),g:-4.5,g0:-4.5}:{fase:-1,x0:0,len:1500,g:0,g0:0}}
+// 27/11 noite: na ABERTURA (DESCE) a estrada só desce (3,5–5,5%, trechos emendados pela mesma curva de concordância).
+// Ao começar a pedalar o trecho já gerado continua (a mesma descida) e depois volta o ciclo normal (vale → subida → topo → descida).
+let DESCE=true;
 function proxSeg(){const f=(seg.fase+1)%4,x0=seg.x0+seg.len,g0=seg.g;let len,g;
+ if(DESCE){seg={fase:2,x0,len:ri(1500,3000),g:-ri(3.5,5.5),g0};return}
  if(f===0){len=ri(900,3500);g=ri(3,9.5)}
  else if(f===1){len=ri(150,700);g=ri(-.5,1.5)}
  else if(f===2){len=ri(900,3200);g=-ri(3,10)}
@@ -180,26 +277,67 @@ function hv(x){if(x<=0)return 0;if(HVi!==P.incl){HV=[0];HVi=P.incl}estende(x+DX*
  const i=Math.floor(x/DX),u=x/DX-i;return HV[i]+(HV[i+1]-HV[i])*u}
 // ---------------------------------------------------------------------------------------------
 let S,FX,pausado=false;
+// ---------------------------------------------------------------------------------------------
+// CARREIRA (27/11 noite): regras trazidas do Time Trial antigo (src/js/carreira.js e livre.js)
+// GM = link com ?gm=1: vê AJUSTES/BUILD/LAB. Jogador comum: números do PADRAO (os do dono) e a build da Central.
+const GM=/[?&]gm=1\b/.test(location.search);if(GM)document.body.classList.add('gm');
+const SAVE='tt_poly_v1';
+const ECO={xpKm:.6,xpVac:.5,xpRec:20,moedaKm:.35,moedaVac:.2,moedaRec:20,aband:.8,   // Pedal Livre (livre.js: LIV)
+ ftp0:180,ftpNivel:6.5,ftpMotor:4,peso:75,maxAtr:10,nivelMax:25,                     // carreira.js: CAR
+ bolso:{agua:5,iso:5,banana:5,gel:3,azul:1},                                         // por pedalada (água grátis; iso = 1 garrafa de 5 goles)
+ caminhao:{prim:[6,12],prox:[25,40],ritmo:1.05,vac:.5,encher:5,tempo:16},
+ moedasPista:{prim:[.5,1.2],prox:[6,10]},
+ loja:[{id:'banana',n:'BANANA',d:'−fadiga e +stamina. Leva até 5 por pedalada.',p:20},
+  {id:'gel',n:'GEL',d:'Tira parte da fadiga acumulada (o 2º rende menos). Até 3 por pedalada.',p:60},
+  {id:'iso',n:'ISOTÔNICO',d:'Garrafa de 5 goles: −fadiga e +stamina. Vale 1 pedalada (abriu, gastou).',p:40},
+  {id:'azul',n:'GEL AZUL',d:'Zera a fadiga: vida extra. Máximo 1 por pedalada.',p:1000},
+  {id:'reset',n:'RESETAR PONTOS',d:'Devolve todos os pontos de habilidade para refazer a build.',p:250}]};
+const PAT_PEDAL=[{n:'CICLOTURISTA',v:0,m:1,mm:1},{n:'PEDAL DE DOMINGO',v:24,m:1.2,mm:1.1},{n:'RITMO DE GRUPO',v:27,m:1.4,mm:1.2},
+ {n:'TREINO FORTE',v:30,m:1.7,mm:1.35},{n:'ELITE',v:33,m:2,mm:1.5},{n:'PRO',v:36,m:2.5,mm:1.6}];   // m: XP · mm: moedas (pela média)
+const patPedal=avg=>{let p=PAT_PEDAL[0];for(const q of PAT_PEDAL)if(avg>=q.v)p=q;return p};
+const xpNec=n=>60+20*n+2*n*n;
+const ftpDe=(n,m)=>Math.round(ECO.ftp0+ECO.ftpNivel*(n-1)+ECO.ftpMotor*m);
+const ATR=[{k:'motor',n:'MOTOR',d:'+4 W de FTP por ponto (cada nível do ciclista já dá +6,5 W).'},
+ {k:'folego',n:'RESISTÊNCIA',d:'Fadiga do tempo −8% por ponto (composto). No sprint, −2%.'},
+ {k:'recup',n:'RECUPERAÇÃO',d:'A barra volta +6% mais rápido por ponto.'},
+ {k:'escalada',n:'ESCALADA',d:'−1 kg por ponto: sobe melhor.'},
+ {k:'sprint',n:'SPRINT',d:'+40 W de pico por ponto.'}];
+function csNovo(){return{v:1,nivel:1,xp:0,pontos:1,moedas:0,inv:{banana:0,gel:0,iso:0,azul:0},sk:{motor:0,folego:0,recup:0,escalada:0,sprint:0},
+ recLivre:0,livres:0,kmTotal:0,cq:{},gar:{tem:{},uso:{}}}}
+// campos novos entram com o padrão de csNovo (saves antigos continuam valendo)
+function csLer(){const n=csNovo();try{const j=JSON.parse(localStorage.getItem(SAVE)||'null');
+ if(j&&j.v===1){Object.assign(n,j);n.inv=Object.assign(csNovo().inv,j.inv);n.sk=Object.assign(csNovo().sk,j.sk)}}catch(e){}return n}
+function csSalvar(){try{localStorage.setItem(SAVE,JSON.stringify(CS))}catch(e){}}
+let CS=csLer();
+function ganharXP(x){let up=0;if(CS.nivel>=ECO.nivelMax){CS.xp=0;return 0}CS.xp+=x;
+ while(CS.nivel<ECO.nivelMax&&CS.xp>=xpNec(CS.nivel)){CS.xp-=xpNec(CS.nivel);CS.nivel++;CS.pontos++;up++}if(CS.nivel>=ECO.nivelMax)CS.xp=0;return up}
+const LAB=()=>GM&&P.lab>=.5;                       // GM no laboratório: build e itens vêm dos ajustes, nada é salvo na carreira
+function FTPv(){return LAB()?P.ftp:ftpDe(CS.nivel,CS.sk.motor)}
+let MODO='abertura';                                // abertura · livre · crono (teste do GM)
+const INTRO={t:0,dur:6.5,botoes:false};
+const mr=(a,b)=>a+Math.random()*(b-a);
 function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,pico:0,tw:9999,holdAnt:false,sprintAnt:false,
- zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:0,fim:false,ganho:0,
- it:{agua:P.aguaQ,iso:P.isoQ,banana:P.bananaQ,gel:P.gelQ},efe:[],nGel:0,msg:null,spr:null,sprFeito:false,verdeIni:100,segT:0,ms:0,msV:0,empe:false,empeT:0,empeA:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
+ zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:3,fim:false,ganho:0,x0:0,t0:0,vac:0,vacKm:0,moedasRun:0,pago:false,isoAberto:false,logoA:1,
+ it:{agua:0,iso:0,banana:0,gel:0,azul:0},efe:[],nGel:0,msg:null,spr:null,sprFeito:false,verdeIni:100,segT:0,ms:0,msV:0,empe:false,empeT:0,empeA:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
 // ---------------------------------------------------------------------------------------------
 const CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6,FMAX=400;   // 27/11: antes a força usava v ≥ 2 m/s e a bike travava em 0 na subida
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function barra(){return Math.max(0,S.teto-S.mord-S.ms)}   // amarelo = teto (até o vermelho) − mordida (volta ao soltar) − gasto do sprint (volta devagar)
-const B=()=>({pMax:700+40*P.nvSprint,fol:Math.pow(.92,P.nvFolego),folSpr:1-.02*P.nvFolego,rec:1+.06*P.nvRec,massa:75-P.nvEsc+8});
+const B=()=>{if(LAB())return{pMax:700+40*P.nvSprint,fol:Math.pow(.92,P.nvFolego),folSpr:1-.02*P.nvFolego,rec:1+.06*P.nvRec,massa:75-P.nvEsc+8};
+ const s=CS.sk;return{pMax:700+40*s.sprint,fol:Math.pow(.92,s.folego),folSpr:1-.02*s.folego,rec:1+.06*s.recup,massa:ECO.peso-s.escalada+8}};
 // fadiga por hora de PROVA em função de r = watts/FTP: abaixo do FTP r^curva; acima cresce rápido (punitivo)
 function fadHora(r){return P.fadH*(r<=1?Math.pow(Math.max(0,r),P.fadExp):1+P.fadAcima*Math.pow(r-1,1.5))}
-function alvoDe(h){const F=P.ftp,k=F/250;return F*.8+k*120*h}
+function alvoDe(h){const F=FTPv(),k=F/250;return F*.8+k*120*h}
 function holdPara(pw){if(pw<=alvoDe(0))return 0;let a=0,b=12;for(let i=0;i<30;i++){const m=(a+b)/2;alvoDe(m)<pw?a=m:b=m}return a}
 // sprint: decidido na largada dele pelo tamanho da barra (teto = verde + o que volta)
 // sprintPlano(teto): teto = amarelo que havia quando o dedo encostou
-function sprintPlano(teto){const bd=B(),F=P.ftp,c=clamp((teto-50)/50,0,1),q=clamp((teto-P.sprMin)/Math.max(1,50-P.sprMin),0,1);
+function sprintPlano(teto){const bd=B(),F=FTPv(),c=clamp((teto-50)/50,0,1),q=clamp((teto-P.sprMin)/Math.max(1,50-P.sprMin),0,1);
  const fr=teto>=50?P.sprPicoMeio/100+(1-P.sprPicoMeio/100)*c:P.sprPicoMeio/100*(.65+.35*q);
  return{dur:P.sprMeio+(P.sprCheia-P.sprMeio)*c,pico:F+(bd.pMax-F)*fr,custo:P.sprCusto*teto/100*bd.folSpr}}
 function passo(dt){
- const F=P.ftp,bd=B();
+ const F=FTPv(),bd=B();
  S.t+=dt;
+ if(MODO==='abertura'){S.hold=false;S.pw=0}   // abertura: o ciclista desce embalado, pés parados nos pedais
  // reapertou: o sprint tem que ser segurado de novo do zero (antes o tempo vinha dos watts e o "pisca" religava o sprint)
  if(S.hold&&!S.holdAnt){S.holdT=Math.min(holdPara(S.pw),P.sprintApos*.6);S.verdeIni=barra();S.segT=0}   // amarelo de antes da mordida
  if(S.hold){S.holdT+=dt;S.segT+=dt}else{S.holdT=0;S.segT=0;S.spr=null;S.sprFeito=false}   // segT = tempo segurando DESTE toque (o sprint exige sprintApos inteiro)
@@ -237,10 +375,10 @@ function passo(dt){
  S.efe=S.efe.filter(e=>{const k=Math.min(1,dt/e.seg);const qf=Math.min(e.fad,e.f0*k),qs=Math.min(e.sta,e.s0*k);
   e.fad-=qf;e.sta-=qs;S.teto=Math.min(100,S.teto+qf);const qm=Math.min(S.ms,qs);S.ms-=qm;S.mord=Math.max(0,S.mord-(qs-qm));return e.fad>.01||e.sta>.01});
  S.ms=clamp(S.ms,0,S.teto);S.mord=clamp(S.mord,0,S.teto-S.ms);
- if(S.teto<=.5&&!S.fim){S.fim=true;abrePausa('QUEBROU','Acabou o fôlego no km '+fmt(S.x/1000,1));return}
+ if(S.teto<=.5&&!S.fim&&MODO!=='abertura'){quebrou();return}
  const M=bd.massa,g=rampa(S.x)/100,sn=g/Math.sqrt(1+g*g),cs=1/Math.sqrt(1+g*g),alt0=alt(S.x);
  for(let i=0;i<4;i++){const h=dt/4,v=S.v,
-  a=(Math.min(ETA*S.pw/Math.max(v,.1),FMAX)-M*GRV*(CRR*cs+sn)-.5*RHO*CDA*v*v)/M;   // força do pedal = P/v (até 400 N de aderência): qualquer watt anda, na subida mais devagar
+  a=(Math.min(ETA*S.pw/Math.max(v,.1),FMAX)-M*GRV*(CRR*cs+sn)-.5*RHO*CDA*(1-S.vac)*v*v)/M;   // vácuo do caminhão: até 50% menos arrasto   // força do pedal = P/v (até 400 N de aderência): qualquer watt anda, na subida mais devagar
   S.v=clamp(v+a*h*KIN,0,30);S.x+=S.v*h*P.ts}
  S.ganho+=Math.max(0,alt(S.x)-alt0);
  S.soma+=S.pw*dt;
@@ -249,8 +387,14 @@ function passo(dt){
  S.roll+=S.v*P.vis*dt;
  const rpm=S.pw<25?0:clamp(62+38*(r-.6),55,125);
  S.quadro=(S.quadro+rpm/60*NQ*dt)%NQ;
- if(S.x>=P.dist*1000&&!S.fim)chegada();
+ if(S.vac>.2)S.vacKm+=S.v*dt*P.ts/1000;
+ if(MODO==='crono'&&S.x-S.x0>=P.dist*1000&&!S.fim)chegada();
+ eventosPasso(dt);
 }
+// velocidade de quem pedala sozinho com pw watts na rampa g (%) — ritmo do caminhão
+function vSolo(pw,g){const M=B().massa,gg=g/100,sn=gg/Math.sqrt(1+gg*gg),cs=1/Math.sqrt(1+gg*gg);let a=0,b=30;
+ for(let i=0;i<30;i++){const v=(a+b)/2;(M*GRV*(CRR*cs+sn)+.5*RHO*CDA*v*v)*v<ETA*pw?a=v:b=v}return a}
+const curva=(pts,x)=>{if(x<=pts[0][0])return pts[0][1];for(let i=1;i<pts.length;i++)if(x<=pts[i][0]){const[a,b]=pts[i-1],[c,d]=pts[i];return b+(d-b)*(x-a)/(c-a)}return pts[pts.length-1][1]};
 // ---------------------------------------------------------------------------------------------
 // Céu: ciclo do dia (topo, horizonte, cor que tinge o cenário, força da tinta, estrelas, sol baixo 0..1)
 const CEU=[
@@ -285,19 +429,19 @@ function raio(x,y,s,cor){ctx.fillStyle=cor;ctx.beginPath();
  [[.15,-.5],[-.3,.08],[-.02,.08],[-.15,.5],[.3,-.1],[.02,-.1]].forEach(([a,b],i)=>i?ctx.lineTo(x+a*s,y+b*s):ctx.moveTo(x+a*s,y+b*s));ctx.closePath();ctx.fill()}
 function montanha(x,y,s,cor){ctx.fillStyle=cor;ctx.beginPath();ctx.moveTo(x-s*.6,y+s*.35);ctx.lineTo(x-.05*s,y-s*.4);ctx.lineTo(x+.15*s,y-.1*s);ctx.lineTo(x+.28*s,y-.25*s);ctx.lineTo(x+s*.6,y+s*.35);ctx.closePath();ctx.fill()}
 // ---------------------------------------------------------------------------------------------
-function desenhaCeu(c,u){
- const g=ctx.createLinearGradient(0,0,0,H*.7);g.addColorStop(0,c.top);g.addColorStop(1,c.hor);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+function desenhaCeu(c,u,cy=0){
+ const g=ctx.createLinearGradient(0,cy*.35,0,H*.7+cy*.35);g.addColorStop(0,c.top);g.addColorStop(1,c.hor);ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
  if(c.est>.02){ctx.fillStyle='#fff';for(let i=0;i<90;i++){ctx.globalAlpha=c.est*(.3+.7*hash(i+.5))*(.7+.3*Math.sin(S.t*2+i));
   ctx.fillRect(hash(i)*W,hash(i+50)*H*.55,1.4,1.4)}ctx.globalAlpha=1}
  // sol (ou lua) — desce com o fim do dia
- const sx=W*.24,sy=H*(.3+.22*Math.min(c.sol,1.1)),sr=48*u,lua=c.sol>1.2;
+ const sx=W*.24,sy=H*(.3+.22*Math.min(c.sol,1.1))+cy*.22,sr=48*u,lua=c.sol>1.2;
  const gl=ctx.createRadialGradient(sx,sy,sr*.6,sx,sy,sr*5);gl.addColorStop(0,lua?'rgba(220,230,255,.25)':'rgba(255,236,180,.55)');gl.addColorStop(1,'rgba(255,236,180,0)');
  ctx.fillStyle=gl;ctx.fillRect(0,0,W,H);
  ctx.fillStyle=lua?'#e8ecf6':'#fff3cf';ctx.beginPath();ctx.arc(sx,lua?H*.2:sy,lua?sr*.6:sr,0,7);ctx.fill();
  // nuvens: elipses suaves, parallax bem lento
  ctx.fillStyle='rgba(255,255,255,'+(.85-c.est*.6)+')';
  const nv=5,larg=W*1.4;
- for(let i=0;i<nv;i++){const x=((hash(i+9)*larg-S.roll*.01*(.5+hash(i))*u)%larg+larg)%larg-W*.2,y=H*(.12+hash(i+3)*.25),k=(.6+hash(i+4)*.8)*u;
+ for(let i=0;i<nv;i++){const x=((hash(i+9)*larg-S.roll*.01*(.5+hash(i))*u)%larg+larg)%larg-W*.2,y=H*(.12+hash(i+3)*.25)+cy*(.3+.1*hash(i+7)),k=(.6+hash(i+4)*.8)*u;
   ctx.beginPath();ctx.ellipse(x,y,120*k,22*k,0,0,7);ctx.ellipse(x-20*k,y-16*k,55*k,30*k,0,0,7);ctx.ellipse(x+35*k,y-10*k,45*k,22*k,0,0,7);ctx.fill()}
 }
 const REF=740;   // linha da arte original onde ficava a borda de cima da estrada
@@ -345,8 +489,17 @@ function tufo(x,y,e,cor){ox.fillStyle=cor;ox.beginPath();
 function arbusto(x,y,e){ox.fillStyle='#3f786d';ox.beginPath();ox.ellipse(x,y,e,e*.55,0,Math.PI,0);ox.ellipse(x-e*.45,y-e*.15,e*.55,e*.5,0,Math.PI,0);
  ox.ellipse(x+e*.35,y-e*.25,e*.5,e*.55,0,Math.PI,0);ox.fill()}
 function desenha(dt){
- const u=Math.min(W,H*1.78)/1000,kmh=S.v*3.6,F=P.ftp,c=ceuAgora();
- desenhaCeu(c,u);
+ const u=Math.min(W,H*1.78)/1000,kmh=S.v*3.6,F=FTPv(),c=ceuAgora();
+ // ABERTURA: a câmera começa no céu (camY = quanto o mundo está abaixo do lugar) e desce até o enquadramento do jogo.
+ // Cada camada desce com uma fração de camY (montanhas distantes primeiro, estrada por último): o cenário vai sendo revelado.
+ if(MODO==='abertura'&&INTRO.t<INTRO.dur)INTRO.t+=dt;
+ const ip=clamp(INTRO.t/INTRO.dur,0,1),camY=H*1.55*(1-(ip<.5?4*ip*ip*ip:1-Math.pow(-2*ip+2,3)/2));
+ if(MODO==='abertura'&&ip>=1&&!INTRO.botoes){INTRO.botoes=true;mostraInicio(true)}
+ S.logoA=MODO==='abertura'&&centralEl.hidden?Math.min(1,S.logoA+dt*2):Math.max(0,S.logoA-dt*1.6);
+ desenhaCeu(c,u,camY);
+ // logo no céu, na cor do arquivo do dono (no canvas de trás: as montanhas passam na frente dele enquanto a câmera desce; sem neblina)
+ if(S.logoA>0&&ok(LOGO)){const lw=Math.min(W*.56,860*u),lh=lw*LOGO.height/LOGO.width;ctx.globalAlpha=S.logoA;
+  ctx.drawImage(LOGO,W/2-lw/2,Math.max(H*.12,lh*.5+14)+camY*.17-lh/2,lw,lh);ctx.globalAlpha=1}
  // câmera: escala da arte, afasta com a velocidade, empurra para a frente ao acelerar, inclina na rampa
  S.zoom+=(1+P.zoomV*clamp((kmh-15)/45,0,1)-S.zoom)*Math.min(1,dt*2);
  const s=Math.min(H*1.25,W)/IH/S.zoom;   // celular em pé: não deixa a arte gigante
@@ -362,28 +515,34 @@ function desenha(dt){
  // mundo no canvas de trás (transparente) para tingir só o cenário
  ox.save();ox.setTransform(DPR,0,0,DPR,0,0);ox.clearRect(0,0,W,H);ox.translate(tremX,tremY);
  CAM.forEach((L,i)=>{
-  const y0=yRef-REF*s+clamp(camA*.08,-50,110)*s;   // subiu: o fundo inteiro desce um pouco (bloco único: camadas separadas mostravam o pé da arte)
+  const y0=yRef-REF*s+clamp(camA*.08,-50,110)*s+camY*[.5,.62,.76,.88][i];   // subiu: o fundo inteiro desce um pouco (bloco único: camadas separadas mostravam o pé da arte)
   if(i===3){ox.fillStyle='#9fb07a';ox.fillRect(-20,y0+752*s,W+40,H*3)}           // vale atrás da estrada (aparece nas descidas)
   if(ok(L.img))camadaTile(L,s,y0);
   if(L.nev>0&&P.neblina>0){ox.globalCompositeOperation='source-atop';            // neblina de profundidade
    ox.globalAlpha=clamp(L.nev*P.neblina,0,.9);ox.fillStyle=c.hor;ox.fillRect(-20,y0,W+40,IH*s*1.5);
    ox.globalAlpha=1;ox.globalCompositeOperation='source-over'}
  });
+ ox.save();ox.translate(0,camY);
  pista(s,k,sk,bx,yT);
  // ciclista em cima da pista, inclinado como o trecho onde está
- const RT=P.larg*s,dd=FW*s*P.tam*.35/sk,yc=yT(S.x)+RT*P.faixa,ang=Math.atan2(yT(S.x+dd)-yT(S.x-dd),2*dd*sk);
+ const RT=P.larg*s,cw=FW*s*P.tam,dd=cw*.35/sk,yc=yT(S.x)+RT*P.faixa,ang=Math.atan2(yT(S.x+dd)-yT(S.x-dd),2*dd*sk);
+ CAMV={s,sk,bx,cw,u};
+ desenhaMoedas(sk,bx,yT,RT,cw);
  ox.save();ox.translate(bx,yc);ox.rotate(ang);desenhaCiclista(s,dt,u);ox.restore();
- if(ok(FRENTE.img))camadaTile(FRENTE,s,H+6*s-IH*s);                             // vegetação desfocada da frente
+ desenhaCaminhao(sk,bx,yT,RT,cw,yc);
+ ox.restore();
+ if(ok(FRENTE.img))camadaTile(FRENTE,s,H+6*s-IH*s+camY*1.1);                             // vegetação desfocada da frente
  if(c.ta>.01){ox.globalCompositeOperation='source-atop';ox.fillStyle='rgba('+c.tint.join(',')+','+c.ta+')';ox.fillRect(-20,-20,W+40,H+40);ox.globalCompositeOperation='source-over'}
  ox.restore();
  ctx.drawImage(oc,0,0,W,H);
  // linhas de vento
  const vel=S.v*P.vis*s*1.4;
- FX.ventoAcum+=clamp((kmh-25)/25,0,2)*14*P.vento*dt;
+ FX.ventoAcum+=(MODO==='abertura'?0:1)*clamp((kmh-25)/25,0,2)*14*P.vento*dt;
  while(FX.ventoAcum>=1){FX.ventoAcum--;FX.vento.push({x:W+20,y:H*(.3+Math.random()*.5),l:(30+kmh*1.6)*u*(.6+Math.random()*.8),k:1.6+Math.random()*1.4,a:.15+Math.random()*.3})}
  ctx.strokeStyle='#fff';ctx.lineWidth=1.2;FX.vento=FX.vento.filter(w=>{w.x-=(vel*w.k+250*u)*dt;if(w.x+w.l<0)return false;
   ctx.globalAlpha=w.a;ctx.beginPath();ctx.moveTo(w.x,w.y);ctx.lineTo(w.x+w.l,w.y);ctx.stroke();return true});ctx.globalAlpha=1;
  // visão de túnel com a barra baixa / fadiga
+ if(MODO==='abertura')return;
  const tunel=P.escuro>0?.9*Math.pow(clamp(1-barra()/P.escuro,0,1),1.5):0;   // só quando o verde fica abaixo de escuro% da barra inteira
  if(tunel>.01){const gr=ctx.createRadialGradient(W/2,H*.6,Math.min(W,H)*.25,W/2,H*.6,Math.max(W,H)*.75);
   gr.addColorStop(0,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,'+clamp(tunel,0,.92)+')');ctx.fillStyle=gr;ctx.fillRect(0,0,W,H)}
@@ -406,12 +565,66 @@ function desenhaCiclista(s,dt,u){
   ox.globalAlpha=aE;ox.drawImage(E.img,q*E.fw,0,E.fw,E.fh,(E.dx-E.fw/2)*k,-E.pe*k,E.fw*k,E.fh*k)}
  ox.globalAlpha=1;
  if(!ok(SPR)){ox.fillStyle='#fff';ox.beginPath();ox.arc(0,-h*.4,h*.2,0,7);ox.fill()}
+ // rodas girando: borrão e dois reflexos que giram com a distância (centros medidos na folha: x 72 e 252, y 228, raio 57; pneu na linha 284)
+ const rr0=50*k,giro=S.roll/(57*P.tam),wv=S.v/.34;
+ [72,252].forEach(cx=>{const X=(cx-FW/2)*k,Y=(228-PE)*k;
+  ox.globalAlpha=.16*clamp(wv/20,0,1);ox.fillStyle='#d8dde3';ox.beginPath();ox.arc(X,Y,rr0,0,7);ox.fill();
+  ox.globalAlpha=.55*clamp(1-wv/45,.15,1);ox.strokeStyle='#eef2f6';ox.lineWidth=Math.max(1,1.6*k);ox.beginPath();
+  for(let j=0;j<2;j++){const a=giro+j*Math.PI;ox.moveTo(X+Math.cos(a)*rr0*.25,Y+Math.sin(a)*rr0*.25);ox.lineTo(X+Math.cos(a)*rr0*.92,Y+Math.sin(a)*rr0*.92)}
+  ox.stroke()});ox.globalAlpha=1;
 }
+// ---------------------------------------------------------------------------------------------
+// Caminhão de banana (Pedal Livre, regra do jogo antigo): passa você e segue a ~105% do seu FTP. No vácuo dele (atrás ou do lado)
+// a barra de banana enche em 5 s; o macaco aparece no meio das bananas, balança e joga uma banana no seu bolso.
+let CAMV={s:0,sk:0,bx:0,cw:0,u:1},EV=null;
+function eventosNovo(){const C=ECO.caminhao,M=ECO.moedasPista;
+ return{proxCam:S.x+mr(C.prim[0],C.prim[1])*1000,cam:null,moedas:[],proxMoeda:S.x+mr(M.prim[0],M.prim[1])*1000,pulo:null}}
+function eventosPasso(dt){S.vac=0;if(MODO!=='livre'||!EV||!CAMV.sk||S.fim)return;
+ const {sk,bx,cw}=CAMV,q=cw/300,C=ECO.caminhao;
+ if(!EV.cam&&S.x>=EV.proxCam){const tw=cw*2.7;EV.cam={d:S.x-(bx+tw+40*q)/sk,v:S.v+16/3.6,fase:'passa',t:0,cheio:0,mac:0,tw,perto:false};
+  EV.proxCam=S.x+mr(C.prox[0],C.prox[1])*1000;som('buzina')}
+ const c=EV.cam;
+ if(c){const rx=bx+(c.d-S.x)*sk,vT=vSolo(FTPv()*C.ritmo,rampa(S.x)),g=rx-(bx+150*q);
+  if(c.fase==='passa'){c.v=Math.max(vT,S.v+16/3.6);if(rx>bx+170*q)c.fase='segue'}
+  else if(c.fase==='segue'){c.v=g<40*q?Math.max(vT,S.v+1.5/3.6):c.v+(vT-c.v)*Math.min(1,dt*1.5);c.t+=dt;   // não deixa passar
+   c.perto=g>-420*q&&g<330*q;if(c.perto)c.cheio+=dt/C.encher;else c.cheio=Math.max(0,c.cheio-dt/14);
+   if(c.cheio>=1){c.fase='vai';EV.pulo={t:0,x0:rx+c.tw*.22,y0:0};som('macaco')}else if(c.t>C.tempo)c.fase='vai'}
+  else c.v+=2.5*dt;
+  c.d+=c.v*dt*P.ts;
+  S.vac=c.fase==='vai'?0:curva([[-60,0],[0,1],[230,1],[470,0]],g/q)*C.vac;
+  c.mac=clamp(c.mac+((c.fase==='segue'&&c.cheio>.3)||EV.pulo?dt*3:-dt*2),0,1);   // o macaco sobe das bananas depois de um tempo no vácuo
+  if(c.fase==='vai'&&!EV.pulo&&rx>W+60)EV.cam=null}
+ if(EV.pulo){EV.pulo.t+=dt;if(EV.pulo.t>=.75){EV.pulo=null;S.it.banana++;if(!LAB()){CS.inv.banana++;csSalvar()}
+  S.msg={t:S.t,txt:'+1 BANANA DO MACACO!'};som('bonus')}}
+ // moedas em fileiras na pista (+1 cada)
+ if(S.x>=EV.proxMoeda){const n=3+(Math.random()<.5?1:0);for(let j=0;j<n;j++)EV.moedas.push({d:S.x+(W-bx+60*q+j*150*q)/sk,ok:false});
+  EV.proxMoeda=S.x+mr(ECO.moedasPista.prox[0],ECO.moedasPista.prox[1])*1000}
+ for(const m of EV.moedas){const x=bx+(m.d-S.x)*sk;if(!m.ok&&x<bx+cw*.35&&x>bx-cw*.45){m.ok=true;ganhaMoeda(1)}}
+ EV.moedas=EV.moedas.filter(m=>!m.ok&&bx+(m.d-S.x)*sk>-60)}
+function ganhaMoeda(n){S.moedasRun+=n;if(!LAB()){CS.moedas+=n;csSalvar()}som('moeda')}
+function desenhaMoedas(sk,bx,yT,RT,cw){if(!EV)return;const r=cw*.075;
+ for(const m of EV.moedas){const x=bx+(m.d-S.x)*sk;if(x<-30||x>W+30)continue;const y=yT(m.d)+RT*P.faixa-cw*.55+Math.sin(S.t*4+m.d)*r*.25,e=Math.abs(Math.cos(S.t*3+m.d*.01));
+  ox.fillStyle='#b8860b';ox.beginPath();ox.ellipse(x,y,r*Math.max(.25,e),r,0,0,7);ox.fill();
+  ox.fillStyle='#f5c518';ox.beginPath();ox.ellipse(x,y,r*Math.max(.18,e)*.8,r*.8,0,0,7);ox.fill()}}
+function desenhaCaminhao(sk,bx,yT,RT,cw,yc){const c=EV&&EV.cam,im=CAMI.img;
+ if(c&&ok(im)){const tw=c.tw,th=tw*im.height/im.width,rx=bx+(c.d-S.x)*sk;
+  if(rx<W+80&&rx+tw>-80){const dc=c.d+tw*.5/sk,dd=tw*.32/sk,ang=Math.atan2(yT(dc+dd)-yT(dc-dd),2*dd*sk),y=yT(dc)+RT*.74;
+   ox.save();ox.translate(rx+tw/2,y);ox.rotate(ang);
+   if(c.mac>0&&ok(CAMI.mac)){const mh=th*.62,mw=mh*CAMI.mac.width/CAMI.mac.height,bal=Math.sin(S.t*7)*.18;   // macaco atrás das bananas (o caminhão cobre os pés)
+    ox.save();ox.translate(-tw*.31,-th*.66+(1-c.mac)*th*.55);ox.rotate(bal);ox.drawImage(CAMI.mac,-mw/2,-mh,mw,mh);ox.restore()}
+   ox.drawImage(im,-tw/2,-th,tw,th);ox.restore();
+   if(c.fase==='segue'){const bw=tw*.42,bh=Math.max(10,tw*.05),bx2=rx+tw*.3-bw/2,by2=y-th*1.12;   // barra de banana
+    rr(ox,bx2,by2,bw,bh,bh/2);ox.fillStyle='rgba(10,26,44,.85)';ox.fill();ox.lineWidth=2;ox.strokeStyle=c.perto?'#ffe066':'#7f93a6';ox.stroke();
+    if(c.cheio>0){rr(ox,bx2,by2,Math.max(bh,bw*Math.min(1,c.cheio)),bh,bh/2);ox.fillStyle='#ffe066';ox.fill()}
+    if(ok(CAMI.ban)){const ih=bh*2.2;ox.drawImage(CAMI.ban,bx2-ih*.9,by2-ih*.3,ih*CAMI.ban.width/CAMI.ban.height,ih)}}}}
+ if(EV&&EV.pulo&&ok(CAMI.ban)){const p=clamp(EV.pulo.t/.75,0,1),x0=c?bx+(c.d-S.x)*sk+c.tw*.2:EV.pulo.x0,y0=c?yc-c.tw*.35:yc-cw,
+  x=x0+(bx-x0)*p,y=y0+(yc-cw*.55-y0)*p-Math.sin(Math.PI*p)*cw*.9,bh=cw*.28;
+  ox.save();ox.translate(x,y);ox.rotate(p*9);ox.drawImage(CAMI.ban,-bh*.47,-bh/2,bh*CAMI.ban.width/CAMI.ban.height,bh);ox.restore()}}
 // ---------------------------------------------------------------------------------------------
 // HUD no estilo da referência
 let botPausa={x:0,y:0,w:0,h:0},botRaio={x:0,y:0,r:0},botItens=[];
 function hud(u){
- const F=P.ftp,kmh=S.v*3.6,m=22*u+10,media=S.t>0?S.soma/S.t:0,PL='rgba(28,38,52,.78)';
+ const F=FTPv(),kmh=S.v*3.6,m=22*u+10,tp=S.t-S.t0,media=tp>0?S.soma/tp:0,PL='rgba(28,38,52,.78)';
  ctx.save();ctx.shadowColor='rgba(0,0,0,.35)';ctx.shadowBlur=6*u;
  // ── topo esquerdo: pausa + relógio, watts
  const ph=54*u+6;botPausa={x:m,y:m,w:ph,h:ph};
@@ -420,11 +633,16 @@ function hud(u){
  const rx=m+ph+16*u,rw=196*u+16;pilula(rx,m+2*u,rw,ph-4*u);
  ctx.strokeStyle='#fff';ctx.lineWidth=2.4*u+.5;ctx.beginPath();ctx.arc(rx+30*u,m+ph/2+2*u,12*u+2,0,7);ctx.moveTo(rx+30*u,m+ph/2+2*u);ctx.lineTo(rx+36*u,m+ph/2-5*u);
  ctx.moveTo(rx+26*u,m+ph/2-14*u);ctx.lineTo(rx+34*u,m+ph/2-14*u);ctx.stroke();
- txt(relogio(S.t*P.ts),rx+54*u,m+ph/2+11*u,30*u,'#fff');
+ txt(relogio(tp*P.ts),rx+54*u,m+ph/2+11*u,30*u,'#fff');
+ // saldo de moedas (o mesmo da Central e da Loja)
+ {const cy=m+ph+12*u,chh=36*u+4,cwd=150*u+20;pilula(m,cy,cwd,chh);const cr=11*u+2,ccx=m+chh/2;
+  ctx.fillStyle='#b8860b';ctx.beginPath();ctx.arc(ccx,cy+chh/2,cr,0,7);ctx.fill();ctx.fillStyle='#f5c518';ctx.beginPath();ctx.arc(ccx,cy+chh/2,cr*.78,0,7);ctx.fill();
+  txt(LAB()?'LAB':fmt(CS.moedas,0)+(S.moedasRun?'  +'+S.moedasRun:''),ccx+cr+10*u,cy+chh/2+8*u,22*u,'#fff','left',800)}
  // ── topo centro: progresso da prova
- const km=Math.max(0,S.x/1000),pc=clamp(km/P.dist,0,1),bw=Math.min(W*.3,520*u),bL=W/2-bw/2,bY=m+44*u;
+ const km=Math.max(0,(S.x-S.x0)/1000),livre=MODO==='livre',recL=LAB()?0:CS.recLivre,
+  pc=clamp(livre?km/Math.max(recL||10,.1):km/P.dist,0,1),bw=Math.min(W*.3,520*u),bL=W/2-bw/2,bY=m+44*u;
  const rec=recorde();
- txt(fmt(km,1)+' km • '+(rec?'recorde '+relogio(rec):'meta '+fmt(P.dist,0)+' km'),W/2,m+26*u,26*u,'#fff','center');
+ txt(livre?fmt(km,1)+' km • '+(recL?'recorde '+fmt(recL,1)+' km':'PEDAL LIVRE'):fmt(km,1)+' km • '+(rec?'recorde '+relogio(rec):'meta '+fmt(P.dist,0)+' km'),W/2,m+26*u,26*u,'#fff','center');
  pilula(bL,bY,bw,12*u+2,'rgba(28,38,52,.75)');pilula(bL,bY,Math.max(12*u+2,bw*pc),12*u+2,'rgba(245,197,24,.35)');
  ctx.fillStyle='#f5c518';ctx.beginPath();ctx.arc(bL+bw*pc,bY+6*u+1,13*u+2,0,7);ctx.fill();ctx.strokeStyle='#33404f';ctx.lineWidth=3*u;ctx.stroke();
  const fq=6*u;for(let i=0;i<3;i++)for(let j=0;j<4;j++){ctx.fillStyle=(i+j)%2?'#222':'#fff';ctx.fillRect(bL+bw-6*u+j*fq,bY-6*u+i*fq,fq,fq)}
@@ -436,7 +654,7 @@ function hud(u){
  ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(gx,gy-4*u,6*u,0,7);ctx.fill();ctx.lineCap='butt';
  txt(fmt(kmh,0),gx+gr+18*u,gy,48*u,'#fff');
  const kw=ctx.measureText(fmt(kmh,0)).width;txt('km/h',gx+gr+26*u+kw,gy,24*u,'#fff');
- const vMed=S.t>0?S.x/(S.t*P.ts)*3.6:0;txt('Média '+fmt(vMed,1)+' km/h',gx+gr+18*u,gy+24*u,16*u,'#e6ecf2','left',700);
+ const vMed=tp>0?(S.x-S.x0)/(tp*P.ts)*3.6:0;txt('Média '+fmt(vMed,1)+' km/h',gx+gr+18*u,gy+24*u,16*u,'#e6ecf2','left',700);
  // média de watts e % do FTP (da média)
  const mx=W/2+215*u;txt('MÉDIA '+fmt(media,0)+'w',mx,gy-12*u,24*u,'#fff','right');
  txt('FTP '+F+'w',mx,gy+12*u,16*u,'#e6ecf2','right',700);
@@ -470,12 +688,13 @@ function hud(u){
  txt(fmt(pctA,0)+'%',bX,bYr-br-58*u,40*u,corP,'center');
  txt(fmt(S.pw,0)+' w',bX,bYr-br-18*u,30*u,'#fff','center');
  ctx.restore();
- if(S.t<4)txt('Toque ou segure em qualquer lugar da tela (ou Espaço)',W/2,H*.42,20*u,'#fff','center',700);
+ if(tp<4)txt('Toque ou segure em qualquer lugar da tela (ou Espaço)',W/2,H*.42,20*u,'#fff','center',700);
  // itens: em linha à esquerda da barra, como no jogo antigo (toque no item ou teclas 1–4)
  botItens=[];
  ITEM.forEach((I,i)=>{const x=m+i*(iw+ig),y=byB+bh/2-ih/2,n=S.it[I.id],ativo=S.efe.some(e=>e.id===I.id);botItens.push({id:I.id,x,y,w:iw,h:ih});
   rr(ctx,x,y,iw,ih,12*u);ctx.fillStyle=ativo?'rgba(245,197,24,.55)':'rgba(28,38,52,.62)';ctx.fill();
-  if(ok(I.img)){const im=I.img,k2=Math.min((iw-10*u)/im.width,(ih-10*u)/im.height);ctx.globalAlpha=n?1:.3;
+  const imI=I.niv?I.niv[clamp(n,0,5)]:I.img;
+  if(ok(imI)){const im=imI,k2=Math.min((iw-10*u)/im.width,(ih-10*u)/im.height);ctx.globalAlpha=n?1:.3;
    ctx.drawImage(im,x+iw/2-im.width*k2/2,y+ih/2-im.height*k2/2,im.width*k2,im.height*k2);ctx.globalAlpha=1}
   ctx.beginPath();ctx.arc(x+iw-4*u,y+6*u,11*u+3,0,7);ctx.fillStyle=n?'#f5c518':'#55606e';ctx.fill();
   txt(String(n),x+iw-4*u,y+11*u,15*u+2,'#1c2634','center',800,false)});
@@ -491,21 +710,44 @@ function perfil(u,m){
  ctx.beginPath();ctx.moveTo(Xp(0),iy+ih);hs.forEach((h,i)=>ctx.lineTo(Xp(i),Yp(h)));ctx.lineTo(Xp(n),iy+ih);ctx.closePath();
  ctx.fillStyle='rgba(255,255,255,.14)';ctx.fill();
  ctx.beginPath();hs.forEach((h,i)=>i?ctx.lineTo(Xp(i),Yp(h)):ctx.moveTo(Xp(i),Yp(h)));ctx.strokeStyle='rgba(255,255,255,.85)';ctx.lineWidth=2*u+.5;ctx.stroke();
- const meta=P.dist*1000;if(meta>x0&&meta<x1){const fx=ix+iw*(meta-x0)/(x1-x0);ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillRect(fx-1,iy,2,ih)}
+ const meta=S.x0+P.dist*1000;if(MODO==='crono'&&meta>x0&&meta<x1){const fx=ix+iw*(meta-x0)/(x1-x0);ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillRect(fx-1,iy,2,ih)}
  const cx=ix+iw*(S.x-x0)/(x1-x0),cy=Yp(alt(S.x));
  ctx.fillStyle='rgba(245,197,24,.55)';ctx.fillRect(ix,iy+ih-1,cx-ix,2*u+1);
  ctx.beginPath();ctx.arc(cx,cy,5*u+1.5,0,7);ctx.fillStyle='#f5c518';ctx.fill();ctx.strokeStyle='#1c2634';ctx.lineWidth=2*u;ctx.stroke()}
 // ---------------------------------------------------------------------------------------------
 // recorde e chegada
 function recorde(){try{return +localStorage.getItem('cenario_rec_'+P.dist)||0}catch(e){return 0}}
-function chegada(){S.fim=true;const t=S.t*P.ts,r=recorde();let novo=!r||t<r;if(novo)try{localStorage.setItem('cenario_rec_'+P.dist,t)}catch(e){}
+function chegada(){S.fim=true;const t=(S.t-S.t0)*P.ts,r=recorde();let novo=!r||t<r;if(novo)try{localStorage.setItem('cenario_rec_'+P.dist,t)}catch(e){}
  abrePausa('CHEGADA',relogio(t)+(novo?' • novo recorde!':' • recorde '+relogio(r)))}
-// ---------------------------------------------------------------------------------------------
+function quebrou(){S.fim=true;if(MODO==='livre')fimPedal(false);else abrePausa('QUEBROU','Acabou o fôlego no km '+fmt((S.x-S.x0)/1000,1))}
+// fim do Pedal Livre: placar, XP e moedas (regras do livre.js antigo). Paga UMA vez (S.pago) e salva junto.
+function fimPedal(aband){if(S.pago)return;S.pago=true;S.fim=true;pausado=true;dedos.clear();teclado=false;atualizaHold();
+ const km=Math.max(0,(S.x-S.x0)/1000),tp=(S.t-S.t0)*P.ts,avg=tp>0?km*3600/tp:0,pp=patPedal(avg),L=[];let moedas=0,xp=0,up=0,rec=false;
+ L.push(['Distância',fmt(km,1)+' km'],['Tempo',relogio(tp)],['Média',fmt(avg,1)+' km/h · '+pp.n]);
+ if(S.vacKm>=.1)L.push(['No vácuo',fmt(S.vacKm,1)+' km']);
+ if(LAB())L.push(['LAB do GM','nada vai para a carreira']);
+ else{moedas=Math.floor((km*ECO.moedaKm+S.vacKm*ECO.moedaVac)*pp.mm);
+  if(aband)moedas=Math.floor(moedas*ECO.aband);
+  else{xp=km*ECO.xpKm*pp.m+(S.vacKm>=.5?S.vacKm*ECO.xpVac*pp.m:0);
+   if(km>CS.recLivre&&km>.5){xp+=ECO.xpRec;moedas+=ECO.moedaRec;CS.recLivre=+km.toFixed(2);rec=true}}
+  xp=Math.round(xp);CS.moedas+=moedas;up=ganharXP(xp);CS.livres++;CS.kmTotal=+(CS.kmTotal+km).toFixed(2);csSalvar();
+  if(S.moedasRun)L.push(['Moedas na pista','+'+S.moedasRun]);
+  L.push(['Moedas da pedalada','+'+moedas+(aband?' (encerrou: 80%)':'')],['XP',aband?'0 (encerrou)':'+'+xp+' ×'+String(pp.m).replace('.',',')]);
+  if(rec)L.push(['NOVO RECORDE','+20 XP · +20 moedas']);
+  if(up)L.push(['NÍVEL '+CS.nivel+'!','+'+up+' ponto'+(up>1?'s':'')+' de habilidade']);
+  L.push(['Saldo',fmt(CS.moedas,0)+' moedas'])}
+ document.getElementById('fimT').textContent=aband?'PEDALADA ENCERRADA':'QUEBROU';
+ document.getElementById('fimS').textContent=aband?'':'Acabou o fôlego no km '+fmt(km,1);
+ document.getElementById('fimL').innerHTML=L.map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('');
+ pausaEl.hidden=true;document.getElementById('fim').hidden=false}
 // ---------------------------------------------------------------------------------------------
 // Itens
 const GEL_RENDE=[1,.75,.55,.4];
-function usar(id){if(pausado||S.fim||!S.it[id]||S.efe.some(e=>e.id===id))return;S.it[id]--;let txtm='';
- if(id==='gel'){const k=GEL_RENDE[Math.min(S.nGel++,3)],q=(100-S.teto)*P.gelFrac/100*k;S.teto=Math.min(100,S.teto+q);txtm='GEL −'+fmt(q,0)+' FADIGA'+(k<1?' (rendeu '+Math.round(k*100)+'%)':'')}
+function usar(id){if(MODO==='abertura'||pausado||S.fim||!S.it[id]||S.efe.some(e=>e.id===id))return;S.it[id]--;let txtm='';
+ // carreira: o item sai do inventário quando é usado (o que não usou continua seu); a garrafa de iso abre no 1º gole
+ if(!LAB()){if(id==='iso'){if(!S.isoAberto){S.isoAberto=true;CS.inv.iso=Math.max(0,CS.inv.iso-1)}}else if(id!=='agua')CS.inv[id]=Math.max(0,CS.inv[id]-1);csSalvar()}
+ if(id==='azul'){S.teto=100;S.ms=0;S.mord=0;S.acum=0;txtm='GEL AZUL: VIDA EXTRA!'}
+ else if(id==='gel'){const k=GEL_RENDE[Math.min(S.nGel++,3)],q=(100-S.teto)*P.gelFrac/100*k;S.teto=Math.min(100,S.teto+q);txtm='GEL −'+fmt(q,0)+' FADIGA'+(k<1?' (rendeu '+Math.round(k*100)+'%)':'')}
  else{const f=id==='agua'?P.aguaFad:id==='iso'?P.isoFad:P.bananaFad,s=id==='agua'?0:id==='iso'?P.isoSta:P.bananaSta;
   S.efe.push({id,fad:f,sta:s,f0:f,s0:s,seg:id==='agua'?P.aguaSeg:1.5});
   txtm=(id==='agua'?'ÁGUA':id==='iso'?'ISOTÔNICO':'BANANA')+' −'+f+' FADIGA'+(s?' · +'+s+' STAMINA':'')}
@@ -516,27 +758,31 @@ let AC=null,gMus,gSfx,BUF={},LP={};
 function somLiga(){if(AC){if(AC.state==='suspended')AC.resume();return}
  try{AC=new(window.AudioContext||window.webkitAudioContext)()}catch(e){return}
  gMus=AC.createGain();gSfx=AC.createGain();gMus.gain.value=0;gSfx.gain.value=0;gMus.connect(AC.destination);gSfx.connect(AC.destination);
- ['game','pedal','freewheel','bonus'].forEach(k=>fetch('sons/'+k+'.mp3').then(r=>r.arrayBuffer()).then(b=>new Promise((ok,no)=>AC.decodeAudioData(b,ok,no)))
-  .then(d=>{BUF[k]=d;if(k!=='bonus'){const s=AC.createBufferSource();s.buffer=d;s.loop=true;const g=AC.createGain();g.gain.value=0;s.connect(g);g.connect(k==='game'?gMus:gSfx);s.start();LP[k]={s,g}}}).catch(()=>{}))}
+ ['game','pedal','freewheel','bonus','caminhao','buzina','macaco','moeda'].forEach(k=>fetch('sons/'+k+'.mp3').then(r=>r.arrayBuffer()).then(b=>new Promise((ok,no)=>AC.decodeAudioData(b,ok,no)))
+  .then(d=>{BUF[k]=d;if(['game','pedal','freewheel','caminhao'].includes(k)){const s=AC.createBufferSource();s.buffer=d;s.loop=true;const g=AC.createGain();g.gain.value=0;s.connect(g);g.connect(k==='game'?gMus:gSfx);s.start();LP[k]={s,g}}}).catch(()=>{}))}
 function som(k){if(!AC||!BUF[k])return;const s=AC.createBufferSource();s.buffer=BUF[k];s.connect(gSfx);s.start()}
 function somTick(){if(!AC)return;const t=AC.currentTime,kmh=S.v*3.6,on=P.som>.5,cor=!pausado&&!S.fim,
  ped=cor&&S.pw>=25?clamp(.3+kmh/45*.7,0,1):0,livre=cor&&S.pw<25&&kmh>3?clamp(.35+kmh/50*.65,0,1):0;
  gMus.gain.setTargetAtTime(on?P.musica*.5*(pausado?.4:1):0,t,.1);gSfx.gain.setTargetAtTime(on?P.efeitos:0,t,.08);
  if(LP.pedal){LP.pedal.g.gain.setTargetAtTime(ped*.85,t,.12);LP.pedal.s.playbackRate.setTargetAtTime(clamp(.75+kmh/40*.55,.7,1.5),t,.15)}
  if(LP.freewheel){LP.freewheel.g.gain.setTargetAtTime(livre*1.2,t,.12);LP.freewheel.s.playbackRate.setTargetAtTime(clamp(.8+kmh/50*.5,.7,1.4),t,.15)}
- if(LP.game)LP.game.g.gain.setTargetAtTime(1,t,.3)}
+ if(LP.game)LP.game.g.gain.setTargetAtTime(1,t,.3);
+ if(LP.caminhao){const c=EV&&EV.cam,d=c&&cor?Math.abs(CAMV.bx+(c.d-S.x)*CAMV.sk+c.tw/2-CAMV.bx):1e9;LP.caminhao.g.gain.setTargetAtTime(clamp(1-d/(W*.9),0,1)*.7,t,.2)}}
 const pausaEl=document.getElementById('pausa');
 function abrePausa(t='PAUSA',sub=''){pausado=true;document.getElementById('pTit').textContent=t;document.getElementById('pSub').textContent=sub;
- document.getElementById('continuar').hidden=S.fim;pausaEl.hidden=false;dedos.clear();teclado=false;atualizaHold()}
+ document.getElementById('continuar').hidden=S.fim;document.getElementById('encerrar').hidden=MODO!=='livre'||S.fim;pausaEl.hidden=false;dedos.clear();teclado=false;atualizaHold()}
 function fechaPausa(){pausaEl.hidden=true;pausado=false;ult=performance.now()}
 const dedos=new Set();let teclado=false;
 function atualizaHold(){const h=dedos.size>0||teclado;if(h&&!S.hold&&navigator.vibrate)try{navigator.vibrate(10)}catch(e){}S.hold=h}
-cv.addEventListener('pointerdown',e=>{e.preventDefault();somLiga();const p=botPausa;
+cv.addEventListener('pointerdown',e=>{e.preventDefault();somLiga();if(MODO==='abertura')return;const p=botPausa;
  if(e.clientX>=p.x&&e.clientX<=p.x+p.w&&e.clientY>=p.y&&e.clientY<=p.y+p.h){abrePausa();return}
  for(const b of botItens)if(e.clientX>=b.x&&e.clientX<=b.x+b.w&&e.clientY>=b.y&&e.clientY<=b.y+b.h){usar(b.id);return}
  dedos.add(e.pointerId);try{cv.setPointerCapture(e.pointerId)}catch(_){}atualizaHold()});
 ['pointerup','pointercancel','lostpointercapture'].forEach(n=>cv.addEventListener(n,e=>{dedos.delete(e.pointerId);atualizaHold()}));
-addEventListener('keydown',e=>{somLiga();if(e.code==='Space'&&!pausado){e.preventDefault();teclado=true;atualizaHold()}
+addEventListener('keydown',e=>{somLiga();
+ if(MODO==='abertura'){if(e.code==='Escape'&&!centralEl.hidden)fechaCentral();else if((e.code==='Enter'||e.code==='Space')&&INTRO.botoes&&centralEl.hidden){e.preventDefault();comecar('livre')}return}
+ if(!document.getElementById('fim').hidden)return;
+ if(e.code==='Space'&&!pausado){e.preventDefault();teclado=true;atualizaHold()}
  for(const I of ITEM)if(e.code===I.k||e.code==='Numpad'+I.k.slice(5))usar(I.id);
  if(e.code==='KeyF')telaCheia();
  if(e.code==='Escape'||e.code==='KeyP'){pausado?(!S.fim&&fechaPausa()):abrePausa()}});
@@ -557,7 +803,7 @@ function numeros(){const b=B();document.getElementById('resumo').innerHTML=
  `FTP cravado (sem oscilar): a barra dura ~${fmt(60/(P.fadH*b.fol/100),0)} min de prova<br>Peso ${b.massa-8} kg (+8 bike) · ${fmt(P.ftp/(b.massa-8),2)} W/kg`;
  texto.value='CENÁRIO '+VERSAO+'\nBUILD: '+SLB.map(([k,rot])=>rot+' '+P[k]).join(' · ')+'\n'+SL.filter(s=>s.length>1).map(([k,rot])=>rot+': '+P[k]).join('\n')}
 function salva(){try{localStorage.setItem('cenario_parallax5',JSON.stringify(P))}catch(e){}}
-try{let s=JSON.parse(localStorage.getItem('cenario_parallax5')||'null');
+if(GM)try{let s=JSON.parse(localStorage.getItem('cenario_parallax5')||'null');
  if(!s){s=JSON.parse(localStorage.getItem('cenario_parallax4')||'null');if(s)delete s.sprCusto}   // 27/11 12h: sprint mais caro (50%)
  if(!s){s=JSON.parse(localStorage.getItem('cenario_parallax3')||'null');   // 27/11: barra nova; ajustes antigos que mudaram de sentido ficam no padrão
   if(s)['ts','desg','cansa','wSprint','cheia','fadBat','sprintApos'].forEach(k=>delete s[k])}
@@ -567,7 +813,11 @@ document.getElementById('abrir').onclick=()=>{painel.hidden=false};
 document.getElementById('fechar').onclick=()=>{painel.hidden=true};
 document.getElementById('abrirB').onclick=()=>{document.getElementById('build').hidden=false};
 document.getElementById('fecharB').onclick=()=>{document.getElementById('build').hidden=true};
-document.getElementById('reini').onclick=()=>{reiniciar();painel.hidden=true;document.getElementById('build').hidden=true;fechaPausa()};
+document.getElementById('reini').onclick=()=>{const m=MODO;painel.hidden=true;document.getElementById('build').hidden=true;fechaPausa();novaDemo(false);if(m!=='abertura')comecar(m)};
+document.getElementById('paraInicio').onclick=()=>{painel.hidden=true;document.getElementById('build').hidden=true;if(MODO==='livre'&&!S.pago){fimPedal(true);return}novaDemo(false)};
+document.getElementById('encerrar').onclick=()=>{if(MODO==='livre')fimPedal(true)};
+const btLab=document.getElementById('lab');function labTxt(){btLab.textContent=LAB()?'LAB: LIGADO (build e itens dos ajustes)':'LAB: DESLIGADO (jogando como jogador)'}
+btLab.onclick=()=>{P.lab=LAB()?0:1;salva();labTxt();const m=MODO;fechaPausa();novaDemo(false);if(m!=='abertura')comecar(m)};labTxt();
 document.getElementById('padrao').onclick=()=>{Object.assign(P,PADRAO);salva();montaPainel()};
 document.getElementById('copiar').onclick=()=>{numeros();const b=document.getElementById('copiar');
  const okc=()=>{b.textContent='COPIADO';setTimeout(()=>b.textContent='COPIAR NÚMEROS',1500)};
@@ -581,8 +831,90 @@ function telaCheia(){const d=document.documentElement;try{if(emCheia())(document
 btCheia.onclick=telaCheia;
 ['fullscreenchange','webkitfullscreenchange'].forEach(n=>document.addEventListener(n,()=>{btCheia.textContent=emCheia()?'SAIR DA TELA CHEIA':'TELA CHEIA';setTimeout(tam,50)}));
 // ---------------------------------------------------------------------------------------------
-tam();reiniciar();montaPainel();
+// ---------------------------------------------------------------------------------------------
+// ABERTURA → JOGO na mesma cena. novaDemo: descida sem fim com o ciclista embalado; comecar: mesmo ciclista, mesma descida, mesma velocidade.
+const inicioEl=document.getElementById('inicio'),centralEl=document.getElementById('central');
+function mostraInicio(v){inicioEl.classList.toggle('fora',!v);inicioEl.querySelectorAll('button').forEach(b=>b.disabled=!v)}
+function novaDemo(intro){MODO='abertura';DESCE=true;EV=null;reiniciar();S.v=11.5;INTRO.t=intro?0:INTRO.dur;INTRO.botoes=false;mostraInicio(false);
+ document.getElementById('fim').hidden=true;pausaEl.hidden=true;pausado=false;ult=performance.now()}
+function bolsoInicial(){if(LAB())return{agua:P.aguaQ,iso:P.isoQ,banana:P.bananaQ,gel:P.gelQ,azul:1};
+ const I=CS.inv,b=ECO.bolso;return{agua:b.agua,iso:I.iso>0?b.iso:0,banana:Math.min(I.banana,b.banana),gel:Math.min(I.gel,b.gel),azul:Math.min(I.azul,b.azul)}}
+function comecar(modo){if(MODO!=='abertura')return;somLiga();MODO=modo;DESCE=false;fechaCentral();mostraInicio(false);
+ Object.assign(S,{x0:S.x,t0:S.t,soma:0,ganho:0,pico:0,fim:false,teto:100,mord:0,ms:0,msV:0,acum:0,spr:null,sprFeito:false,tw:9999,
+  vacKm:0,moedasRun:0,pago:false,isoAberto:false,nGel:0,efe:[],msg:null,holdT:0,segT:0});
+ S.it=bolsoInicial();EV=modo==='livre'?eventosNovo():null;ult=performance.now()}
+document.getElementById('btPedalar').onclick=()=>comecar('livre');
+document.getElementById('btCentral').onclick=()=>{somLiga();abreCentral('pedalar')};
+document.getElementById('fimDeNovo').onclick=()=>{novaDemo(false);comecar('livre')};
+document.getElementById('fimCentral').onclick=()=>{novaDemo(false);abreCentral('pedalar')};
+// ---------------------------------------------------------------------------------------------
+// CENTRAL DO CICLISTA
+const conteudo=document.getElementById('conteudo');let abaAtual='pedalar';
+// trava contra toque duplo: a mesma ação não repete em menos de 300 ms
+const TRAVA={},trava=k=>{const n=performance.now();if(n-(TRAVA[k]||0)<300)return true;TRAVA[k]=n;return false};
+function abreCentral(aba){if(MODO!=='abertura')return;abaAtual=aba||abaAtual;centralEl.hidden=false;mostraInicio(false);renderCentral()}
+function fechaCentral(){centralEl.hidden=true;if(MODO==='abertura'&&INTRO.botoes)mostraInicio(true)}
+document.getElementById('cVoltar').onclick=fechaCentral;
+centralEl.querySelectorAll('.aba').forEach(b=>b.onclick=()=>{abaAtual=b.dataset.aba;renderCentral()});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
+const imgItem=id=>id==='reset'?'':`<img src="elementos/${GARRAFA(id)?id+'_5':id}.webp" alt="">`;
+function renderCentral(){
+ document.getElementById('cMoedas').textContent=fmt(CS.moedas,0);
+ document.getElementById('cNivel').textContent='NÍVEL '+CS.nivel;
+ centralEl.querySelectorAll('.aba').forEach(b=>{b.setAttribute('aria-selected',b.dataset.aba===abaAtual);
+  b.innerHTML=b.textContent.replace(/\d+$/,'').trim()+(b.dataset.aba==='habil'&&CS.pontos>0?`<span class="bol">${CS.pontos}</span>`:'')});
+ const h=[];
+ if(abaAtual==='pedalar'){const b=bolsoInicial();
+  h.push(`<div class="card"><span class="selo">MODO</span><h3>PEDAL LIVRE</h3><p>Estrada sem fim, até quebrar. Caminhão de banana, moedas na pista.</p>
+   <p>Recorde: <span class="ac">${CS.recLivre?fmt(CS.recLivre,1)+' km':'—'}</span></p>
+   <p>No bolso: água ${b.agua} goles · iso ${b.iso?b.iso+' goles':'—'} · banana ${b.banana} · gel ${b.gel} · gel azul ${b.azul}</p>
+   <button class="lp peq" data-modo="livre" type="button">PEDALAR</button></div>`);
+  h.push(`<div class="card off"><span class="selo">EM BREVE · ETAPA 2</span><h3>RACHÃO</h3><p>Aposta 100 / 250 / 500 moedas, paga na largada. 1º leva 5×, 2º 2×, 3º devolve.
+   Doping liberado: os rivais também usam itens.</p></div>`);
+  h.push(`<div class="card off"><span class="selo">EM BREVE · ETAPA 2</span><h3>CORRIDA</h3><p>Prova oficial da sua patente (30 a 100 km), só água, isotônico e gel. Vencer sobe a patente.</p></div>`);
+  if(GM)h.push(`<div class="card"><span class="selo">SÓ GM · TESTE</span><h3>CONTRARRELÓGIO</h3><p>${fmt(P.dist,0)} km contra o relógio (recorde local). Usa os ajustes.</p>
+   <button class="lp sec peq" data-modo="crono" type="button">TESTAR</button></div>`)}
+ else if(abaAtual==='habil'){const s=CS.sk,bd=B(),ftp=ftpDe(CS.nivel,s.motor),kg=ECO.peso-s.escalada,nx=xpNec(CS.nivel),fim=CS.nivel>=ECO.nivelMax;
+  h.push(`<div class="card larga"><div class="linha"><h3>NÍVEL ${CS.nivel}</h3><span class="ac">${CS.pontos} ponto${CS.pontos===1?'':'s'} para distribuir</span>
+   <span style="margin-left:auto;color:var(--dim)">${fim?'nível máximo':fmt(CS.xp,0)+' / '+fmt(nx,0)+' XP'}</span></div>
+   <div class="xp"><i style="width:${fim?100:clamp(CS.xp/nx*100,0,100)}%"></i></div>
+   <p>FTP <span class="ac">${ftp} W</span> · pico <span class="ac">${700+40*s.sprint} W</span> · ${kg} kg · <span class="ac">${fmt(ftp/kg,2)} W/kg</span> ·
+    fadiga ×${fmt(Math.pow(.92,s.folego),2)} · barra volta ×${fmt(1+.06*s.recup,2)}</p>
+   <p>Cada nível dá 1 ponto (máximo ${ECO.maxAtr} por habilidade, nível ${ECO.nivelMax}). Pode guardar pontos. Mudou de ideia? <b>Resetar pontos</b> na LOJA (250).</p>
+   ${LAB()?'<p class="ac">GM: o LAB está ligado — na pedalada vale a BUILD dos ajustes, não esta.</p>':''}</div>`);
+  const ef={motor:l=>`FTP ${ftpDe(CS.nivel,l)} W`,folego:l=>`fadiga ×${fmt(Math.pow(.92,l),2)}`,recup:l=>`volta ×${fmt(1+.06*l,2)}`,
+   escalada:l=>`${ECO.peso-l} kg`,sprint:l=>`pico ${700+40*l} W`};
+  ATR.forEach(a=>{const l=s[a.k],pode=CS.pontos>0&&l<ECO.maxAtr;
+   h.push(`<div class="card"><div class="linha"><h3>${a.n}</h3><span style="margin-left:auto" class="ac">${l}/${ECO.maxAtr}</span></div>
+    <div class="pips">${Array.from({length:ECO.maxAtr},(_,i)=>`<i class="${i<l?'on':''}"></i>`).join('')}</div><p>${a.d}</p>
+    <div class="linha"><span>${ef[a.k](l)}${l<ECO.maxAtr?' → <span class="ac">'+ef[a.k](l+1)+'</span>':''}</span>
+    <button class="mais" data-atr="${a.k}" type="button" ${pode?'':'disabled'} aria-label="+1 ${a.n}" style="margin-left:auto">+</button></div></div>`)})}
+ else if(abaAtual==='loja'){const usados=Object.values(CS.sk).reduce((a,b)=>a+b,0);
+  ECO.loja.forEach(it=>{const tem=it.id==='reset'?`${usados} ponto${usados===1?'':'s'} usado${usados===1?'':'s'}`:'Você tem '+(CS.inv[it.id]||0),
+    pode=CS.moedas>=it.p&&(it.id!=='reset'||usados>0);
+   h.push(`<div class="card"><div class="linha">${imgItem(it.id)}<div><h3>${it.n}</h3><span class="ac">${fmt(it.p,0)} moedas</span></div></div>
+    <p>${it.d}</p><div class="linha"><span>${tem}</span><button class="lp peq" data-compra="${it.id}" type="button" style="margin-left:auto" ${pode?'':'disabled'}>COMPRAR</button></div></div>`)});
+  h.push(`<div class="card larga"><p>Água: 5 goles grátis em toda pedalada. Itens comprados vão para o inventário e entram no bolso automaticamente
+   (banana até 5, gel até 3, 1 garrafa de isotônico, 1 gel azul). Só sai do inventário o que você usar.</p></div>`)}
+ else if(abaAtual==='garagem')h.push(`<div class="card larga"><span class="selo">ETAPA 3</span><h3>GARAGEM</h3><p>Camisa, cor de pele, quadro e rodas (perfil 40, perfil 60, disco).
+  As peças vão aparecer no ciclista da abertura e da pedalada. Vem na etapa 3, junto com os ciclistas NPC recoloridos.</p></div>`);
+ else h.push(`<div class="card larga"><span class="selo">ETAPA 3</span><h3>CONQUISTAS</h3><p>As conquistas do Time Trial antigo, ligadas aos eventos da pedalada, com recompensa paga uma vez só.
+  Vêm na etapa 3. Seus números já estão sendo guardados: ${CS.livres} pedalada${CS.livres===1?'':'s'}, ${fmt(CS.kmTotal,1)} km.</p></div>`);
+ conteudo.innerHTML=h.join('');
+ conteudo.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>comecar(b.dataset.modo));
+ conteudo.querySelectorAll('[data-atr]').forEach(b=>b.onclick=()=>{const k=b.dataset.atr;if(trava('a'+k))return;
+  if(CS.pontos>0&&CS.sk[k]<ECO.maxAtr){CS.pontos--;CS.sk[k]++;csSalvar()}renderCentral()});
+ conteudo.querySelectorAll('[data-compra]').forEach(b=>b.onclick=()=>comprar(b.dataset.compra))}
+// compra: confere o saldo NA HORA, desconta e entrega juntos e salva; travada contra toque duplo
+function comprar(id){const it=ECO.loja.find(x=>x.id===id);if(!it||CS.moedas<it.p||trava('c'+id))return;
+ if(id==='reset'){let u=0;for(const k in CS.sk){u+=CS.sk[k];CS.sk[k]=0}if(!u)return;CS.pontos+=u}
+ else CS.inv[id]=(CS.inv[id]||0)+1;
+ CS.moedas-=it.p;csSalvar();som('moeda');renderCentral()}
+document.getElementById('gmMoedas').onclick=()=>{if(!GM)return;CS.moedas+=500;csSalvar();renderCentral()};
+document.getElementById('gmNivel').onclick=()=>{if(!GM)return;ganharXP(xpNec(CS.nivel)-CS.xp);csSalvar();renderCentral()};
+document.getElementById('gmZera').onclick=()=>{if(GM&&confirm('Zerar a carreira (moedas, itens, nível, habilidades)?')){CS=csNovo();csSalvar();renderCentral()}};
 let ult=performance.now();
+tam();novaDemo(true);montaPainel();
 function loop(t){const dt=Math.min(.05,(t-ult)/1000);ult=t;if(!pausado)passo(dt);desenha(pausado?0:dt);somTick();requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 </script>
