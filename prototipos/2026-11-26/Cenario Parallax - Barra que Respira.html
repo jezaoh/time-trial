@@ -101,10 +101,17 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 @media (max-height:460px){#central{gap:8px;padding-top:calc(8px + env(safe-area-inset-top,0px))}#central h1{font-size:19px}
  .aba{padding:8px 16px;font-size:13px}.card{padding:10px 12px 14px;gap:6px}.card h3{font-size:16px}.card p{font-size:13px}
  .card img{height:46px}.lp.peq{font-size:14px;padding:8px 18px}#fim h2{font-size:24px}#fimL div{padding:2px 0;font-size:13px}}
+/* 28/11: tela de toque antes da abertura (o navegador só deixa entrar em tela cheia e tocar som depois de um toque) */
+#toque{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;padding-bottom:calc(16vh + env(safe-area-inset-bottom,0px));
+ font:600 clamp(14px,2vw,19px) Poppins,system-ui,sans-serif;letter-spacing:.18em;color:#1c2634;cursor:pointer;animation:pisca 1.6s ease-in-out infinite;
+ -webkit-tap-highlight-color:transparent;user-select:none}
+#toque.fora{opacity:0;pointer-events:none;animation:none;transition:opacity .4s}
+@keyframes pisca{50%{opacity:.35}}
 </style></head><body>
 
 <canvas id="cv"></canvas>
 
+<div id="toque">TOQUE PARA COMEÇAR</div>
 <div id="inicio" class="fora">
  <button class="lp" id="btPedalar" type="button">PEDALAR AGORA</button>
  <button class="lp sec" id="btCentral" type="button">CENTRAL</button>
@@ -182,7 +189,7 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 </aside>
 
 <script>
-const VERSAO='28/11/2026 música de fundo mais alta';
+const VERSAO='28/11/2026 toque para começar (tela cheia) e pausa ao sair do app';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
@@ -353,7 +360,7 @@ function ganharXP(x){let up=0;if(CS.nivel>=ECO.nivelMax){CS.xp=0;return 0}CS.xp+
 const LAB=()=>GM&&P.lab>=.5;                       // GM no laboratório: build e itens vêm dos ajustes, nada é salvo na carreira
 function FTPv(){return LAB()?P.ftp:ftpDe(CS.nivel,CS.sk.motor)}
 let MODO='abertura';                                // abertura · livre · rachao · corrida · crono (teste do GM)
-const INTRO={t:0,dur:6.5,botoes:false};
+const INTRO={t:0,dur:6.5,botoes:false,espera:true};   // espera = parada no céu até o 1º toque
 const mr=(a,b)=>a+Math.random()*(b-a);
 function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,pico:0,tw:9999,holdAnt:false,sprintAnt:false,
  zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:3,fim:false,ganho:0,x0:0,t0:0,vac:0,vacKm:0,moedasRun:0,pago:false,isoAberto:false,logoA:1,
@@ -531,7 +538,7 @@ function desenha(dt){
  const u=Math.min(W,H*1.78)/1000,kmh=S.v*3.6,F=FTPv(),c=ceuAgora();
  // ABERTURA: a câmera começa no céu (camY = quanto o mundo está abaixo do lugar) e desce até o enquadramento do jogo.
  // Cada camada desce com uma fração de camY (montanhas distantes primeiro, estrada por último): o cenário vai sendo revelado.
- if(MODO==='abertura'&&INTRO.t<INTRO.dur)INTRO.t+=dt;
+ if(MODO==='abertura'&&INTRO.t<INTRO.dur&&!INTRO.espera)INTRO.t+=dt;
  const ip=clamp(INTRO.t/INTRO.dur,0,1),camY=H*1.55*(1-(ip<.5?4*ip*ip*ip:1-Math.pow(-2*ip+2,3)/2));
  if(MODO==='abertura'&&ip>=1&&!INTRO.botoes){INTRO.botoes=true;mostraInicio(true)}
  S.logoA=MODO==='abertura'&&centralEl.hidden?Math.min(1,S.logoA+dt*2):Math.max(0,S.logoA-dt*(MODO==="abertura"?1.6:6));
@@ -1232,6 +1239,17 @@ document.getElementById('gmNivel').onclick=()=>{if(!GM)return;ganharXP(xpNec(CS.
 document.getElementById('gmZera').onclick=()=>{if(GM&&confirm('Zerar a carreira (moedas, itens, nível, habilidades)?')){CS=csNovo();csSalvar();renderCentral()}};
 let ult=performance.now();
 tam();novaDemo(true);montaPainel();
+// 28/11: 1º toque = tela cheia + deitado + som, e só então a câmera desce (a entrada completa)
+const toqueEl=document.getElementById('toque');
+toqueEl.addEventListener('pointerdown',e=>{e.preventDefault();if(!INTRO.espera)return;INTRO.espera=false;toqueEl.classList.add('fora');somLiga();
+ const d=document.documentElement;try{const r=!emCheia()&&(d.requestFullscreen||d.webkitRequestFullscreen);if(r){const p=r.call(d,{navigationUI:'hide'});
+  if(p&&p.then)p.then(()=>{try{screen.orientation.lock('landscape').catch(()=>{})}catch(e){}}).catch(()=>{})}}catch(e){}
+ setTimeout(()=>toqueEl.remove(),500)});
+// 28/11: saiu do jogo (botão de início do celular, trocou de app, bloqueou a tela) = música para e a prova pausa
+document.addEventListener('visibilitychange',()=>{
+ if(document.hidden){if(AC&&AC.state==='running')AC.suspend();
+  if(MODO!=='abertura'&&!S.fim&&!pausado){dedos.clear();teclado=false;atualizaHold();abrePausa('PAUSA')}}
+ else{if(AC&&!INTRO.espera)AC.resume();ult=performance.now()}});
 function loop(t){const dt=Math.min(.05,(t-ult)/1000);ult=t;if(!pausado)passo(dt);desenha(pausado?0:dt);somTick();requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 </script>
