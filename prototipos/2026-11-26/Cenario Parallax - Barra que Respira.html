@@ -61,7 +61,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='27/11/2026 12:12 sprint caro (50%) e volta lenta (15 s)';
+const VERSAO='27/11/2026 12:29 subida: qualquer watt anda';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:208,toque:5,morde:12,come:6,tauIn:.06,volta:.1,dureza:2,vazio:3,
@@ -180,7 +180,7 @@ function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0
  zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:0,fim:false,ganho:0,
  it:{agua:P.aguaQ,iso:P.isoQ,banana:P.bananaQ,gel:P.gelQ},efe:[],nGel:0,msg:null,spr:null,sprFeito:false,verdeIni:100,segT:0,ms:0,msV:0,empe:false,empeT:0,empeA:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
 // ---------------------------------------------------------------------------------------------
-const CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6;
+const CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6,FMAX=400;   // 27/11: antes a força usava v ≥ 2 m/s e a bike travava em 0 na subida
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function barra(){return Math.max(0,S.teto-S.mord-S.ms)}   // amarelo = teto (até o vermelho) − mordida (volta ao soltar) − gasto do sprint (volta devagar)
 const B=()=>({pMax:700+40*P.nvSprint,fol:Math.pow(.92,P.nvFolego),folSpr:1-.02*P.nvFolego,rec:1+.06*P.nvRec,massa:75-P.nvEsc+8});
@@ -236,7 +236,7 @@ function passo(dt){
  if(S.teto<=.5&&!S.fim){S.fim=true;abrePausa('QUEBROU','Acabou o fôlego no km '+fmt(S.x/1000,1));return}
  const M=bd.massa,g=rampa(S.x)/100,sn=g/Math.sqrt(1+g*g),cs=1/Math.sqrt(1+g*g),alt0=alt(S.x);
  for(let i=0;i<4;i++){const h=dt/4,v=S.v,
-  a=(ETA*S.pw/Math.max(v,2)-M*GRV*(CRR*cs+sn)-.5*RHO*CDA*v*v)/M;
+  a=(Math.min(ETA*S.pw/Math.max(v,.1),FMAX)-M*GRV*(CRR*cs+sn)-.5*RHO*CDA*v*v)/M;   // força do pedal = P/v (até 400 N de aderência): qualquer watt anda, na subida mais devagar
   S.v=clamp(v+a*h*KIN,0,30);S.x+=S.v*h*P.ts}
  S.ganho+=Math.max(0,alt(S.x)-alt0);
  S.soma+=S.pw*dt;
