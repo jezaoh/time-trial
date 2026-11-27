@@ -61,12 +61,12 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='27/11/2026 12:04 sprint corta no zero + tremor ajustável';
+const VERSAO='27/11/2026 12:12 sprint caro (50%) e volta lenta (15 s)';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:208,toque:5,morde:12,come:6,tauIn:.06,volta:.1,dureza:2,vazio:3,
  fadH:80,fadExp:4.2,fadAcima:5.8,tetoVazio:85,escuro:10,
- sprintApos:1.5,sprMin:25,sprCheia:5,sprMeio:3,sprPicoMeio:60,sprCusto:35,
+ sprintApos:1.5,sprMin:25,sprCheia:5,sprMeio:3,sprPicoMeio:60,sprCusto:50,sprVolta:15,
  empeLiga:115,empeSai:100,
  ts:40,dist:9,zoomV:.12,empurra:1.5,tremor:.3,vento:1,
  vis:23,tam:.4,faixa:.3,larg:22,incl:1,dia:4,neblina:1,
@@ -101,7 +101,8 @@ const SL=[
  ['sprCheia','Sprint com barra cheia (s)',1,12,.5,'Duração no pico com a barra 100%.'],
  ['sprMeio','Sprint com meia barra (s)',1,10,.5,'Duração com a barra em 50% (e abaixo).'],
  ['sprPicoMeio','Pico com meia barra (%)',20,100,1,'Quanto do pico (acima do FTP) sai com meia barra. Barra cheia = 100%.'],
- ['sprCusto','Parte do sprint que vira fadiga (%)',0,100,1,'Do amarelo que o sprint gasta, essa parte vira vermelho para sempre (água/gel devolvem). Soltou, o amarelo volta só até o vermelho.'],
+ ['sprCusto','Parte do sprint que vira fadiga (%)',0,100,1,'Do amarelo que o sprint gasta, essa parte vira vermelho para sempre (água/gel devolvem).'],
+ ['sprVolta','Volta da stamina depois do sprint (s)',.1,60,.5,'O resto do que o sprint gastou volta até o vermelho nesse tempo (devagar). 0,1 = na hora. Isotônico/banana aceleram. A respiração dos toques não muda.'],
  ['CICLISTA EM PÉ'],
  ['empeLiga','Fica em pé acima de (% FTP)',90,200,1,'Por 0,3 s seguidos.'],
  ['empeSai','Senta abaixo de (% FTP)',50,150,1,'Diferença para não ficar piscando.'],
@@ -177,11 +178,11 @@ function hv(x){if(x<=0)return 0;if(HVi!==P.incl){HV=[0];HVi=P.incl}estende(x+DX*
 let S,FX,pausado=false;
 function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,pico:0,tw:9999,holdAnt:false,sprintAnt:false,
  zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:0,fim:false,ganho:0,
- it:{agua:P.aguaQ,iso:P.isoQ,banana:P.bananaQ,gel:P.gelQ},efe:[],nGel:0,msg:null,spr:null,sprFeito:false,verdeIni:100,segT:0,empe:false,empeT:0,empeA:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
+ it:{agua:P.aguaQ,iso:P.isoQ,banana:P.bananaQ,gel:P.gelQ},efe:[],nGel:0,msg:null,spr:null,sprFeito:false,verdeIni:100,segT:0,ms:0,msV:0,empe:false,empeT:0,empeA:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
 // ---------------------------------------------------------------------------------------------
 const CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-function barra(){return Math.max(0,S.teto-S.mord)}   // amarelo = teto (até o vermelho) − mordida (volta ao soltar)
+function barra(){return Math.max(0,S.teto-S.mord-S.ms)}   // amarelo = teto (até o vermelho) − mordida (volta ao soltar) − gasto do sprint (volta devagar)
 const B=()=>({pMax:700+40*P.nvSprint,fol:Math.pow(.92,P.nvFolego),folSpr:1-.02*P.nvFolego,rec:1+.06*P.nvRec,massa:75-P.nvEsc+8});
 // fadiga por hora de PROVA em função de r = watts/FTP: abaixo do FTP r^curva; acima cresce rápido (punitivo)
 function fadHora(r){return P.fadH*(r<=1?Math.pow(Math.max(0,r),P.fadExp):1+P.fadAcima*Math.pow(r-1,1.5))}
@@ -202,7 +203,7 @@ function passo(dt){
  // 27/11: barra AMARELA (stamina) e VERMELHA (fadiga) coladas. O sprint gasta o amarelo (pode zerar; zerou, acabou o sprint);
  // parte do gasto vira fadiga; soltou, o amarelo volta até o vermelho. Só a fadiga no fim derruba (QUEBROU).
  if(S.hold&&!S.spr&&!S.sprFeito&&S.segT>P.sprintApos){
-  if(S.verdeIni>=P.sprMin){S.spr=Object.assign(sprintPlano(S.verdeIni),{t:0});S.pico=0;S.mord=Math.max(0,S.teto-S.verdeIni)}else S.sprFeito=true}   // a mordida volta: o amarelo na tela é o combustível do sprint
+  if(S.verdeIni>=P.sprMin){S.spr=Object.assign(sprintPlano(S.verdeIni),{t:0});S.pico=0;S.mord=Math.max(0,S.teto-S.ms-S.verdeIni)}else S.sprFeito=true}   // a mordida volta: o amarelo na tela é o combustível do sprint
  const sprint=!!S.spr;S.sprintAnt=sprint;
  if(sprint){S.pw+=(S.spr.pico-S.pw)*Math.min(1,dt*10);S.pw=Math.min(S.pw,S.spr.pico)}
  else if(S.hold){const al=alvoDe(S.holdT);S.pw+=(al-S.pw)*Math.min(1,dt*10)}
@@ -214,12 +215,13 @@ function passo(dt){
  if(sprint)S.pico=Math.max(S.pico,S.pw);
  const r=S.pw/F,baixa=1-b/100,dur=1+P.dureza*baixa*baixa;
  if(sprint){const sp=S.spr,resta=Math.max(dt,sp.dur-sp.t),d=barra()*Math.min(1,dt/resta),cf=Math.min(d,sp.custo*Math.min(dt,resta)/sp.dur);
-  S.teto-=cf;S.mord+=d-cf;                                     // o amarelo escorre até zerar no fim; o preço vira fadiga, o resto volta ao soltar
+  S.teto-=cf;S.ms+=d-cf;S.msV=0;                               // o amarelo escorre até zerar no fim; o preço vira fadiga, o resto volta devagar (sprVolta)
   sp.t+=dt;if(sp.t>=sp.dur||barra()<.5){S.spr=null;S.sprFeito=true;S.tw=tv;S.pw=Math.min(S.pw,tv)}}   // zerou: corta na hora (sem rabo de watts)
  else if(S.hold){S.acum+=P.come*r*dur*dt;                          // respiração do toque (igual à do dono)
   const alvo=(P.toque+P.morde*Math.pow(Math.min(r,1.3),1.6))*dur+S.acum;
-  S.mord=Math.min(S.teto,S.mord+Math.max(0,alvo-S.mord)*Math.min(1,dt/P.tauIn))}
+  S.mord=Math.min(S.teto-S.ms,S.mord+Math.max(0,alvo-S.mord)*Math.min(1,dt/P.tauIn))}
  else{S.acum=0;S.mord*=Math.exp(-dt*bd.rec/(P.volta*dur))}
+ if(!sprint&&S.ms>0){if(!S.msV)S.msV=S.ms/Math.max(.1,P.sprVolta);S.ms=Math.max(0,S.ms-S.msV*bd.rec*dt)}   // volta linear do gasto do sprint
  if(S.hold&&!sprint&&b<3)S.teto-=P.vazio*bd.fol*dt;   // segurando com o verde vazio: o vermelho avança rápido até quebrar
  if(!sprint)S.teto-=fadHora(r)*bd.fol*dt*P.ts/3600;   // fadiga do tempo de PROVA (o sprint tem preço próprio)
  S.teto=Math.max(0,S.teto);
@@ -229,8 +231,8 @@ function passo(dt){
  S.empeA=clamp((S.empeA||0)+(S.empe?dt:-dt)/.15,0,1);
  // itens: efeito aos poucos (fadiga volta para o teto; stamina enche a barra)
  S.efe=S.efe.filter(e=>{const k=Math.min(1,dt/e.seg);const qf=Math.min(e.fad,e.f0*k),qs=Math.min(e.sta,e.s0*k);
-  e.fad-=qf;e.sta-=qs;S.teto=Math.min(100,S.teto+qf);S.mord=Math.max(0,S.mord-qs);return e.fad>.01||e.sta>.01});
- S.mord=clamp(S.mord,0,S.teto);
+  e.fad-=qf;e.sta-=qs;S.teto=Math.min(100,S.teto+qf);const qm=Math.min(S.ms,qs);S.ms-=qm;S.mord=Math.max(0,S.mord-(qs-qm));return e.fad>.01||e.sta>.01});
+ S.ms=clamp(S.ms,0,S.teto);S.mord=clamp(S.mord,0,S.teto-S.ms);
  if(S.teto<=.5&&!S.fim){S.fim=true;abrePausa('QUEBROU','Acabou o fôlego no km '+fmt(S.x/1000,1));return}
  const M=bd.massa,g=rampa(S.x)/100,sn=g/Math.sqrt(1+g*g),cs=1/Math.sqrt(1+g*g),alt0=alt(S.x);
  for(let i=0;i<4;i++){const h=dt/4,v=S.v,
@@ -547,8 +549,9 @@ function numeros(){const b=B();document.getElementById('resumo').innerHTML=
  `Pico ${fmt(b.pMax,0)} W · sprint cheio ${fmt(P.sprCheia,1)} s (custa ${fmt(P.sprCusto*b.folSpr,0)}% da barra)<br>Fadiga do tempo ×${fmt(b.fol,2)} · volta da barra ×${fmt(b.rec,2)}<br>`+
  `FTP cravado (sem oscilar): a barra dura ~${fmt(60/(P.fadH*b.fol/100),0)} min de prova<br>Peso ${b.massa-8} kg (+8 bike) · ${fmt(P.ftp/(b.massa-8),2)} W/kg`;
  texto.value='CENÁRIO '+VERSAO+'\nBUILD: '+SLB.map(([k,rot])=>rot+' '+P[k]).join(' · ')+'\n'+SL.filter(s=>s.length>1).map(([k,rot])=>rot+': '+P[k]).join('\n')}
-function salva(){try{localStorage.setItem('cenario_parallax4',JSON.stringify(P))}catch(e){}}
-try{let s=JSON.parse(localStorage.getItem('cenario_parallax4')||'null');
+function salva(){try{localStorage.setItem('cenario_parallax5',JSON.stringify(P))}catch(e){}}
+try{let s=JSON.parse(localStorage.getItem('cenario_parallax5')||'null');
+ if(!s){s=JSON.parse(localStorage.getItem('cenario_parallax4')||'null');if(s)delete s.sprCusto}   // 27/11 12h: sprint mais caro (50%)
  if(!s){s=JSON.parse(localStorage.getItem('cenario_parallax3')||'null');   // 27/11: barra nova; ajustes antigos que mudaram de sentido ficam no padrão
   if(s)['ts','desg','cansa','wSprint','cheia','fadBat','sprintApos'].forEach(k=>delete s[k])}
  if(s)Object.keys(PADRAO).forEach(k=>{if(k in s)P[k]=s[k]})}catch(e){}
