@@ -60,20 +60,20 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='26/11/2026 cenário 2';
+const VERSAO='27/11/2026 00:47 estrada curva + barra única';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:208,toque:5,morde:12,come:6,tauIn:.06,volta:.1,desg:15,dureza:2,cansa:2.5,vazio:3,
- sprintApos:1.8,batVolta:4,fadBat:25,
+ sprintApos:1.5,fadBat:25,wSprint:22,cheia:20,
  ts:22,dist:9,zoomV:.12,empurra:1.5,vento:1,
- vis:23,tam:.4,faixa:764,incl:1.5,dia:4,neblina:1,
+ vis:23,tam:.4,faixa:.3,larg:22,incl:1,dia:4,neblina:1,
  nvSprint:2,nvFolego:3,nvRec:3,nvEsc:2};
 const P=Object.assign({},PADRAO);
 const SLB=[
  ['ftp','Motor: FTP (W)',120,400,1,'Sua força de 1 hora. Tudo é medido em % dela.'],
- ['nvSprint','Sprint (nível)',0,10,1,'Pico = 700 + 40 W por nível e +5% de bateria por nível.'],
+ ['nvSprint','Sprint (nível)',0,10,1,'Pico = 700 + 40 W por nível e o sprint come 5% menos barra por nível.'],
  ['nvFolego','Fôlego (nível)',0,10,1,'−5% de fadiga por nível.'],
- ['nvRec','Recuperação (nível)',0,10,1,'Bateria do sprint recarrega +6% mais rápido por nível.'],
+ ['nvRec','Recuperação (nível)',0,10,1,'A barra volta +6% mais rápido por nível.'],
  ['nvEsc','Escalada (nível)',0,10,1,'−1 kg por nível (75 kg no nível 0).']];
 const SL=[
  ['BARRA'],
@@ -87,17 +87,19 @@ const SL=[
  ['cansa','Fadiga por stamina gasta (%)',0,20,.5,'Cada 100 de stamina mordida (no FTP) come isso do teto.'],
  ['vazio','Castigo de segurar vazio (/s)',0,15,.5,'Segurando com a barra zerada, o teto cai isso por segundo.'],
  ['SPRINT'],
- ['sprintApos','Sprint liga depois de (s)',.4,3,.1,'Segurando mais que isso, o turbo liga.'],
- ['batVolta','Recarga da bateria (%/s)',0,15,.5,'Pedalando abaixo do FTP.'],
- ['fadBat','Fadiga por bateria gasta',0,60,1,'Gastar 100% da bateria come isso do teto.'],
+ ['sprintApos','Sprint liga depois de (s)',.4,3,.1,'Segurando mais que isso, o turbo liga. Ele é pago pela MESMA barra; barra vazia = sem sprint.'],
+ ['wSprint','Tamanho do sprint (kJ)',4,40,.5,'Energia acima do FTP que a barra cheia paga no sprint. Maior = sprint mais longo.'],
+ ['cheia','Pico liberado até (%)',10,100,1,'Com a barra acima disso dá o pico; abaixo, o teto de watts cai junto com a barra.'],
+ ['fadBat','Fadiga do sprint',0,60,1,'Gastar a barra inteira no sprint come isso do teto (fadiga).'],
  ['PROVA'],
  ['ts','Tempo acelerado (×)',1,100,1,'1 s real = N s de prova.'],
  ['dist','Distância da prova (km)',2,100,1,'Barra de progresso lá em cima.'],
  ['CENÁRIO'],
  ['vis','Velocidade visual do cenário',5,150,1,'Quantos pixels a estrada anda por m/s. Só visual.'],
  ['tam','Tamanho do ciclista',.1,1,.01,'Em relação à arte do cenário.'],
- ['faixa','Posição na estrada',740,830,1,'Linha da arte (em px) onde a roda encosta. Faixa de cima ≈ 742–770, de baixo ≈ 780–810.'],
- ['incl','Inclinação da câmera',0,4,.1,'Quanto o mundo inclina nas subidas e descidas.'],
+ ['faixa','Faixa do ciclista',0,1,.01,'0 = borda de trás da pista, 1 = borda da frente. Faixa de trás ≈ 0,25.'],
+ ['larg','Largura da estrada',10,90,1,'Altura da pista na tela (os dois lados sempre aparecem).'],
+ ['incl','Inclinação desenhada (×)',.3,2,.05,'1 = 6% ≈ 18°, 10% ≈ 30°, 12% ≈ 35°.'],
  ['dia','Ciclo do dia (min reais)',0,20,.5,'Dia → pôr do sol → noite → amanhecer. 0 = sempre dia.'],
  ['neblina','Neblina entre camadas',0,2,.1,'Névoa de profundidade nas montanhas.'],
  ['zoomV','Câmera afasta na velocidade',0,.6,.01,'Quanto a câmera abre quando está rápido.'],
@@ -107,9 +109,10 @@ const SL=[
 // Imagens: camadas da arte (todas 3344×941, alinhadas e emendáveis) + sprite pedalando (17 quadros 320×292)
 const IW=3344,IH=941,FW=320,FH=292,NQ=17,PE=284; // PE = linha do pneu no quadro
 const carrega=s=>{const i=new Image();i.src=encodeURI(s);return i};
-const CAM=[['02-montanhas-distantes',.06,.30],['03-montanhas-intermediarias',.14,.20],['04-colinas-distantes',.28,.10],
- ['05-campo-e-arvores',.45,0],['06-estrada',1,0],['07-acostamento-gramado',1.2,0],['08-vegetacao-desfocada',1.7,0]]
- .map(([n,f,nev])=>({img:carrega('cenario-parallax/'+n+'.png'),f,nev}));
+// fundo em parallax (f = horizontal, nev = neblina, fv = quanto desce quando você sobe); estrada e morro da frente são desenhados em código
+const CAM=[['02-montanhas-distantes',.06,.30,.03],['03-montanhas-intermediarias',.14,.20,.06],['04-colinas-distantes',.28,.10,.1],
+ ['05-campo-e-arvores',.45,0,.16]].map(([n,f,nev,fv])=>({img:carrega('cenario-parallax/'+n+'.png'),f,nev,fv}));
+const FRENTE={img:carrega('cenario-parallax/08-vegetacao-desfocada.png'),f:1.7};
 const SPR=carrega('ciclista branco/sprite pedalando/pedalando_sheet.webp');
 const ok=i=>i.complete&&i.naturalWidth>0;
 // ---------------------------------------------------------------------------------------------
@@ -117,7 +120,7 @@ const ok=i=>i.complete&&i.naturalWidth>0;
 const DX=10;let GR_,HT,seg,semente;
 function rnd(){semente=(semente*16807)%2147483647;return semente/2147483647}
 const ri=(a,b)=>a+(b-a)*rnd();
-function terrenoNovo(){semente=1+Math.floor(Math.random()*1e6);GR_=[0];HT=[0];seg={fase:-1,x0:0,len:1500,g:0,g0:0}}
+function terrenoNovo(){semente=1+Math.floor(Math.random()*1e6);GR_=[0];HT=[0];HV=[0];seg={fase:-1,x0:0,len:1500,g:0,g0:0}}
 function proxSeg(){const f=(seg.fase+1)%4,x0=seg.x0+seg.len,g0=seg.g;let len,g;
  if(f===0){len=ri(900,3500);g=ri(3,9.5)}
  else if(f===1){len=ri(150,700);g=ri(-.5,1.5)}
@@ -130,15 +133,21 @@ function estende(ate){while(GR_.length*DX<ate){const x=GR_.length*DX;while(x>seg
  HT.push(HT[HT.length-1]+DX*(GR_[GR_.length-1]+g)/200);GR_.push(g)}}
 function alt(x){if(x<=0)return 0;estende(x+DX*3);const i=Math.floor(x/DX),u=x/DX-i;return HT[i]+(HT[i+1]-HT[i])*u}
 function rampa(x){if(x<=0)return 0;estende(x+DX*3);const i=Math.floor(x/DX),u=x/DX-i;return GR_[i]+(GR_[i+1]-GR_[i])*u}
+// Altura DESENHADA (exagerada): mesma rampa do perfil, inclinação na tela vt(g): 6% ≈ 18°, 10% ≈ 30°, 12% ≈ 35° (teto 45°)
+let HV=[0],HVi=null;
+function vt(g){const a=Math.abs(g);return Math.sign(g)*Math.min(1,P.incl*(a<=6?.054*a:.325+.0625*(a-6)))}
+function hv(x){if(x<=0)return 0;if(HVi!==P.incl){HV=[0];HVi=P.incl}estende(x+DX*3);
+ while(HV.length<GR_.length){const i=HV.length;HV.push(HV[i-1]+vt((GR_[i-1]+GR_[i])/2)*DX)}
+ const i=Math.floor(x/DX),u=x/DX-i;return HV[i]+(HV[i+1]-HV[i])*u}
 // ---------------------------------------------------------------------------------------------
 let S,FX,pausado=false;
-function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,bat:100,pico:0,holdAnt:false,sprintAnt:false,
+function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,pico:0,tw:9999,holdAnt:false,sprintAnt:false,
  zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:0,fim:false,ganho:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
 // ---------------------------------------------------------------------------------------------
 const CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 function barra(){return Math.max(0,S.teto-S.mord)}
-const B=()=>({pMax:700+40*P.nvSprint,Wp:4000*(1+.05*P.nvSprint),fol:1-.05*P.nvFolego,rec:1+.06*P.nvRec,massa:75-P.nvEsc+8});
+const B=()=>({pMax:700+40*P.nvSprint,Wp:P.wSprint*1000*(1+.05*P.nvSprint),fol:1-.05*P.nvFolego,rec:1+.06*P.nvRec,massa:75-P.nvEsc+8});
 function alvoDe(h){const F=P.ftp,k=F/250,sa=P.sprintApos;return F*.8+k*(120*h+(h>sa?500*(h-sa)**1.5:0))}
 function holdPara(pw){if(pw<=alvoDe(0))return 0;let a=0,b=12;for(let i=0;i<30;i++){const m=(a+b)/2;alvoDe(m)<pw?a=m:b=m}return a}
 function passo(dt){
@@ -146,27 +155,27 @@ function passo(dt){
  S.t+=dt;
  if(S.hold&&!S.holdAnt)S.holdT=holdPara(S.pw);
  if(S.hold)S.holdT+=dt;else S.holdT=0;S.holdAnt=S.hold;
- const sprint=S.hold&&S.holdT>P.sprintApos;
+ // 27/11: UMA barra só (estilo Peak). Sprint = segurar mais que sprintApos, pago pela MESMA barra; barra vazia = sem sprint.
+ const sprint=S.hold&&S.holdT>P.sprintApos&&barra()>2;
  if(sprint&&!S.sprintAnt)S.pico=0;S.sprintAnt=sprint;
  const alvoW=alvoDe(S.holdT);
  if(S.hold){if(S.pw<alvoW)S.pw+=(alvoW-S.pw)*Math.min(1,dt*10)}
  else S.pw*=Math.exp(-dt*Math.LN2/(S.pw>F?.6:3));
- const b=barra(),tetoBat=F*1.05+(bd.pMax-F*1.05)*Math.pow(clamp(S.bat/35,0,1),1.2),
-  tetoBarra=sprint?Infinity:F*.75+(bd.pMax-F*.75)*Math.pow(clamp(b/60,0,1),1.5);
- S.pw=Math.min(S.pw,bd.pMax,tetoBat);
- if(S.pw>tetoBarra)S.pw+=(tetoBarra-S.pw)*Math.min(1,dt*6);
+ // teto de watts sempre pela barra: cheia = pico; vazia = 75% do FTP (segurar até o fim não sprinta)
+ const b=barra(),tetoBarra=F*.75+(bd.pMax-F*.75)*Math.pow(clamp(b/P.cheia,0,1),1.3);
+ S.tw+=(tetoBarra-S.tw)*Math.min(1,dt*6);S.pw=Math.min(S.pw,bd.pMax,S.tw);   // limite de verdade (antes o alvo e o teto se equilibravam: barra 0 e 718 W)
  if(sprint)S.pico=Math.max(S.pico,S.pw);
  const r=S.pw/F,baixa=1-b/100,dur=1+P.dureza*baixa*baixa;
- if(S.hold&&!sprint){S.acum+=P.come*r*dur*dt;
-  const alvo=(P.toque+P.morde*Math.pow(r,1.6))*dur+S.acum;
-  const m0=S.mord;S.mord+=(alvo-S.mord)*Math.min(1,dt/P.tauIn);
-  S.teto-=Math.max(0,S.mord-m0)*P.cansa/100*r*r*r*bd.fol;
-  if(b<3)S.teto-=P.vazio*bd.fol*dt}
- else if(!S.hold){S.acum=0;S.mord*=Math.exp(-dt/(P.volta*dur))}
- if(S.pw>F){const g=(S.pw-F)*dt/bd.Wp*100;S.bat=Math.max(0,S.bat-g);S.teto-=g*P.fadBat/100*bd.fol}
- else S.bat=Math.min(100,S.bat+P.batVolta*bd.rec*clamp((F-S.pw)/(.3*F),0,1)*dt);
+ if(sprint){const g=Math.max(0,S.pw-.75*F)*dt/bd.Wp*100;S.mord+=g;S.teto-=g*P.fadBat/100*bd.fol}   // sprint come a barra (W') e deixa fadiga
+ else if(S.hold){S.acum+=P.come*r*dur*dt;
+  const alvo=(P.toque+P.morde*Math.pow(Math.min(r,1.3),1.6))*dur+S.acum;   // acima disso quem paga é o sprint
+  const m0=S.mord;S.mord=Math.min(S.teto,S.mord+Math.max(0,alvo-S.mord)*Math.min(1,dt/P.tauIn));   // segurando a barra só desce (não enche de novo)
+  S.teto-=Math.max(0,S.mord-m0)*P.cansa/100*Math.pow(Math.min(r,2),3)*bd.fol}
+ else{S.acum=0;S.mord*=Math.exp(-dt*bd.rec/(P.volta*dur))}
+ if(S.hold&&b<3)S.teto-=P.vazio*bd.fol*dt;   // segurando com a barra vazia: a fadiga avança rápido até quebrar
  S.teto=Math.max(0,S.teto-P.desg/60*Math.pow(Math.max(0,(Math.min(r,1.5)-.4)/.6),2)*bd.fol*dt);
  S.mord=clamp(S.mord,0,S.teto);
+ if(S.teto<=.5&&!S.fim){S.fim=true;abrePausa('QUEBROU','Acabou o fôlego no km '+fmt(S.x/1000,1));return}
  const M=bd.massa,g=rampa(S.x)/100,sn=g/Math.sqrt(1+g*g),cs=1/Math.sqrt(1+g*g),alt0=alt(S.x);
  for(let i=0;i<4;i++){const h=dt/4,v=S.v,
   a=(ETA*S.pw/Math.max(v,2)-M*GRV*(CRR*cs+sn)-.5*RHO*CDA*v*v)/M;
@@ -229,8 +238,50 @@ function desenhaCeu(c,u){
  for(let i=0;i<nv;i++){const x=((hash(i+9)*larg-S.roll*.01*(.5+hash(i))*u)%larg+larg)%larg-W*.2,y=H*(.12+hash(i+3)*.25),k=(.6+hash(i+4)*.8)*u;
   ctx.beginPath();ctx.ellipse(x,y,120*k,22*k,0,0,7);ctx.ellipse(x-20*k,y-16*k,55*k,30*k,0,0,7);ctx.ellipse(x+35*k,y-10*k,45*k,22*k,0,0,7);ctx.fill()}
 }
-function camadaTile(L,s,bx,mg,y0){const iw=IW*s,o=((S.roll*L.f*s)%iw+iw)%iw;
- let x=Math.floor((-bx-mg+o)/iw)*iw-o;for(;x<W-bx+mg;x+=iw)ox.drawImage(L.img,Math.floor(x),y0,Math.ceil(iw)+1,IH*s)}
+const REF=740;   // linha da arte original onde ficava a borda de cima da estrada
+function camadaTile(L,s,y0){const iw=IW*s,o=((S.roll*L.f*s)%iw+iw)%iw;
+ for(let x=-o;x<W+20;x+=iw)ox.drawImage(L.img,Math.floor(x),y0,Math.ceil(iw)+1,IH*s)}
+// ---------------------------------------------------------------------------------------------
+// Pista e morro em código (27/11): um polígono contínuo seguindo hv(). Pista com os dois lados à vista (faixa de trás e da frente,
+// tracejado no meio); embaixo, o morro em faixas de verde que acompanham o contorno (cada vez mais suaves e escuras).
+const MORRO=[[0,0,'#bcc777'],[14,3,'#a6bf6d'],[38,8,'#8fb267'],[76,18,'#78a463'],[128,34,'#62925f'],[200,60,'#4c805b']];
+function pista(s,k,sk,bx,yT){
+ const st=6,X=[],D=[],Y=[];for(let sx=-st;sx<=W+st;sx+=st){const d=S.x+(sx-bx)/sk;X.push(sx);D.push(d);Y.push(yT(d))}
+ const n=X.length,RT=P.larg*s,base=H+10,xaDe=d=>d*k,scr=d=>bx+(d-S.x)*sk;
+ // morro: faixa por faixa (a de cima encosta na pista; as de baixo suavizadas e onduladas)
+ MORRO.forEach(([off,jan,cor],b)=>{const ys=[];
+  for(let i=0;i<n;i++){let m=0,c=0;for(let j=Math.max(0,i-jan);j<=Math.min(n-1,i+jan);j++){m+=Y[j];c++}m/=c;
+   const xa=xaDe(D[i]),A=b?(5+off*.2)*s:0,w=A*(Math.sin(xa/190+b*1.7)+.45*Math.sin(xa/71+b*2.3));
+   ys.push(Math.max(Y[i]+RT+off*.6*s,m+RT+off*s+w))}
+  ox.beginPath();ox.moveTo(X[0],base);for(let i=0;i<n;i++)ox.lineTo(X[i],ys[i]);ox.lineTo(X[n-1],base);ox.closePath();ox.fillStyle=cor;ox.fill()});
+ // sombra suave para baixo (profundidade)
+ {const g=ox.createLinearGradient(0,yRefTela(yT),0,H);g.addColorStop(0,'rgba(30,60,60,0)');g.addColorStop(1,'rgba(30,60,60,.22)');
+  ox.beginPath();ox.moveTo(X[0],base);for(let i=0;i<n;i++)ox.lineTo(X[i],Y[i]+RT);ox.lineTo(X[n-1],base);ox.closePath();ox.fillStyle=g;ox.fill()}
+ // arbustos e tufos no morro (presos ao mundo: rolam com a estrada)
+ const xa0=xaDe(D[0]),xa1=xaDe(D[n-1]);
+ for(let q=Math.floor(xa0/150)-1;q*150<xa1+60;q++){const h=hash(q*3.1+.7);if(h>.55)continue;
+  const xa=q*150+hash(q+11)*120,d=xa/k,sx=scr(d),prof=(18+hash(q+5)*150)*s,y=yT(d)+RT+prof,e=(.7+hash(q+2)*.6)*s*(1+prof/(160*s)*.5);
+  if(h<.2)arbusto(sx,y,14*e);else tufo(sx,y,6*e,'#3f8274')}
+ // borda de grama atrás da pista (com tufos)
+ ox.beginPath();for(let i=0;i<n;i++)i?ox.lineTo(X[i],Y[i]-.5*s):ox.moveTo(X[i],Y[i]-.5*s);ox.strokeStyle='#8fb065';ox.lineWidth=3.5*s;ox.stroke();
+ for(let q=Math.floor(xa0/70)-1;q*70<xa1+30;q++){if(hash(q*1.3+4)>.45)continue;const d=(q*70+hash(q+8)*50)/k;tufo(scr(d),yT(d),5*s,'#4b8a6e')}
+ // asfalto
+ ox.beginPath();ox.moveTo(X[0],Y[0]);for(let i=1;i<n;i++)ox.lineTo(X[i],Y[i]);for(let i=n-1;i>=0;i--)ox.lineTo(X[i],Y[i]+RT);ox.closePath();
+ ox.fillStyle='#56616f';ox.fill();
+ ox.beginPath();ox.moveTo(X[0],Y[0]);for(let i=1;i<n;i++)ox.lineTo(X[i],Y[i]);for(let i=n-1;i>=0;i--)ox.lineTo(X[i],Y[i]+RT*.5);ox.closePath();
+ ox.fillStyle='rgba(255,255,255,.035)';ox.fill();   // faixa de trás um pouco mais clara
+ const linha=(dy,w,cor)=>{ox.beginPath();for(let i=0;i<n;i++)i?ox.lineTo(X[i],Y[i]+dy):ox.moveTo(X[i],Y[i]+dy);ox.lineWidth=w;ox.strokeStyle=cor;ox.stroke()};
+ linha(1.1*s,2*s,'#eeeadb');                       // borda de trás
+ linha(RT-1*s,1.6*s,'rgba(235,232,215,.7)');       // borda da frente
+ linha(RT+1.4*s,2.6*s,'rgba(40,62,55,.35)');       // sombra da pista no morro
+ // tracejado do meio (preso ao mundo)
+ ox.beginPath();for(let q=Math.floor(xa0/60)-1;q*60<xa1;q++){const d0=q*60/k,d1=(q*60+30)/k;ox.moveTo(scr(d0),yT(d0)+RT*.5);ox.lineTo(scr(d1),yT(d1)+RT*.5)}
+ ox.lineWidth=1.6*s;ox.strokeStyle='rgba(222,225,228,.85)';ox.stroke()}
+function yRefTela(yT){return yT(S.x)}
+function tufo(x,y,e,cor){ox.fillStyle=cor;ox.beginPath();
+ [[-1,-.2,-.6],[-.3,-1.4,0],[.4,-1,.6],[1,-.4,1]].forEach(([a,b,c])=>{ox.moveTo(x+a*e*.6,y);ox.lineTo(x+a*e,y+b*e);ox.lineTo(x+c*e*.6,y)});ox.fill()}
+function arbusto(x,y,e){ox.fillStyle='#3f786d';ox.beginPath();ox.ellipse(x,y,e,e*.55,0,Math.PI,0);ox.ellipse(x-e*.45,y-e*.15,e*.55,e*.5,0,Math.PI,0);
+ ox.ellipse(x+e*.35,y-e*.25,e*.5,e*.55,0,Math.PI,0);ox.fill()}
 function desenha(dt){
  const u=Math.min(W,H*1.78)/1000,kmh=S.v*3.6,F=P.ftp,c=ceuAgora();
  desenhaCeu(c,u);
@@ -238,24 +289,30 @@ function desenha(dt){
  S.zoom+=(1+P.zoomV*clamp((kmh-15)/45,0,1)-S.zoom)*Math.min(1,dt*2);
  const s=Math.min(H*1.25,W)/IH/S.zoom;   // celular em pé: não deixa a arte gigante
  const alvoOff=clamp(S.acc*P.empurra*6*u,-W*.08,W*.1);S.camOff+=(alvoOff-S.camOff)*Math.min(1,dt/.35);
- const bx=W*.17+S.camOff,by=H*.8;   // ciclista no canto esquerdo
- const alvoAng=clamp(Math.atan(rampa(S.x)/100*P.incl),-.17,.17);S.ang+=(alvoAng-S.ang)*Math.min(1,dt*1.5);
+ const bx=W*.17+S.camOff;   // ciclista no canto esquerdo
  let tremX=0,tremY=0;const tr=clamp((S.pw/F-1.4)/1.5,0,1)*3*u+clamp((kmh-55)/20,0,1)*2*u;
  if(tr>0){tremX=(Math.random()-.5)*tr;tremY=(Math.random()-.5)*tr}
+ // 27/11: o mundo NÃO gira mais. A estrada e o morro seguem a altura desenhada hv() (curvas de concordância do perfil).
+ // k = px da arte por metro de prova (mesma conta da rolagem); câmera vertical: segue o ciclista e olha um pouco à frente
+ const k=P.vis/P.ts,sk=s*k,hb=hv(S.x)*k,adiante=(W-bx)/sk*.85;
+ let la=0;for(let j=1;j<=12;j++)la+=hv(S.x+adiante*j/12)*k-hb;la/=12;
+ const camA=hb+clamp(.5*la,-H*.18/s,0),yRef=H*.74,yT=d=>yRef-(hv(d)*k-camA)*s;
  // mundo no canvas de trás (transparente) para tingir só o cenário
- ox.save();ox.setTransform(DPR,0,0,DPR,0,0);ox.clearRect(0,0,W,H);
- ox.translate(bx+tremX,by+tremY);ox.rotate(-S.ang);
- const mg=H*.6,y0=-P.faixa*s,Y=r=>(r-P.faixa)*s;
+ ox.save();ox.setTransform(DPR,0,0,DPR,0,0);ox.clearRect(0,0,W,H);ox.translate(tremX,tremY);
  CAM.forEach((L,i)=>{
-  if(i===4){ox.fillStyle='#2a5462';ox.fillRect(-bx-mg,Y(900),W+2*mg,H*2)}       // chão abaixo da arte (aparece ao inclinar/afastar)
-  if(ok(L.img))camadaTile(L,s,bx,mg,y0);
+  const y0=yRef-REF*s+clamp(camA*.08,-50,110)*s;   // subiu: o fundo inteiro desce um pouco (bloco único: camadas separadas mostravam o pé da arte)
+  if(i===3){ox.fillStyle='#9fb07a';ox.fillRect(-20,y0+752*s,W+40,H*3)}           // vale atrás da estrada (aparece nas descidas)
+  if(ok(L.img))camadaTile(L,s,y0);
   if(L.nev>0&&P.neblina>0){ox.globalCompositeOperation='source-atop';            // neblina de profundidade
-   const g=ox.createLinearGradient(0,Y(330),0,Y(780));g.addColorStop(0,c.hor);g.addColorStop(1,c.hor);
-   ox.globalAlpha=clamp(L.nev*P.neblina,0,.9);ox.fillStyle=g;ox.fillRect(-bx-mg,Y(0),W+2*mg,IH*s*1.5);
+   ox.globalAlpha=clamp(L.nev*P.neblina,0,.9);ox.fillStyle=c.hor;ox.fillRect(-20,y0,W+40,IH*s*1.5);
    ox.globalAlpha=1;ox.globalCompositeOperation='source-over'}
-  if(i===5)desenhaCiclista(s,dt,u);                                              // ciclista entre o acostamento e a vegetação da frente
  });
- if(c.ta>.01){ox.globalCompositeOperation='source-atop';ox.fillStyle='rgba('+c.tint.join(',')+','+c.ta+')';ox.fillRect(-bx-mg,-H*2,W+2*mg,H*4);ox.globalCompositeOperation='source-over'}
+ pista(s,k,sk,bx,yT);
+ // ciclista em cima da pista, inclinado como o trecho onde está
+ const RT=P.larg*s,dd=FW*s*P.tam*.35/sk,yc=yT(S.x)+RT*P.faixa,ang=Math.atan2(yT(S.x+dd)-yT(S.x-dd),2*dd*sk);
+ ox.save();ox.translate(bx,yc);ox.rotate(ang);desenhaCiclista(s,dt,u);ox.restore();
+ if(ok(FRENTE.img))camadaTile(FRENTE,s,H+6*s-IH*s);                             // vegetação desfocada da frente
+ if(c.ta>.01){ox.globalCompositeOperation='source-atop';ox.fillStyle='rgba('+c.tint.join(',')+','+c.ta+')';ox.fillRect(-20,-20,W+40,H+40);ox.globalCompositeOperation='source-over'}
  ox.restore();
  ctx.drawImage(oc,0,0,W,H);
  // linhas de vento
@@ -323,8 +380,8 @@ function hud(u){
  montanha(W-m-150*u,m+ph+38*u,34*u,'#fff');txt('+'+fmt(S.ganho,0)+' m',W-m-24*u,m+ph+46*u,26*u,'#fff','right'); ctx.restore();
  // ── perfil dos próximos 10 km
  perfil(u,m);
- // ── base: stamina (⚡) e bateria do sprint (🔥)
- const bh=18*u+4,larg=Math.min(W*.26,420*u),gap=60*u,byB=H-m-bh-10*u,x1=W/2-gap/2-larg,x2=W/2+gap/2+30*u;
+ // ── base: UMA barra (⚡): amarelo = stamina · amarelo claro = mordida que volta · hachurado = fadiga (não volta)
+ const bh=18*u+4,larg=Math.min(W*.5,820*u),byB=H-m-bh-10*u,x1=W/2-larg/2;
  raio(x1-22*u,byB+bh/2,40*u,'#f5c518');
  pilula(x1,byB,larg,bh,'rgba(28,38,52,.8)');
  const pT=S.teto/100,pB=barra()/100;
@@ -332,10 +389,7 @@ function hud(u){
  ctx.strokeStyle='rgba(255,255,255,.12)';ctx.lineWidth=2;ctx.beginPath();for(let x=x1+larg*pT-bh;x<x1+larg;x+=7){ctx.moveTo(x,byB+bh);ctx.lineTo(x+bh,byB)}ctx.stroke();
  ctx.fillStyle='rgba(245,197,24,.35)';ctx.fillRect(x1+larg*pB,byB,larg*(pT-pB),bh);
  ctx.fillStyle='#f5c518';ctx.fillRect(x1,byB,larg*pB,bh);ctx.restore();
- txt('🔥',x2-24*u,byB+bh/2+12*u,30*u,'#fff','center',400,false);
- pilula(x2,byB,larg,bh,'rgba(28,38,52,.8)');
- ctx.save();rr(ctx,x2,byB,larg,bh,bh/2);ctx.clip();ctx.fillStyle=S.bat<35?'#a0442c':'#ff6a2b';ctx.fillRect(x2,byB,larg*S.bat/100,bh);ctx.restore();
- if(S.pico>0)txt('PICO '+fmt(S.pico,0)+' W',x2+larg,byB-8*u,15*u,'#fff','right',700);
+ if(S.pico>0)txt('PICO '+fmt(S.pico,0)+' W',x1+larg,byB-8*u,15*u,'#fff','right',700);
  // botão de força
  const br=58*u+10,bX=W-m-br,bYr=H-m-br;botRaio={x:bX,y:bYr,r:br};
  ctx.beginPath();ctx.arc(bX,bYr,br,0,7);ctx.fillStyle=S.hold?'rgba(245,197,24,.9)':'rgba(28,38,52,.55)';ctx.fill();
@@ -394,10 +448,10 @@ function montaLista(lista,box){box.innerHTML='';lista.forEach(([k,rot,mi,ma,st,a
  i.addEventListener('input',()=>{P[k]=+i.value;o.textContent=fmt(P[k],casas(st));numeros();salva()})})}
 function montaPainel(){montaLista(SL,slBox);montaLista(SLB,document.getElementById('slb'));numeros()}
 function numeros(){const b=B();document.getElementById('resumo').innerHTML=
- `Pico ${fmt(b.pMax,0)} W<br>Bateria do sprint ${fmt(b.Wp/1000,1)} kJ<br>Fadiga ×${fmt(b.fol,2)} · recarga ×${fmt(b.rec,2)}<br>Peso ${b.massa-8} kg (+8 bike) · ${fmt(P.ftp/(b.massa-8),2)} W/kg`;
+ `Pico ${fmt(b.pMax,0)} W<br>Sprint: barra cheia = ${fmt(b.Wp/1000,1)} kJ acima do FTP<br>Fadiga ×${fmt(b.fol,2)} · volta da barra ×${fmt(b.rec,2)}<br>Peso ${b.massa-8} kg (+8 bike) · ${fmt(P.ftp/(b.massa-8),2)} W/kg`;
  texto.value='CENÁRIO '+VERSAO+'\nBUILD: '+SLB.map(([k,rot])=>rot+' '+P[k]).join(' · ')+'\n'+SL.filter(s=>s.length>1).map(([k,rot])=>rot+': '+P[k]).join('\n')}
-function salva(){try{localStorage.setItem('cenario_parallax2',JSON.stringify(P))}catch(e){}}
-try{const s=JSON.parse(localStorage.getItem('cenario_parallax2')||'null');if(s)Object.assign(P,s)}catch(e){}
+function salva(){try{localStorage.setItem('cenario_parallax3',JSON.stringify(P))}catch(e){}}
+try{const s=JSON.parse(localStorage.getItem('cenario_parallax3')||'null');if(s)Object.assign(P,s)}catch(e){}
 document.getElementById('continuar').onclick=fechaPausa;
 document.getElementById('abrir').onclick=()=>{painel.hidden=false};
 document.getElementById('fechar').onclick=()=>{painel.hidden=true};
