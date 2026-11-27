@@ -2,6 +2,8 @@
 <html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Time Trial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap" rel="stylesheet">
 <style>
 /* Cenário parallax (estilo Alto's) + Barra que Respira + HUD em pílulas */
 :root{--acc:#f5c518;--pill:rgba(28,38,52,.78);--fg:#f4f6f8;--dim:#b8c2cc;color-scheme:dark}
@@ -180,7 +182,7 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 </aside>
 
 <script>
-const VERSAO='28/11/2026 velocímetro de volta, números em cima da barra';
+const VERSAO='28/11/2026 HUD centralizado, falas dos NPCs, torcedor, logo na frente';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
@@ -534,9 +536,6 @@ function desenha(dt){
  if(MODO==='abertura'&&ip>=1&&!INTRO.botoes){INTRO.botoes=true;mostraInicio(true)}
  S.logoA=MODO==='abertura'&&centralEl.hidden?Math.min(1,S.logoA+dt*2):Math.max(0,S.logoA-dt*1.6);
  desenhaCeu(c,u,camY);
- // logo no céu, na cor do arquivo do dono (no canvas de trás: as montanhas passam na frente dele enquanto a câmera desce; sem neblina)
- if(S.logoA>0&&ok(LOGO)){const lw=Math.min(W*.56,860*u),lh=lw*LOGO.height/LOGO.width;ctx.globalAlpha=S.logoA;
-  ctx.drawImage(LOGO,W/2-lw/2,Math.max(H*.12,lh*.5+14)+camY*.17-lh/2,lw,lh);ctx.globalAlpha=1}
  // câmera: escala da arte, afasta com a velocidade, empurra para a frente ao acelerar, inclina na rampa
  S.zoom+=(1+P.zoomV*clamp((kmh-15)/45,0,1)-S.zoom)*Math.min(1,dt*2);
  const s=Math.min(H*1.25,W)/IH/S.zoom;   // celular em pé: não deixa a arte gigante
@@ -565,8 +564,9 @@ function desenha(dt){
  // ciclista em cima da pista, inclinado como o trecho onde está
  const RT=P.larg*s,cw=FW*s*P.tam,dd=cw*.35/sk,yc=yT(S.x)+RT*P.faixa,ang=Math.atan2(yT(S.x+dd)-yT(S.x-dd),2*dd*sk);
  CAMV={s,sk,bx,cw,u,yc:yc+camY};
+ FALAS_TELA.length=0;CAMY_=camY+tremY;
  desenhaCoisas(sk,bx,yT,RT,cw);desenhaChegada(sk,bx,yT,RT,cw);
- const ord=NPCS.slice().sort((a,b)=>a.lane-b.lane);NOME_FRENTE=MODO==='rachao'||MODO==='corrida'?frente(S.x,null).n:null;   // só o nome de quem está na sua frente
+ const ord=NPCS.slice().sort((a,b)=>a.lane-b.lane);
  for(const n of ord)if(n.lane<=P.faixa)desenhaNPC(n,sk,bx,yT,RT,cw,s);
  ox.save();ox.translate(bx,yc);ox.rotate(ang);desenhaCiclista(s,dt,u);ox.restore();
  for(const n of ord)if(n.lane>P.faixa)desenhaNPC(n,sk,bx,yT,RT,cw,s);
@@ -576,6 +576,10 @@ function desenha(dt){
  if(c.ta>.01){ox.globalCompositeOperation='source-atop';ox.fillStyle='rgba('+c.tint.join(',')+','+c.ta+')';ox.fillRect(-20,-20,W+40,H+40);ox.globalCompositeOperation='source-over'}
  ox.restore();
  ctx.drawImage(oc,0,0,W,H);
+ falasDesenha(u);
+ // 28/11: logo NA FRENTE do cenário (antes as montanhas cobriam o logo no celular deitado)
+ if(S.logoA>0&&ok(LOGO)){const lw=Math.min(W*.5,780*u),lh=lw*LOGO.height/LOGO.width;ctx.save();ctx.globalAlpha=S.logoA;
+  ctx.shadowColor='rgba(0,0,0,.18)';ctx.shadowBlur=18*u;ctx.drawImage(LOGO,W/2-lw/2,Math.max(H*.1,lh*.5+18)+camY*.17-lh/2,lw,lh);ctx.restore()}
  // linhas de vento
  const vel=S.v*P.vis*s*1.4;
  FX.ventoAcum+=(MODO==='abertura'?0:1)*clamp((kmh-25)/25,0,2)*14*P.vento*dt;
@@ -641,7 +645,29 @@ function folhaPintada(c){const key=c.roupa+c.pele+c.quadro;if(PINT[key])return P
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 function coresNovas(){return{roupa:pick(KITS),pele:pick(PELES),quadro:pick(QUADROS)}}
 // ---------- ciclista NPC ----------
-let NPCS=[],NPCID=0,NOME_FRENTE=null;
+let NPCS=[],NPCID=0;
+// ---------- falas (28/11: sem nomes na tela; os ciclistas falam como no jogo antigo, balão clean em Poppins) ----------
+const FALA={ataque:['Bora!','Vamos embora!','Segura essa!','Quem vem?','Tchau!','Agora é a hora!'],
+ solta:['Tá puxado...','Não dá...','Pode ir...','Vai lá...','Segura aí!','Nossa, tá puxado!'],
+ quebrou:['Quebrei!','Deu cãibra!','Acabou a perna...','Cadê meu gel?','Vou de Uber...','Foi o pastel...','Não sinto as pernas','Quem mandou atacar...','Me deixa aqui','Socorro, banana!'],
+ cansado:['Tô quebrado...','Só mais um pouco...','Perna de pau hoje','Arrebentou...'],
+ grupo:['Vamos embora!','Reveza aí!','Bora, galera!','Tá rodando bem!','Segura o ritmo!','Nossa, tá puxado!'],
+ roda:['Vou na sua roda!','Bora junto?','Puxa aí que eu vou!'],
+ passou:['Boa!','Vai lá!','Bom pedal!','Que perna!','Voando, hein!'],
+ cfg:{dur:2.6,intervalo:3.5}};
+let FALA_T=0,CAMY_=0;const FALAS_TELA=[];
+const FONTE_FALA='Poppins,system-ui,sans-serif';
+try{document.fonts&&document.fonts.load('600 16px Poppins')}catch(e){}
+// n fala s (com chance p); só um balão novo a cada FALA.cfg.intervalo s e só se o ciclista estiver na tela
+function falar(n,lista,p=1,forca=false){if(!n||n.fala&&n.fala.t>0||Math.random()>p)return;if(!forca&&S.t-FALA_T<FALA.cfg.intervalo)return;
+ const x=CAMV.bx+(n.x-S.x)*CAMV.sk;if(!CAMV.sk||x<CAMV.cw*.3||x>W-CAMV.cw*.3)return;
+ n.fala={s:pick(lista),t:FALA.cfg.dur};FALA_T=S.t}
+function balaoClean(c,x,y,s,u,a=1){c.save();c.globalAlpha=a;const fs=Math.round(13*u+6);c.font='600 '+fs+'px '+FONTE_FALA;
+ const w=c.measureText(s).width+fs*1.3,h=fs*1.9,r=h/2;c.shadowColor='rgba(0,0,0,.18)';c.shadowBlur=8*u;c.shadowOffsetY=2*u;
+ rr(c,x-w/2,y-h,w,h,r);c.fillStyle='rgba(255,255,255,.96)';c.fill();
+ c.beginPath();c.moveTo(x-6*u-2,y-2);c.lineTo(x-2*u,y+7*u+2);c.lineTo(x+5*u+2,y-2);c.closePath();c.fill();
+ c.shadowColor='transparent';c.fillStyle='#1c2634';c.textAlign='center';c.textBaseline='middle';c.fillText(s,x,y-h/2+1);c.restore()}
+function falasDesenha(u){for(const f of FALAS_TELA)balaoClean(ctx,f.x,f.y+CAMY_,f.s,u,f.a)}
 function npcNovo(o){const tp=o.tipo||pick(Object.keys(TIPOS)),T=TIPOS[tp];
  return Object.assign({id:++NPCID,nome:pick(NOMES),tipo:tp,kg:T.kg,cda:T.cda,spr:T.spr,x:S.x,v:S.v,pw:0,ftp:FTPv(),pace:.8,fad:0,res:100,
   lane:.12+Math.random()*.3,agr:1,cores:coresNovas(),quadro:Math.random()*NQ,a:0,papel:'livre',segue:0,ataque:0,fim:null,quebrou:false,itens:0,azul:false,vac:0,fora:false},o)}
@@ -653,7 +679,7 @@ function frente(x,eu){let best=null,bg=1e9;const L=LB();
  return{n:best,g:bg}}
 const vacDe=g=>curva([[.15,0],[.6,1],[2.2,1],[4.5,0]],g)*NPCK.vacMax;
 function npcPasso(n,dt){const dtp=dt*P.ts,g=rampa(n.x),L=LB(),corr=MODO==='rachao'||MODO==='corrida';
- n.a=Math.min(1,n.a+dt*2);
+ n.a=Math.min(1,n.a+dt*2);if(n.fala){n.fala.t-=dt;if(n.fala.t<=0)n.fala=null}
  const f=frente(n.x,n);n.vac=f.n?vacDe(f.g):0;
  const F=n.ftp*(1-.35*Math.max(0,n.fad-70)/30);        // cansado: rende menos
  let alvo=F*n.pace,teto=F*1.15;
@@ -665,7 +691,8 @@ function npcPasso(n,dt){const dtp=dt*P.ts,g=rampa(n.x),L=LB(),corr=MODO==='racha
   if(n.ataque>0){n.ataque-=dtp;alvo=Math.max(alvo,F*1.3);teto=F*1.4}
   if(corr){const falta=S.x0+PROVA.km*1000-n.x;
    if(falta<NPCK.corr.sprintKm*1000&&falta>0){teto=Math.min(F*3.2,(700+40*5)*n.spr)*(.4+.6*n.res/100);alvo=teto}
-   else if(n.ataque<=0&&n.res>60&&Math.random()<NPCK.corr.ataqueP*dt*(g>3?2.5:1)*(falta<5000?3:1)*n.agr){n.ataque=mr(20,60)}}
+   else if(n.ataque<=0&&n.res>60&&Math.random()<NPCK.corr.ataqueP*dt*(g>3?2.5:1)*(falta<5000?3:1)*n.agr){n.ataque=mr(20,60);falar(n,FALA.ataque,.7,true)}
+   else if(f.n&&f.g<1.6&&Math.random()<dt/25)falar(n,n.fad>65?FALA.cansado:FALA.grupo,.5)}
   if(n.segue>0)n.segue-=dtp}
  n.pw+=(clamp(alvo,0,teto)-n.pw)*Math.min(1,dt*4);
  // reserva acima do FTP (W') e fadiga com a mesma curva do jogador
@@ -673,7 +700,10 @@ function npcPasso(n,dt){const dtp=dt*P.ts,g=rampa(n.x),L=LB(),corr=MODO==='racha
  n.fad=Math.min(100,n.fad+fadHora(r)*dtp/3600);
  if(n.itens>0&&n.fad>60){n.itens--;n.fad=Math.max(0,n.fad-15)}
  if(n.azul&&n.fad>NPCK.corr.azulFad){n.azul=false;n.fad=0}
- if(n.fad>=100&&!n.quebrou){n.quebrou=true}
+ if(n.fad>=100&&!n.quebrou){n.quebrou=true;falar(n,FALA.quebrou,1,true)}
+ if(n.quebrou&&!n.falouQ&&Math.abs(n.x-S.x)<1.5*L){n.falouQ=true;falar(n,FALA.quebrou,1,true)}   // você chegou nele: ele conta que quebrou
+ // ficando para trás da roda que queria seguir
+ if(!n.quebrou&&f.n&&f.g>1.8&&f.g<5&&n.pw>=F*1.05&&f.n.v>n.v+.3){n.solta=(n.solta||0)+dt;if(n.solta>2){n.solta=-12;falar(n,FALA.solta,.8)}}else if(n.solta>0)n.solta=0
  const M=n.kg+8,gg=g/100,sn=gg/Math.sqrt(1+gg*gg),cs=1/Math.sqrt(1+gg*gg);
  for(let i=0;i<2;i++){const h=dt/2,v=n.v,a=(Math.min(ETA*n.pw/Math.max(v,.1),FMAX)-M*GRV*(CRR*cs+sn)-.5*RHO*n.cda*(1-n.vac)*v*v)/M;
   n.v=clamp(v+a*h*KIN,0,30);n.x+=n.v*h*P.ts}
@@ -721,6 +751,7 @@ function eventosPasso(dt){S.vac=0;if(MODO==='abertura'||!EV||!CAMV.sk||S.fim)ret
      if(c.jt>=1.4)c.fase='vai'}}
    else c.v+=2.5*dt;
    c.mac=clamp(c.mac+(c.fase==='joga'&&c.jt<1.1?dt*4:-dt*3),0,1);
+   c.barA=clamp((c.barA||0)+(c.fase==='segue'&&c.perto?dt*5:-dt*4),0,1);   // 28/11: a barra só aparece com você na roda do caminhão
    vacV=c.fase==='vai'?0:curva([[-60,0],[0,1],[230,1],[470,0]],g/q)*C.vac}
   else{c.v=Math.max(c.v,S.v+20/3.6);   // furgão: passa rápido e derruba um gel na sua frente
    if(!c.solto&&rx>bx+460*q){c.solto=true;EV.energ.push({d:S.x+(620*q)/sk+S.v*.8*P.ts,t:0,x0:rx+40*q})}   // cai onde você vai estar
@@ -748,7 +779,7 @@ function eventosPasso(dt){S.vac=0;if(MODO==='abertura'||!EV||!CAMV.sk||S.fim)ret
  if(MODO==='livre'){if(S.x>=EV.proxEnc){livreEncontro(false);EV.proxEnc=S.x+mr(NPCK.livre.prox[0],NPCK.livre.prox[1])*1000}
   for(const n of NPCS){const rel=(n.x-S.x)/L;
    // você passou por ele: quem não está "só pedalando" tenta seguir sua roda por um tempo
-   if(n.papel==='livre'&&!n.passou&&rel<-.3&&rel>-1.5){n.passou=true;if(Math.random()<.6)n.segue=mr(60,240)}
+   if(n.papel==='livre'&&!n.passou&&rel<-.3&&rel>-1.5){n.passou=true;if(Math.random()<.6){n.segue=mr(60,240);falar(n,FALA.roda,.6)}else falar(n,n.fad>65?FALA.cansado:FALA.passou,.5)}
    if(rel<-(bx/sk/L)-6||rel>(W/sk/L)+25)n.fora=true}
   NPCS=NPCS.filter(n=>!n.fora)}
  for(const n of NPCS)npcPasso(n,dt);
@@ -767,8 +798,7 @@ function desenhaNPC(n,sk,bx,yT,RT,cw,s){const x=bx+(n.x-S.x)*sk;if(x<-cw||x>W+cw
  if(fo)ox.drawImage(fo,q*FW/2,0,FW/2,FH/2,-w/2,-PE*k,w,h);else if(ok(SPR))ox.drawImage(SPR,q*FW,0,FW,FH,-w/2,-PE*k,w,h);
  rodasGiram(k,n.x*sk/(57*k),n.v);
  ox.globalAlpha=1;ox.restore();
- if(n===NOME_FRENTE||(n.quebrou&&Math.abs(n.x-S.x)<2.5*LB())){ox.font='italic 800 '+Math.round(11*CAMV.u+4)+'px system-ui,sans-serif';ox.textAlign='center';
-  ox.fillStyle=n.quebrou?'rgba(255,120,110,.9)':'rgba(255,255,255,.85)';ox.fillText(n.quebrou?n.nome+' quebrou':n.nome,x,y-h*1.02)}}
+ if(n.fala&&n.fala.t>0)FALAS_TELA.push({x:x+w*.08,y:y-h*1.0,s:n.fala.s,a:clamp(n.fala.t*3,0,1)*Math.min(1,(FALA.cfg.dur-n.fala.t)*6)*n.a})}
 function rodasGiram(k,giro,v){const rr0=50*k,wv=v/.34;
  [72,252].forEach(cx=>{const X=(cx-FW/2)*k,Y=(228-PE)*k;
   ox.save();ox.globalAlpha*=.16*clamp(wv/20,0,1);ox.fillStyle='#d8dde3';ox.beginPath();ox.arc(X,Y,rr0,0,7);ox.fill();ox.restore();
@@ -787,10 +817,10 @@ function desenhaVeiculo(sk,bx,yT,RT,cw,yc){const c=EV&&EV.cam;if(!c)return;const
  for(const [wx,wy] of V.rodas){const X=-tw/2+wx*e,Y=-th+wy*e,ra=V.r*V.aro;
   ox.save();ox.beginPath();ox.arc(X,Y,ra*e,0,7);ox.clip();ox.translate(X,Y);ox.rotate(giro);ox.drawImage(im,wx-ra,wy-ra,2*ra,2*ra,-ra*e,-ra*e,2*ra*e,2*ra*e);ox.restore()}
  ox.restore();
- if(c.tipo==='caminhao'&&c.fase==='segue'){const bw=tw*.36,bh=Math.max(10,tw*.045),bx2=rx+tw*.72-bw/2,by2=y-th*1.25;   // barra de banana em cima da cabine
+ if(c.tipo==='caminhao'&&c.barA>0){ox.save();ox.globalAlpha=c.barA;const bw=tw*.36,bh=Math.max(10,tw*.045),bx2=rx+tw*.72-bw/2,by2=y-th*1.25;   // barra de banana em cima da cabine
   rr(ox,bx2,by2,bw,bh,bh/2);ox.fillStyle='rgba(10,26,44,.85)';ox.fill();ox.lineWidth=2;ox.strokeStyle=c.perto?'#ffe066':'#7f93a6';ox.stroke();
   if(c.cheio>0){rr(ox,bx2,by2,Math.max(bh,bw*Math.min(1,c.cheio)),bh,bh/2);ox.fillStyle='#ffe066';ox.fill()}
-  if(ok(CAMI.ban)){const ih=bh*2.2;ox.drawImage(CAMI.ban,bx2-ih*.95,by2-ih*.3,ih*CAMI.ban.width/CAMI.ban.height,ih)}}
+  if(ok(CAMI.ban)){const ih=bh*2.2;ox.drawImage(CAMI.ban,bx2-ih*.95,by2-ih*.3,ih*CAMI.ban.width/CAMI.ban.height,ih)}ox.restore()}
  if(EV.pulo&&ok(CAMI.ban)){const p=clamp(EV.pulo.t/.75,0,1),x0=rx+tw*.2,y0=y-th*.95,x1=bx,y1=yc-cw*.55,
   x=x0+(x1-x0)*p,yy=y0+(y1-y0)*p-Math.sin(Math.PI*p)*cw*.7,bh=cw*.28;
   ox.save();ox.translate(x,yy);ox.rotate(p*9);ox.drawImage(CAMI.ban,-bh*.47,-bh/2,bh*CAMI.ban.width/CAMI.ban.height,bh);ox.restore()}}
@@ -801,17 +831,15 @@ function latinha(c,x,y,k){c.save();c.translate(x,y);c.scale(k,k);const w=40,h=70
 function desenhaCoisas(sk,bx,yT,RT,cw){if(!EV)return;const r=cw*.13;
  // torcedor atrás da pista (pés na borda de trás) com balão
  for(const o of EV.torcs){const x=bx+(o.d-S.x)*sk;if(x<-cw||x>W+cw||!ok(TORC))continue;const h=cw*.82,w=h*TORC.width/TORC.height,y=yT(o.d)-1,bal=Math.sin(S.t*7+o.fase);
-  ox.save();ox.translate(x,y);ox.rotate(bal*.04);ox.drawImage(TORC,-w/2,-h,w,h);ox.restore();
-  if(!o.ok)balao(x+w*.2,y-h-12*CAMV.u+Math.sin(S.t*5+o.fase)*3,'ÁGUA! ÁGUA!')}
+  // 28/11: os pés ficam no chão (o giro levantava um pé); ele só "pula" esticando um pouco o corpo. Arte: pé de trás na linha 330 de 360.
+  const yp=y+h*.02,es=1+.025*Math.max(0,bal);ox.fillStyle='rgba(0,0,0,.2)';ox.beginPath();ox.ellipse(x+w*.05,yp-h*.015,w*.5,h*.03,0,0,7);ox.fill();
+  ox.save();ox.translate(x,yp);ox.scale(1/Math.sqrt(es),es);ox.drawImage(TORC,-w/2,-h,w,h);ox.restore();
+  if(!o.ok)FALAS_TELA.push({x:x+w*.25,y:y-h*1.02,s:'Água! Água!',a:1})}
  for(const m of EV.moedas){const x=bx+(m.d-S.x)*sk;if(x<-30||x>W+30)continue;const y=yT(m.d)+RT*P.faixa-r*1.02;   // em pé no asfalto
   moedaIc(ox,x,y,r,S.t*10+m.d*.01)}
  for(const e of EV.energ){const p=clamp(e.t/.8,0,1),x1=bx+(e.d-S.x)*sk,x=e.x0+(x1-e.x0)*p,y=(yT(e.d)+RT*P.faixa)-Math.sin(Math.PI*p)*cw*.6;
-  if(x<-30||x>W+30)continue;if(p>=1){ox.globalAlpha=.3+.2*Math.sin(S.t*6);ox.fillStyle='#fff';ox.beginPath();ox.ellipse(x,y+cw*.06,cw*.16,cw*.05,0,0,7);ox.fill();ox.globalAlpha=1}
-  const G=ITEM[3].img;if(ok(G)){const gh=cw*.3,gw=gh*G.width/G.height;ox.drawImage(G,x-gw/2,y-gh*.75,gw,gh)}}}
-function balao(x,y,s){const u=CAMV.u;ox.font='italic 900 '+Math.round(14*u+5)+'px system-ui,sans-serif';const w=ox.measureText(s).width+20*u,h=26*u+8;
- rr(ox,x-w/2,y-h,w,h,h*.35);ox.fillStyle='#fff';ox.fill();ox.lineWidth=2;ox.strokeStyle='#111';ox.stroke();
- ox.beginPath();ox.moveTo(x-6*u,y-1);ox.lineTo(x-14*u,y+10*u);ox.lineTo(x+4*u,y-1);ox.closePath();ox.fillStyle='#fff';ox.fill();
- ox.fillStyle='#111';ox.textAlign='center';ox.fillText(s,x,y-h*.3)}
+  if(x<-30||x>W+30)continue;if(p>=1){ox.globalAlpha=.3+.2*Math.sin(S.t*6);ox.fillStyle='#fff';ox.beginPath();ox.ellipse(x,y+cw*.08,cw*.22,cw*.065,0,0,7);ox.fill();ox.globalAlpha=1}
+  const G=ITEM[3].img;if(ok(G)){const gh=cw*.44,gw=gh*G.width/G.height;ox.drawImage(G,x-gw/2,y-gh*.75,gw,gh)}}}
 // faixa de chegada (Rachão/Corrida)
 function desenhaChegada(sk,bx,yT,RT,cw){if(MODO!=='rachao'&&MODO!=='corrida')return;const d=S.x0+PROVA.km*1000,x=bx+(d-S.x)*sk;if(x<-cw||x>W+cw)return;
  const y0=yT(d),y1=y0+RT,hh=cw*1.5,sq=Math.max(3,RT/8);
@@ -857,8 +885,12 @@ function hud(u){
  montanha(W-m-150*u,m+ph+38*u,34*u,'#fff');txt('+'+fmt(S.ganho,0)+' m',W-m-24*u,m+ph+46*u,26*u,'#fff','right');
  // ── base: botão, barra e painel de números (centralizados entre os itens e o botão)
  const br=58*u+10,bh=18*u+4,bX=W-m-br,bYr=H-m-br;botRaio={x:bX,y:bYr,r:br};
- const lista=ITEM.filter(I=>S.it[I.id]>0),ih=54*u+8,iw=ih*.8,ig=8*u,itFim=m+ITEM.length*(iw+ig)-ig;   // lugar dos 5 itens fica sempre reservado
- const x1=itFim+56*u,xMax=bX-br-24*u,larg=Math.max(80,xMax-x1),byB=H-m-bh-10*u;
+ // 28/11: barra e números CENTRALIZADOS na tela. Itens: 4 lugares fixos (água, iso, banana, gel); o gel azul fica em cima da água.
+ const NIT=4,lista=ITEM.filter(I=>I.id!=='azul'&&S.it[I.id]>0);let ih=54*u+8,ig=8*u;
+ let iw=ih*.8,itFim=m+NIT*(iw+ig)-ig;
+ const meia0=Math.min(W/2-(itFim+56*u),bX-br-24*u-W/2),minMeia=Math.min(170*u,W*.17);
+ if(meia0<minMeia){const k=clamp((W/2-56*u-minMeia-m)/(NIT*(iw+ig)),.55,1);ih*=k;ig*=k;iw=ih*.8;itFim=m+NIT*(iw+ig)-ig}
+ const meia=Math.max(40,Math.min(W/2-(itFim+56*u),bX-br-24*u-W/2)),x1=W/2-meia,larg=meia*2,byB=H-m-bh-10*u;
  raio(x1-22*u,byB+bh/2,40*u,'#f5c518');
  pilula(x1,byB,larg,bh,'rgba(28,38,52,.8)');
  const pB=barra()/100;
@@ -903,7 +935,8 @@ function hud(u){
  if(tp<4)txt('Toque ou segure em qualquer lugar da tela (ou Espaço)',W/2,H*.42,20*u,'#fff','center',700);
  // itens: só os que você tem (toque no item ou teclas 1–5)
  botItens=[];
- lista.forEach((I,i)=>{const x=m+i*(iw+ig),y=byB+bh/2-ih/2,n=S.it[I.id],ativo=S.efe.some(e=>e.id===I.id);botItens.push({id:I.id,x,y,w:iw,h:ih});
+ const az=ITEM.find(I=>I.id==='azul');if(S.it.azul>0)lista.push(az);
+ lista.forEach((I,i)=>{const azul=I===az,x=azul?m:m+i*(iw+ig),y=byB+bh/2-ih/2-(azul?ih+ig*1.5:0),n=S.it[I.id],ativo=S.efe.some(e=>e.id===I.id);botItens.push({id:I.id,x,y,w:iw,h:ih});
   rr(ctx,x,y,iw,ih,12*u);ctx.fillStyle=ativo?'rgba(245,197,24,.55)':'rgba(28,38,52,.7)';ctx.fill();
   const imI=I.niv?I.niv[clamp(n,0,5)]:I.img;
   if(ok(imI)){const im=imI,k2=Math.min((iw-10*u)/im.width,(ih-10*u)/im.height);
