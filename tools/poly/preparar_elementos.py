@@ -35,16 +35,11 @@ def garrafas(arq, nome):
 garrafas('água low poly.png', 'agua'); garrafas('isotonico low poly.png', 'iso')
 salva(Image.open(os.path.join(EL, 'banana low poly.png')).convert('RGBA'), 'banana', alt=160)
 gel = Image.open(os.path.join(EL, 'gel-low poly.png')).convert('RGBA'); salva(gel, 'gel', alt=160)
-# gel azul: o mesmo gel com o laranja virado para azul (até ter arte própria)
-px = gel.load()
-for y in range(gel.height):
-    for x in range(gel.width):
-        r, g, b, a = px[x, y]
-        if a:
-            h, s, v = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-            if s > .25: h = (h + .53) % 1
-            r, g, b = (round(c * 255) for c in colorsys.hsv_to_rgb(h, s, v)); px[x, y] = (r, g, b, a)
-salva(gel, 'azul', alt=160)
+# (antes: gel azul = gel recolorido)
+px = None
+if False:
+  px = gel.load()
+salva(Image.open(os.path.join(EL, 'gel azul low poly.png')).convert('RGBA'), 'azul', alt=160)   # arte própria (28/11)
 salva(Image.open(os.path.join(EL, 'macaco.png')).convert('RGBA'), 'macaco', alt=320)
 salva(Image.open(os.path.join(EL, 'caminhão banana.png')).convert('RGBA'), 'caminhao', larg=900)
 salva(Image.open(os.path.join(EL, 'furgão low poly.png')).convert('RGBA'), 'furgao', larg=900)
@@ -53,4 +48,15 @@ subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', os.path.join(RAIZ, '
                 '-ac', '1', '-b:a', '96k', os.path.join(SONS, 'macaco.mp3')], check=True)
 for s in ('buzina', 'caminhao', 'moeda'):
     shutil.copy(os.path.join(RAIZ, 'src/assets/sons', s + '.mp3'), os.path.join(SONS, s + '.mp3'))
+salva(Image.open(os.path.join(EL, 'torcedor low poly.png')).convert('RGBA'), 'torcedor', alt=360)
+# moedas: folha 4×4, a 1ª metade (8 quadros) é uma volta; vira uma tira de 8 quadros de 96 px
+mo = Image.open(os.path.join(EL, 'moedas low loly.png')).convert('RGBA'); cw, ch = mo.width // 4, mo.height // 4
+tira = Image.new('RGBA', (96 * 8, 96))
+for i in range(8):
+    q = apara(mo.crop(((i % 4) * cw, (i // 4) * ch, (i % 4 + 1) * cw, (i // 4 + 1) * ch)))
+    k = 92 / max(q.width, q.height); q = q.resize((max(1, round(q.width * k)), round(q.height * k)), Image.LANCZOS)
+    tira.alpha_composite(q, (i * 96 + (96 - q.width) // 2, (96 - q.height) // 2))
+tira.save(os.path.join(OUT, 'moeda.webp'), quality=90, method=6); print('moeda', tira.size)
+subprocess.run(['ffmpeg', '-y', '-loglevel', 'error', '-i', os.path.join(RAIZ, 'sound/mixkit-deep-techno-ambience-134.mp3'),
+                '-b:a', '96k', os.path.join(SONS, 'menu.mp3')], check=True)
 print('ok')
