@@ -61,14 +61,14 @@ canvas{position:fixed;inset:0;width:100%;height:100%;touch-action:none;display:b
 </aside>
 
 <script>
-const VERSAO='27/11/2026 11:56 sprint vira fadiga, amarelo volta até o vermelho';
+const VERSAO='27/11/2026 12:04 sprint corta no zero + tremor ajustável';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:208,toque:5,morde:12,come:6,tauIn:.06,volta:.1,dureza:2,vazio:3,
  fadH:80,fadExp:4.2,fadAcima:5.8,tetoVazio:85,escuro:10,
  sprintApos:1.5,sprMin:25,sprCheia:5,sprMeio:3,sprPicoMeio:60,sprCusto:35,
  empeLiga:115,empeSai:100,
- ts:40,dist:9,zoomV:.12,empurra:1.5,vento:1,
+ ts:40,dist:9,zoomV:.12,empurra:1.5,tremor:.3,vento:1,
  vis:23,tam:.4,faixa:.3,larg:22,incl:1,dia:4,neblina:1,
  nvSprint:2,nvFolego:3,nvRec:3,nvEsc:2,
  aguaQ:5,aguaFad:8,aguaSeg:2,isoQ:5,isoFad:9,isoSta:12,bananaQ:2,bananaFad:6,bananaSta:40,gelQ:2,gelFrac:40,
@@ -118,6 +118,7 @@ const SL=[
  ['neblina','Neblina entre camadas',0,2,.1,'Névoa de profundidade nas montanhas.'],
  ['zoomV','Câmera afasta na velocidade',0,.6,.01,'Quanto a câmera abre quando está rápido.'],
  ['empurra','Empurrão da câmera',0,5,.1,'Acelerou: o ciclista avança na tela.'],
+ ['tremor','Tremor da câmera',0,2,.05,'Tremor no sprint/força alta e acima de 55 km/h. 0 = desligado, 1 = o antigo (forte).'],
  ['vento','Linhas de vento',0,3,.1,'Riscos que passam acima de ~25 km/h.'],
  ['ITENS (valem ao reiniciar)'],
  ['aguaQ','Água: garrafas',0,10,1,'Quantas na largada. Tecla 1.'],
@@ -176,7 +177,7 @@ function hv(x){if(x<=0)return 0;if(HVi!==P.incl){HV=[0];HVi=P.incl}estende(x+DX*
 let S,FX,pausado=false;
 function reiniciar(){terrenoNovo();S={t:0,x:0,v:0,pw:0,hold:false,holdT:0,mord:0,acum:0,teto:100,soma:0,pico:0,tw:9999,holdAnt:false,sprintAnt:false,
  zoom:1,kmhAnt:0,acc:0,camOff:0,roll:0,ang:0,quadro:0,fim:false,ganho:0,
- it:{agua:P.aguaQ,iso:P.isoQ,banana:P.bananaQ,gel:P.gelQ},efe:[],nGel:0,msg:null,spr:null,sprFeito:false,verdeIni:100,empe:false,empeT:0,empeA:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
+ it:{agua:P.aguaQ,iso:P.isoQ,banana:P.bananaQ,gel:P.gelQ},efe:[],nGel:0,msg:null,spr:null,sprFeito:false,verdeIni:100,segT:0,empe:false,empeT:0,empeA:0};FX={vento:[],po:[],ventoAcum:0,poAcum:0}}
 // ---------------------------------------------------------------------------------------------
 const CRR=.004,CDA=.30,RHO=1.2,GRV=9.81,ETA=.97,KIN=6;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -195,13 +196,13 @@ function passo(dt){
  const F=P.ftp,bd=B();
  S.t+=dt;
  // reapertou: o sprint tem que ser segurado de novo do zero (antes o tempo vinha dos watts e o "pisca" religava o sprint)
- if(S.hold&&!S.holdAnt){S.holdT=Math.min(holdPara(S.pw),P.sprintApos*.6);S.verdeIni=barra()}   // amarelo de antes da mordida
- if(S.hold)S.holdT+=dt;else{S.holdT=0;S.spr=null;S.sprFeito=false}
+ if(S.hold&&!S.holdAnt){S.holdT=Math.min(holdPara(S.pw),P.sprintApos*.6);S.verdeIni=barra();S.segT=0}   // amarelo de antes da mordida
+ if(S.hold){S.holdT+=dt;S.segT+=dt}else{S.holdT=0;S.segT=0;S.spr=null;S.sprFeito=false}   // segT = tempo segurando DESTE toque (o sprint exige sprintApos inteiro)
  S.holdAnt=S.hold;
  // 27/11: barra AMARELA (stamina) e VERMELHA (fadiga) coladas. O sprint gasta o amarelo (pode zerar; zerou, acabou o sprint);
  // parte do gasto vira fadiga; soltou, o amarelo volta até o vermelho. Só a fadiga no fim derruba (QUEBROU).
- if(S.hold&&!S.spr&&!S.sprFeito&&S.holdT>P.sprintApos){
-  if(S.verdeIni>=P.sprMin){S.spr=Object.assign(sprintPlano(S.verdeIni),{t:0,mb:Math.min(S.mord,S.verdeIni)});S.pico=0}else S.sprFeito=true}   // mb = mordida do arranque (conta como amarelo do sprint)
+ if(S.hold&&!S.spr&&!S.sprFeito&&S.segT>P.sprintApos){
+  if(S.verdeIni>=P.sprMin){S.spr=Object.assign(sprintPlano(S.verdeIni),{t:0});S.pico=0;S.mord=Math.max(0,S.teto-S.verdeIni)}else S.sprFeito=true}   // a mordida volta: o amarelo na tela é o combustível do sprint
  const sprint=!!S.spr;S.sprintAnt=sprint;
  if(sprint){S.pw+=(S.spr.pico-S.pw)*Math.min(1,dt*10);S.pw=Math.min(S.pw,S.spr.pico)}
  else if(S.hold){const al=alvoDe(S.holdT);S.pw+=(al-S.pw)*Math.min(1,dt*10)}
@@ -212,10 +213,9 @@ function passo(dt){
  else S.tw=S.pw;
  if(sprint)S.pico=Math.max(S.pico,S.pw);
  const r=S.pw/F,baixa=1-b/100,dur=1+P.dureza*baixa*baixa;
- if(sprint){const sp=S.spr,resta=Math.max(dt,sp.dur-sp.t),d=(barra()+sp.mb)*Math.min(1,dt/resta),cf=sp.custo*Math.min(dt,resta)/sp.dur;
-  const db=Math.min(sp.mb,d);sp.mb-=db;                         // gasta primeiro a mordida do arranque (a barra não pula), depois o amarelo
-  S.teto-=cf;S.mord=Math.max(0,S.mord+(d-db)-cf);              // o preço (sprCusto% do amarelo do arranque) vira fadiga; o resto volta ao soltar
-  sp.t+=dt;if(sp.t>=sp.dur||barra()+sp.mb<.5){S.spr=null;S.sprFeito=true}}
+ if(sprint){const sp=S.spr,resta=Math.max(dt,sp.dur-sp.t),d=barra()*Math.min(1,dt/resta),cf=Math.min(d,sp.custo*Math.min(dt,resta)/sp.dur);
+  S.teto-=cf;S.mord+=d-cf;                                     // o amarelo escorre até zerar no fim; o preço vira fadiga, o resto volta ao soltar
+  sp.t+=dt;if(sp.t>=sp.dur||barra()<.5){S.spr=null;S.sprFeito=true;S.tw=tv;S.pw=Math.min(S.pw,tv)}}   // zerou: corta na hora (sem rabo de watts)
  else if(S.hold){S.acum+=P.come*r*dur*dt;                          // respiração do toque (igual à do dono)
   const alvo=(P.toque+P.morde*Math.pow(Math.min(r,1.3),1.6))*dur+S.acum;
   S.mord=Math.min(S.teto,S.mord+Math.max(0,alvo-S.mord)*Math.min(1,dt/P.tauIn))}
@@ -346,8 +346,8 @@ function desenha(dt){
  const s=Math.min(H*1.25,W)/IH/S.zoom;   // celular em pé: não deixa a arte gigante
  const alvoOff=clamp(S.acc*P.empurra*6*u,-W*.08,W*.1);S.camOff+=(alvoOff-S.camOff)*Math.min(1,dt/.35);
  const bx=W*.17+S.camOff;   // ciclista no canto esquerdo
- let tremX=0,tremY=0;const tr=clamp((S.pw/F-1.4)/1.5,0,1)*3*u+clamp((kmh-55)/20,0,1)*2*u;
- if(tr>0){tremX=(Math.random()-.5)*tr;tremY=(Math.random()-.5)*tr}
+ let tremX=0,tremY=0;const tr=P.tremor*(clamp((S.pw/F-1.4)/1.5,0,1)*3*u+clamp((kmh-55)/20,0,1)*2*u);
+ if(tr>0){const t=S.t;tremX=tr*.5*(Math.sin(t*37)+.6*Math.sin(t*61+1.3));tremY=tr*.5*(Math.sin(t*43+2.1)+.6*Math.sin(t*71))}   // balanço suave (antes: pulo aleatório a cada quadro)
  // 27/11: o mundo NÃO gira mais. A estrada e o morro seguem a altura desenhada hv() (curvas de concordância do perfil).
  // k = px da arte por metro de prova (mesma conta da rolagem); câmera vertical: segue o ciclista e olha um pouco à frente
  const k=P.vis/P.ts,sk=s*k,hb=hv(S.x)*k,adiante=(W-bx)/sk*.85;
