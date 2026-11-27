@@ -2,11 +2,23 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1020">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Time Trial</title>
-<meta http-equiv="refresh" content="0; url=dist/time_trial_v2.html?v=20261118-hud">
+<!-- 27/11/2026: o endereço principal abre o jogo novo (low poly). O jogo antigo continua em dist/time_trial_v2.html.
+     O jogo roda num quadro de tela inteira para o endereço ficar curto; ?gm=1 passa adiante (link do GM). -->
+<style>html,body{margin:0;height:100%;background:#0b1020;overflow:hidden}
+iframe{position:fixed;inset:0;width:100%;height:100%;border:0;display:block}</style>
 </head>
 <body>
-<p>Carregando o jogo... <a href="dist/time_trial_v2.html?v=20261118-hud">clique aqui</a> se não abrir.</p>
+<iframe id="jogo" title="Time Trial" allow="fullscreen; autoplay; screen-wake-lock" allowfullscreen></iframe>
+<script>
+const f=document.getElementById('jogo');
+f.src='prototipos/2026-11-26/Cenario%20Parallax%20-%20Barra%20que%20Respira.html'+location.search;
+f.addEventListener('load',()=>{try{f.contentWindow.focus()}catch(e){}});
+addEventListener('pointerdown',()=>{try{f.contentWindow.focus()}catch(e){}});
+</script>
 </body>
 </html>
