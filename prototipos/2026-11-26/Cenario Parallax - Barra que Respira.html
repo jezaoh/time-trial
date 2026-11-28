@@ -94,7 +94,20 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 #fimL div{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid #2c3644}
 #fimL div b{color:var(--acc)}
 #opcoes{position:fixed;inset:0;background:rgba(8,12,22,.62);display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
-#opcoes[hidden],#confirma[hidden]{display:none}
+#opcoes[hidden],#confirma[hidden],#campeao[hidden]{display:none}
+#campeao{position:fixed;inset:0;z-index:7;background:radial-gradient(ellipse at 50% 40%,rgba(60,48,8,.92),rgba(8,12,22,.95) 70%);display:flex;align-items:center;justify-content:center;padding:16px;overflow:hidden}
+#campeao .card{width:min(420px,100%);align-items:center;text-align:center;animation:cpEntra .6s cubic-bezier(.2,1.4,.4,1) both}
+#campeao h2{margin:0;font:italic 900 clamp(34px,7vw,54px) system-ui,sans-serif;letter-spacing:.04em;color:var(--acc)}
+#campeao #cpTour{margin:0;font:italic 800 16px system-ui,sans-serif;letter-spacing:.08em}
+#cpL{width:100%}#cpL div{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid #2c3644}
+#cpConf{position:absolute;inset:0;pointer-events:none}#cpConf i{position:absolute;top:-16px;width:8px;height:14px;animation:cai linear infinite}
+@keyframes cai{to{top:105%;transform:rotate(720deg)}}@keyframes cpEntra{from{transform:scale(.6);opacity:0}}
+.etapas{display:flex;gap:6px;flex-wrap:wrap}.etapas span{padding:4px 10px;background:#33404f;font:italic 800 12px system-ui,sans-serif;color:var(--dim)}
+.etapas .ok{background:#2c5a3a;color:#fff}.etapas .ag{background:var(--acc);color:#1c2634}
+.cqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:8px}
+.cq{display:flex;gap:10px;align-items:center;opacity:.5}.cq.ok{opacity:1}
+.cq i{flex:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-style:normal;color:#1c2634;font-weight:900;background:#2c3644;box-shadow:inset 0 0 0 3px var(--c)}
+.cq.ok i{background:var(--c)}.cq b{display:block;font:italic 800 13px system-ui,sans-serif}.cq span{font-size:12px;color:var(--dim)}
 #confirma{position:fixed;inset:0;background:rgba(8,12,22,.62);display:flex;align-items:center;justify-content:center;padding:16px;z-index:6}
 #confirma .card{width:min(380px,100%)}
 #opcoes .card{width:min(420px,100%);max-height:100%;overflow-y:auto}
@@ -159,6 +172,11 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
  <button class="bt" id="cheia" type="button">TELA CHEIA</button>
 </div></div>
 
+<div id="campeao" hidden><div id="cpConf"></div><div class="card">
+ <svg viewBox="0 0 64 64" width="84" height="84" aria-hidden="true"><path d="M18 8h28v12a14 14 0 0 1-28 0z" fill="#f5c518"/><path d="M18 12H8v4a10 10 0 0 0 10 10M46 12h10v4a10 10 0 0 1-10 10" fill="none" stroke="#f5c518" stroke-width="4"/>
+  <path d="M28 33h8v9h-8z" fill="#d9a90f"/><path d="M20 44h24l3 10H17z" fill="#f5c518"/><path d="M24 12h4v12h-4z" fill="#fff" opacity=".35"/></svg>
+ <h2>CAMPEÃO!</h2><p id="cpTour"></p><div id="cpL"></div>
+ <button class="lp peq" id="cpOk" type="button">CONTINUAR</button></div></div>
 <div id="confirma" hidden><div class="card"><h3 id="cfTit">COMPRAR?</h3><p id="cfTxt"></p>
  <div class="linha" style="justify-content:flex-end"><button class="lp sec peq" id="cfNao" type="button">CANCELAR</button><button class="lp peq" id="cfSim" type="button">COMPRAR</button></div></div></div>
 <div id="opcoes" hidden><div class="card">
@@ -195,7 +213,7 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 </aside>
 
 <script>
-const VERSAO='28/11/2026 compra pergunta antes';
+const VERSAO='28/11/2026 Tours (dentro de Corrida) + tela de campeão + Conquistas';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
@@ -298,12 +316,15 @@ const ok=i=>i.complete&&i.naturalWidth>0;
 const DX=10;let GR_,HT,seg,semente;
 function rnd(){semente=(semente*16807)%2147483647;return semente/2147483647}
 const ri=(a,b)=>a+(b-a)*rnd();
-function terrenoNovo(){semente=1+Math.floor(Math.random()*1e6);GR_=[0];HT=[0];HV=[0];
+function terrenoNovo(){PERFIL=null;semente=1+Math.floor(Math.random()*1e6);GR_=[0];HT=[0];HV=[0];
  seg=DESCE?{fase:2,x0:0,len:ri(1500,3000),g:-4.5,g0:-4.5}:{fase:-1,x0:0,len:1500,g:0,g0:0}}
 // 27/11 noite: na ABERTURA (DESCE) a estrada só desce (3,5–5,5%, trechos emendados pela mesma curva de concordância).
 // Ao começar a pedalar o trecho já gerado continua (a mesma descida) e depois volta o ciclo normal (vale → subida → topo → descida).
-let DESCE=true;
+let DESCE=true,PERFIL=null;
+// 28/11: etapa de Tour = trechos prontos ({len m, g %}); acabou a lista, segue plano ondulado
+function terrenoPerfil(lista){semente=1+Math.floor(Math.random()*1e6);GR_=[0];HT=[0];HV=[0];PERFIL=lista.slice();const p=PERFIL.shift();seg={fase:0,x0:0,len:p.len,g:p.g,g0:0}}
 function proxSeg(){const f=(seg.fase+1)%4,x0=seg.x0+seg.len,g0=seg.g;let len,g;
+ if(PERFIL){const p=PERFIL.shift()||{len:ri(800,1500),g:ri(-1,1.5)};seg={fase:0,x0,len:p.len,g:p.g,g0};return}
  if(DESCE){seg={fase:2,x0,len:ri(1500,3000),g:-ri(3.5,5.5),g0};return}
  if(f===0){len=ri(900,3500);g=ri(3,9.5)}
  else if(f===1){len=ri(150,700);g=ri(-.5,1.5)}
@@ -355,10 +376,10 @@ const ATR=[{k:'motor',n:'MOTOR',d:'+4 W de FTP por ponto (cada nível do ciclist
  {k:'escalada',n:'ESCALADA',d:'−1 kg por ponto: sobe melhor.'},
  {k:'sprint',n:'SPRINT',d:'+40 W de pico por ponto.'}];
 function csNovo(){return{v:1,nivel:1,xp:0,pontos:1,moedas:0,inv:{banana:0,gel:0,iso:0,azul:0},sk:{motor:0,folego:0,recup:0,escalada:0,sprint:0},
- recLivre:0,livres:0,kmTotal:0,cq:{},gar:{tem:{},uso:{}},pat:0,rec:{},melhorPos:{},treinos:0,corridas:0,vitorias:0,aposta:100,rachaoKm:30}}
+ recLivre:0,livres:0,kmTotal:0,cq:{},conq:{},camp:null,etapas:0,gar:{tem:{},uso:{}},pat:0,rec:{},melhorPos:{},treinos:0,corridas:0,vitorias:0,aposta:100,rachaoKm:30}}
 // campos novos entram com o padrão de csNovo (saves antigos continuam valendo)
 function csLer(){const n=csNovo();try{const j=JSON.parse(localStorage.getItem(SAVE)||'null');
- if(j&&j.v===1){Object.assign(n,j);n.inv=Object.assign(csNovo().inv,j.inv);n.gar=Object.assign({tem:{},uso:{}},j.gar);n.sk=Object.assign(csNovo().sk,j.sk);n.rec=n.rec||{};n.melhorPos=n.melhorPos||{}}}catch(e){}return n}
+ if(j&&j.v===1){Object.assign(n,j);n.inv=Object.assign(csNovo().inv,j.inv);n.gar=Object.assign({tem:{},uso:{}},j.gar);n.cq=n.cq||{};n.conq=n.conq||{};n.sk=Object.assign(csNovo().sk,j.sk);n.rec=n.rec||{};n.melhorPos=n.melhorPos||{}}}catch(e){}return n}
 function csSalvar(){try{localStorage.setItem(SAVE,JSON.stringify(CS))}catch(e){}}
 let CS=csLer();
 // ---------- GARAGEM (28/11): só visual. Original = grátis; peça mais cara ≈ 10 h de jogo (regra do jogo antigo) ----------
@@ -376,6 +397,130 @@ const garTem=(cat,id)=>{const o=garOp(cat,id);return !!o&&(o[3]===0||!!(CS.gar.t
 function garCores(){const c={};for(const C of GAR)if(C.campo)c[C.campo]=garUso(C.k)[2];return c}
 const garRodas=()=>garUso('rodas')[2];
 let PJ={key:null};
+// ---------- TOURS (28/11, do campeonato.js antigo): dentro de CORRIDA. 5 etapas, mesmos 14 rivais, geral por tempo somado ----------
+const CAMP={insc:[1500,1800,2200,2600,3000,3500,4000],   // inscrição por patente
+ premio:[3,1.5,1,.5,.5],devolve:.3,penal:.08,xpEt:.6,moedaEt:.5,etapas:5,
+ lista:[
+  {id:'tsl',n:'TOUR SAN LUIZ',esp:'Escalador',d:'Montanha: subidas longas e chegadas no alto.',grade:{escalador:6,rolador:3,sprinter:1,classico:2,fraco:2},
+   et:[{n:'Colinas de abertura',cl:[[.2,.28,5,.33],[.5,.6,6,.66],[.8,.9,6.5,.95]]},{n:'Chegada no alto',cl:[[.3,.38,5.5,.44],[.82,1,7,1.05]]},
+       {n:'Etapa rainha',cl:[[.15,.27,7,.33],[.45,.58,8,.65],[.8,1,8.5,1.05]]},{n:'Serra do meio',cl:[[.25,.35,6,.42],[.6,.72,7,.8]]},
+       {n:'Final na serra',cl:[[.35,.45,6,.5],[.7,1,7.5,1.05]]}]},
+  {id:'vsm',n:'VUELTA DE SAN MARIA',esp:'Sprinter',d:'Plana: pelotão junto e chegada no sprint.',grade:{sprinter:6,rolador:4,escalador:1,classico:1,fraco:2},
+   et:[{n:'Plano total',cl:[[.5,.53,2.5,.56]]},{n:'Ondulada',cl:[[.3,.34,3,.38],[.7,.73,2.5,.76]]},{n:'Reta longa',cl:[[.4,.45,3.5,.5]]},
+       {n:'Duas lombas',cl:[[.2,.24,3,.28],[.55,.6,4,.65]]},{n:'Grande final',cl:[[.6,.63,3,.66]]}]},
+  {id:'gde',n:'GIRO DE ESTRADA',esp:'Clássico',d:'Subidas curtas e fortes, a última perto da chegada.',grade:{rolador:4,escalador:3,sprinter:3,classico:2,fraco:2},
+   et:[{n:'Os muros',cl:[[.2,.23,8,.27],[.45,.48,9,.52],[.85,.88,9,.93]]},{n:'Sobe e desce',cl:[[.15,.19,7,.23],[.35,.39,8,.43],[.55,.59,8,.63],[.8,.84,9,.9]]},
+       {n:'Paredões',cl:[[.3,.34,10,.39],[.6,.64,9,.69],[.88,.92,10,.97]]},{n:'Colinas',cl:[[.25,.3,7,.35],[.5,.55,8,.6],[.75,.8,8,.86]]},
+       {n:'Final explosivo',cl:[[.2,.24,9,.29],[.45,.49,9,.54],[.7,.74,10,.79],[.9,.94,10,.99]]}]}]};
+const campDef=id=>CAMP.lista.find(c=>c.id===id);
+const campInsc=()=>CAMP.insc[Math.min(CS.pat,CAMP.insc.length-1)];
+const campAtivo=()=>CS.camp&&campDef(CS.camp.id)?CS.camp:null;
+// trechos da etapa i: plano ondulado entre as subidas; subida em 2 partes (75% e 100% do pico); descida
+function campSegs(C,i){const km=C.km,E=campDef(C.id).et[i],out=[],plano=(a,b)=>{let x=a;while(x<b-1){const l=Math.min(b-x,ri(700,1400));out.push({len:l,g:ri(-1.2,1.6)});x+=l}};
+ let cur=0;for(const[a,b,p,d]of E.cl){const s=a*km*1000,e=b*km*1000,de=d*km*1000;plano(cur,s);
+  out.push({len:(e-s)*.4,g:p*.75},{len:(e-s)*.6,g:p},{len:Math.max(200,de-e),g:-p*.9});cur=de}
+ plano(cur,km*1000+3000);return out}
+function campInscrever(id){const D=campDef(id),p=campInsc();if(campAtivo()||(!LAB()&&CS.moedas<p))return;if(!LAB())CS.moedas-=p;
+ const forca=Math.max(patAtual().forca,FTPv()),nomes=NOMES.slice().sort(()=>Math.random()-.5),G=[];
+ for(const[t,q]of Object.entries(D.grade))for(let k=0;k<q;k++){const fraco=t==='fraco';
+  G.push({nome:nomes[G.length],tipo:fraco?pick(['rolador','classico','sprinter']):t,f:+(mr(.9,1.12)*(fraco?.86:1)).toFixed(3),cores:coresNovas(),
+   rodas:(r=>r<.15?3:r<.4?2:r<.6?1:0)(Math.random()),agr:+mr(.4,1.6).toFixed(2)})}
+ CS.camp={id,km:patAtual().km,forca,insc:LAB()?0:p,etapa:0,grade:G,tot:G.map(()=>0),eu:0,pos:[]};csSalvar()}
+function campDesistir(){const C=campAtivo();if(!C)return;CS.moedas+=Math.floor(C.insc*CAMP.devolve);CS.camp=null;csSalvar()}
+function campGeral(C){const L=C.grade.map((g,i)=>({nome:g.nome,tot:C.tot[i]}));L.push({nome:'VOCÊ',eu:true,tot:C.eu});
+ L.sort((a,b)=>a.tot-b.tot||(a.eu?1:b.eu?-1:0));L.forEach((x,i)=>{x.pos=i+1;x.gap=x.tot-L[0].tot});return L}
+// ---------- CONQUISTAS (28/11, do jogo antigo, só o que existe aqui: Pedal Livre, Rachão, Corrida e Tours) ----------
+const CQ_DIF={mf:{m:0,c:'#c98a4e',n:'MUITO FÁCIL'},f:{m:10,c:'#c98a4e',n:'FÁCIL'},m:{m:25,c:'#d9e2ea',n:'MÉDIA'},d:{m:50,c:'#f5c518',n:'DIFÍCIL'},l:{m:100,c:'#c07cff',n:'LENDÁRIA'}};
+const CQ_CAT=[['dist','DISTÂNCIA'],['vel','VELOCIDADE E POTÊNCIA'],['sub','SUBIDAS'],['pel','VÁCUO'],['sta','STAMINA E FADIGA'],['ali','ALIMENTAÇÃO'],['rac','RACHÃO E CORRIDA'],['tour','TOURS'],['moe','MOEDAS']];
+let CQS=null,CQF=null,CQ_RUN=[],CQ_TOAST=null;
+const cqQ=k=>(CS.cq&&CS.cq[k])||0,cqAdd=(k,v=1)=>{CS.cq[k]=(CS.cq[k]||0)+v};
+const cqVivo=()=>!!CQS&&MODO!=='abertura'&&MODO!=='crono'&&!LAB();
+const cqDist=()=>cqVivo()?Math.max(0,(S.x-S.x0)/1000):0;
+const cqPed=()=>(CS.livres||0)+(CS.treinos||0)+(CS.corridas||0)+(CS.etapas||0);
+const cqRace=t=>CQF&&(!t||CQF.tipo===t);
+const CONQ=[
+ ['d1','dist','PRIMEIRAS PEDALADAS','Pedal Livre: 5 km','mf',()=>(cqVivo()&&MODO==='livre'&&cqDist()>=5)||CS.recLivre>=5],
+ ['d2','dist','AQUECIMENTO CONCLUÍDO','10 km numa pedalada','f',()=>cqDist()>=10||CS.recLivre>=10],
+ ['d3','dist','PRIMEIRO GIRO','30 km numa pedalada','f',()=>cqDist()>=30||CS.recLivre>=30],
+ ['d4','dist','MEIO CENTENÁRIO','50 km numa pedalada','m',()=>cqDist()>=50||CS.recLivre>=50],
+ ['d5','dist','CENTURIÃO','100 km numa pedalada','d',()=>cqDist()>=100||CS.recLivre>=100],
+ ['d6','dist','A ESTRADA É MINHA','150 km numa pedalada','l',()=>cqDist()>=150||CS.recLivre>=150],
+ ['d7','dist','QUILOMETRAGEM DE RESPEITO','Acumule 500 km','f',()=>CS.kmTotal+cqDist()>=500],
+ ['d8','dist','DE CIDADE EM CIDADE','Acumule 1.000 km','m',()=>CS.kmTotal+cqDist()>=1000],
+ ['d9','dist','LENDA DO ASFALTO','Acumule 5.000 km','d',()=>CS.kmTotal+cqDist()>=5000],
+ ['d10','dist','O MUNDO É PEQUENO','Acumule 10.000 km','l',()=>CS.kmTotal+cqDist()>=10000],
+ ['d11','dist','MAIS UMA VOLTA','Complete 10 pedaladas','f',()=>cqPed()>=10],
+ ['d12','dist','FREQUENTADOR DA ESTRADA','Complete 50 pedaladas','m',()=>cqPed()>=50],
+ ['d13','dist','MORADOR DA RODOVIA','Complete 250 pedaladas','l',()=>cqPed()>=250],
+ ['v1','vel','PASSOU VOANDO','Alcance 40 km/h','mf',()=>cqVivo()&&CQS.maxV>=40],
+ ['v2','vel','BALA DE PRATA','Alcance 50 km/h','f',()=>cqVivo()&&CQS.maxV>=50],
+ ['v3','vel','SEM FREIOS','Alcance 60 km/h','m',()=>cqVivo()&&CQS.maxV>=60],
+ ['v4','vel','FOGUETE HUMANO','Alcance 70 km/h','d',()=>cqVivo()&&CQS.maxV>=70],
+ ['v5','vel','PÉ DE CHUMBO','Atinja 500 W','f',()=>cqVivo()&&CQS.maxW>=500],
+ ['v6','vel','EXPLOSÃO DE POTÊNCIA','Atinja 800 W','m',()=>cqVivo()&&CQS.maxW>=800],
+ ['v7','vel','MIL WATTS DE FÚRIA','Atinja 1.000 W','d',()=>cqVivo()&&CQS.maxW>=1000],
+ ['s1','sub','COMEÇOU A SOFRER','Vença uma subida de 5%','mf',()=>cqVivo()&&CQS.subMax>=5],
+ ['s2','sub','PERNA DE ESCALADOR','Vença uma subida de 8%','m',()=>cqVivo()&&CQS.subMax>=8],
+ ['s3','sub','PAREDÃO','Vença uma subida de 10%','d',()=>cqVivo()&&CQS.subMax>=9.9],
+ ['s4','sub','QUANTO MAIS SOBE...','Acumule 5.000 m de subida','m',()=>cqQ('elev')+(cqVivo()?S.ganho:0)>=5000],
+ ['s5','sub','...MAIS ALTO CHEGA','Acumule 20.000 m de subida','l',()=>cqQ('elev')+(cqVivo()?S.ganho:0)>=20000],
+ ['p1','pel','PEGUEI A RODA','Entre no vácuo de alguém','mf',()=>cqVivo()&&CQS.teveVac],
+ ['p2','pel','PASSAGEIRO VIP','5 km no vácuo numa pedalada','m',()=>cqVivo()&&S.vacKm>=5],
+ ['p3','pel','NA SOMBRA DOS GIGANTES','25 km no vácuo numa pedalada','d',()=>cqVivo()&&S.vacKm>=25],
+ ['p4','pel','AMIGO DO MACACO','Ganhe uma banana do macaco','mf',()=>cqQ('macaco')>=1],
+ ['p5','pel','NINGUÉM ME SEGURA','Vença um Rachão sem pegar vácuo','m',()=>cqRace('rachao')&&CQF.pos===1&&CQF.vacKm<.1],
+ ['t1','sta','NA RESERVA','Fique com menos de 10% de stamina','mf',()=>cqVivo()&&CQS.minSta<10],
+ ['t2','sta','ZERADO','Zere a stamina','m',()=>cqVivo()&&CQS.zerou],
+ ['t3','sta','GESTÃO DE ENERGIA','30 km sem zerar a stamina','m',()=>cqVivo()&&!CQS.zerou&&cqDist()>=30],
+ ['t4','sta','MOTOR DIESEL','70 km sem zerar a stamina','d',()=>cqVivo()&&!CQS.zerou&&cqDist()>=70],
+ ['t5','sta','SEM SUPLEMENTOS','50 km sem itens (só água)','m',()=>cqVivo()&&!CQS.usou&&cqDist()>=50],
+ ['t6','sta','SÓ NA RAÇA','100 km sem itens (só água)','l',()=>cqVivo()&&!CQS.usou&&cqDist()>=100],
+ ['a1','ali','HORA DO LANCHE','Coma sua primeira banana','mf',()=>cqQ('banana')>=1],
+ ['a2','ali','BANANA É VIDA','Coma 25 bananas','m',()=>cqQ('banana')>=25],
+ ['a3','ali','REI DAS BANANAS','Coma 100 bananas','d',()=>cqQ('banana')>=100],
+ ['a4','ali','HIDRATAÇÃO EM DIA','Tome 25 goles de água','f',()=>cqQ('agua')>=25],
+ ['a5','ali','SEDE INFINITA','Tome 100 goles de água','m',()=>cqQ('agua')>=100],
+ ['a6','ali','ENERGIA LÍQUIDA','Tome 25 goles de isotônico','m',()=>cqQ('iso')>=25],
+ ['a7','ali','GELZINHO SALVOU','Tome 10 géis','f',()=>cqQ('gel')>=10],
+ ['a8','ali','FARMÁCIA AMBULANTE','Tome 100 géis','d',()=>cqQ('gel')>=100],
+ ['a9','ali','VIDA EXTRA','Use um gel azul','f',()=>cqQ('azul')>=1],
+ ['a10','ali','CARDÁPIO COMPLETO','Água, isotônico, banana e gel na mesma pedalada','f',()=>cqVivo()&&CQS.cons.agua&&CQS.cons.iso&&CQS.cons.banana&&CQS.cons.gel],
+ ['r1','rac','ESTREIA VITORIOSA','Vença seu primeiro Rachão','mf',()=>cqQ('vitR')>=1],
+ ['r2','rac','TÁ GOSTANDO DE GANHAR','Vença 5 Rachões','m',()=>cqQ('vitR')>=5],
+ ['r3','rac','COLECIONADOR DE VITÓRIAS','Vença 25 Rachões','d',()=>cqQ('vitR')>=25],
+ ['r4','rac','IMBATÍVEL','Vença 100 Rachões','l',()=>cqQ('vitR')>=100],
+ ['r5','rac','PÓDIO GARANTIDO','Pódio (top 3) em 10 Rachões','f',()=>cqQ('podR')>=10],
+ ['r6','rac','QUASE LÁ','Termine um Rachão em 2º','f',()=>cqRace('rachao')&&CQF.pos===2],
+ ['r7','rac','CASCA-GROSSA','Vença 5 Rachões seguidos','l',()=>cqQ('seqR')>=5],
+ ['r8','rac','PRIMEIRA MEDALHA','Vença uma Corrida','f',()=>(CS.vitorias||0)>=1],
+ ['r9','rac','SOBE DE PATENTE','Chegue à patente ESPORTE','m',()=>CS.pat>=2],
+ ['r10','rac','NÍVEL MUNDIAL','Chegue à patente NÍVEL MUNDIAL','l',()=>CS.pat>=6],
+ ['c1','tour','INSCRITO','Largue a 1ª etapa de um Tour','mf',()=>cqQ('etapas')>=1],
+ ['c2','tour','VENCEDOR DE ETAPA','Vença uma etapa de Tour','f',()=>cqQ('vitEt')>=1],
+ ['c3','tour','ATÉ O FIM','Complete as 5 etapas de um Tour','m',()=>cqQ('toursFim')>=1],
+ ['c4','tour','CAMPEÃO','Vença a geral de um Tour','d',()=>cqQ('titulos')>=1],
+ ['c5','tour','REI DA MONTANHA','Campeão do Tour San Luiz','d',()=>cqQ('tit_tsl')>=1],
+ ['c6','tour','FLECHA DO SPRINT','Campeão da Vuelta de San Maria','d',()=>cqQ('tit_vsm')>=1],
+ ['c7','tour','CLÁSSICO','Campeão do Giro de Estrada','d',()=>cqQ('tit_gde')>=1],
+ ['c8','tour','TRÍPLICE COROA','Campeão dos 3 Tours','l',()=>cqQ('tit_tsl')&&cqQ('tit_vsm')&&cqQ('tit_gde')],
+ ['m1','moe','PRIMEIRO TROCADO','Pegue uma moeda na pista','mf',()=>cqQ('moedaPista')>=1],
+ ['m2','moe','COFRINHO CHEIO','Ganhe 1.000 moedas pedalando','m',()=>cqQ('moedas')>=1000],
+ ['m3','moe','MAGNATA DO PEDAL','Ganhe 10.000 moedas pedalando','l',()=>cqQ('moedas')>=10000]
+].map(([id,cat,n,d,dif,ok])=>({id,cat,n,d,dif,ok}));
+function cqChecar(mudo){if(LAB())return;CS.conq=CS.conq||{};CS.cq=CS.cq||{};let novo=false;
+ for(const c of CONQ){if(CS.conq[c.id])continue;let v=false;try{v=!!c.ok()}catch(e){}if(!v)continue;
+  const m=CQ_DIF[c.dif].m;CS.conq[c.id]=Date.now();CS.moedas+=m;novo=true;
+  if(!mudo){CQ_RUN.push(c);CQ_TOAST={t:performance.now(),c};som('bonus')}}
+ if(novo)csSalvar()}
+function cqInicio(){CQS={maxV:0,maxW:0,subMax:0,subAt:0,minSta:100,zerou:false,teveVac:false,usou:false,cons:{}};CQ_RUN=[];CQF=null}
+let cqT=0;
+function cqTick(dt){if(!cqVivo()||S.fim)return;const kmh=S.v*3.6,g=rampa(S.x),b=barra();
+ CQS.maxV=Math.max(CQS.maxV,kmh);CQS.maxW=Math.max(CQS.maxW,S.pw);CQS.minSta=Math.min(CQS.minSta,b);if(b<=.5)CQS.zerou=true;if(S.vac>.05)CQS.teveVac=true;
+ if(g>=1)CQS.subAt=Math.max(CQS.subAt,g);else if(CQS.subAt>0){CQS.subMax=Math.max(CQS.subMax,CQS.subAt);CQS.subAt=0}   // venceu = chegou no topo
+ if((cqT+=dt)>.5){cqT=0;cqChecar(false)}}
+// fim de pedalada: contadores permanentes + checa (as linhas de conquista entram no placar)
+function cqFim(o){if(LAB()||!CQS)return[];CQF=o;CS.cq.elev=(CS.cq.elev||0)+S.ganho;cqChecar(false);CQS=null;
+ return CQ_RUN.map(c=>['CONQUISTA: '+c.n,CQ_DIF[c.dif].m?'+'+CQ_DIF[c.dif].m+' moedas':'medalha'])}
 function folhasJogador(){const c=garCores();if(!c.roupa&&!c.pele&&!c.quadro)return null;const key=JSON.stringify(c);
  if(PJ.key!==key||!PJ.ped||!PJ.empe||!PJ.lev){if(!okF('ped')||!okF('empe')||!okF('lev'))return null;PJ={key,ped:pintar('ped',c,1),empe:pintar('empe',c,1),lev:pintar('lev',c,1)}}
  return PJ}
@@ -797,7 +942,7 @@ function eventosPasso(dt){S.vac=0;if(MODO==='abertura'||!EV||!CAMV.sk||S.fim)ret
    vacV=curva([[-60,0],[0,1],[150,1],[300,0]],g/q)*C.vac*.6}
   c.d+=c.v*dt*P.ts;
   if((c.fase==='vai'||c.tipo==='furgao')&&!EV.pulo&&rx>W+80)EV.cam=null}
- if(EV.pulo){EV.pulo.t+=dt;if(EV.pulo.t>=.75){EV.pulo=null;S.it.banana++;if(!LAB()){CS.inv.banana++;csSalvar()}
+ if(EV.pulo){EV.pulo.t+=dt;if(EV.pulo.t>=.75){EV.pulo=null;S.it.banana++;if(!LAB()){CS.inv.banana++;cqAdd('macaco');csSalvar()}
   S.msg={t:S.t,txt:'+1 BANANA DO MACACO!'};som('bonus')}}
  // gel do furgão: cai no asfalto; passou por cima, vai para os seus itens (como no jogo antigo)
  for(const e of EV.energ){e.t+=dt;const x=bx+(e.d-S.x)*sk;if(!e.ok&&e.t>.8&&x<bx+cw*.35&&x>bx-cw*.45){e.ok=true;S.it.gel++;if(!LAB()){CS.inv.gel++;csSalvar()}
@@ -825,7 +970,7 @@ function eventosPasso(dt){S.vac=0;if(MODO==='abertura'||!EV||!CAMV.sk||S.fim)ret
  const f=frente(S.x,null);const vacN=f.n?vacDe(f.g):0;S.vac=Math.max(vacV,vacN);
  if(S.gas>0){S.gas-=dt;S.mord=0;S.ms=Math.max(0,S.ms-30*dt)}
  if((MODO==='rachao'||MODO==='corrida')&&S.x-S.x0>=PROVA.km*1000)fimCorrida(false,true)}
-function ganhaMoeda(n){S.moedasRun+=n;if(!LAB()){CS.moedas+=n;csSalvar()}som('moeda')}
+function ganhaMoeda(n){S.moedasRun+=n;if(!LAB()){CS.moedas+=n;cqAdd('moedas',n);cqAdd('moedaPista',n);csSalvar()}som('moeda')}
 // ---------- desenho do mundo ----------
 function moedaIc(c,x,y,r,fr){if(ok(MOEDA)){const f=Math.floor(fr)%8;c.drawImage(MOEDA,f*96,0,96,96,x-r,y-r,2*r,2*r)}
  else{c.fillStyle='#f5c518';c.beginPath();c.arc(x,y,r,0,7);c.fill()}}
@@ -996,6 +1141,9 @@ function hud(u){
  // vácuo: aviso em cima do ciclista
  if(S.vac>.05){const a=clamp(S.vac/.3,0,1),{bx,cw}=CAMV,y=CAMV.yc-cw*1.15;ctx.globalAlpha=.35+.65*a;
   ctx.save();ctx.shadowColor='rgba(0,0,0,.5)';ctx.shadowBlur=4*u;txt('VÁCUO −'+Math.round(S.vac*100)+'%',bx,y+12*u,13*u+3,'#d8f4ff','center',800);ctx.restore();ctx.globalAlpha=1}
+ if(CQ_TOAST&&performance.now()-CQ_TOAST.t<3200){const a=clamp((3200-(performance.now()-CQ_TOAST.t))/400,0,1),c=CQ_TOAST.c,tx='🏅 '+c.n+(CQ_DIF[c.dif].m?'  +'+CQ_DIF[c.dif].m:'');
+  ctx.globalAlpha=a;ctx.font='600 '+(15*u+5)+'px '+FONTE_FALA;const tw2=ctx.measureText(tx).width+34*u;pilula(W/2-tw2/2,H*.3-22*u,tw2,34*u+4,'rgba(20,30,44,.86)');
+  ctx.fillStyle=CQ_DIF[c.dif].c;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(tx,W/2,H*.3-5*u+2);ctx.textBaseline='alphabetic';ctx.globalAlpha=1}
  if(S.msg&&S.t-S.msg.t<1.6){ctx.globalAlpha=clamp(1.6-(S.t-S.msg.t),0,1);ctx.font='italic 800 '+(22*u)+'px system-ui,sans-serif';const mw=ctx.measureText(S.msg.txt).width+36*u;pilula(W/2-mw/2,H*.5-26*u,mw,36*u,'rgba(20,30,44,.82)');txt(S.msg.txt,W/2,H*.5,22*u,'#8fe0ff','center');ctx.globalAlpha=1}
 }
 function perfil(u,py,pw){
@@ -1023,8 +1171,9 @@ function quebrou(){S.fim=true;if(MODO==='livre')fimPedal(false);else if(MODO==='
 // fim do Rachão / Corrida (regras do carreira.js antigo). Quem não chegou: tempo estimado pelo ritmo atual; quem quebrou = abandonou.
 function fimCorrida(quebrouEu,chegou,aband){if(S.pago)return;S.pago=true;S.fim=true;pausado=true;dedos.clear();teclado=false;atualizaHold();
  const tp=S.t-S.t0,km=Math.min(PROVA.km,(S.x-S.x0)/1000),meta=PROVA.km*1000,rach=MODO==='rachao',L=[];let moedas=0,xp=0,pos=0,up=0,sobe='';
- const cl=NPCS.map(n=>({nome:n.nome,tipo:n.tipo,t:n.fim!=null?n.fim:n.quebrou?null:tp+Math.max(0,S.x0+meta-n.x)/Math.max(1,n.v)/P.ts}));
+ const cl=NPCS.map(n=>({nome:n.nome,tipo:n.tipo,gi:n.gi,t:n.fim!=null?n.fim:n.quebrou?null:tp+Math.max(0,S.x0+meta-n.x)/Math.max(1,n.v)/P.ts}));
  if(chegou)cl.push({nome:'VOCÊ',eu:true,t:tp});
+ if(PROVA.tipo==='etapa'&&campAtivo())return fimEtapa(cl,chegou,aband,tp,km);
  cl.sort((a,b)=>(a.t==null)-(b.t==null)||a.t-b.t);
  if(chegou)pos=cl.findIndex(c=>c.eu)+1;
  L.push(['Distância',fmt(km,1)+' / '+PROVA.km+' km'],['Tempo',relogio(tp*P.ts)]);
@@ -1038,12 +1187,15 @@ function fimCorrida(quebrouEu,chegou,aband){if(S.pago)return;S.pago=true;S.fim=t
     if(!CS.melhorPos[PROVA.km]||pos<CS.melhorPos[PROVA.km])CS.melhorPos[PROVA.km]=pos}
    else{xp=xpp;moedas=ECO.prova.pos[Math.min(pos,15)-1];CS.corridas++;
     if(pos===1){CS.vitorias++;if(CS.pat<ECO.patentes.length-1){CS.pat++;sobe=ECO.patentes[CS.pat].n}}}}
-  xp=Math.round(xp);CS.moedas+=moedas;up=ganharXP(xp);CS.kmTotal=+(CS.kmTotal+km).toFixed(2);csSalvar();
+  xp=Math.round(xp);CS.moedas+=moedas;cqAdd('moedas',moedas);up=ganharXP(xp);CS.kmTotal=+(CS.kmTotal+km).toFixed(2);
+  if(rach&&chegou){if(pos===1){cqAdd('vitR');cqAdd('seqR')}else CS.cq.seqR=0;if(pos<=3)cqAdd('podR')}
+  csSalvar();
   if(rach)L.push(['Aposta',PROVA.aposta+' moedas'+(chegou&&pos<=3?' → recebeu '+moedas:' (perdeu)')]);
   else L.push(['Prêmio',moedas+' moedas']);
   L.push(['XP','+'+xp]);
   if(sobe)L.push(['PATENTE NOVA',sobe]);
   if(up)L.push(['NÍVEL '+CS.nivel+'!','+'+up+' ponto'+(up>1?'s':'')+' de habilidade']);
+  L.push(...cqFim({tipo:rach?'rachao':'corrida',pos:chegou?pos:0,vacKm:S.vacKm}));
   L.push(['Saldo',fmt(CS.moedas,0)+' moedas'])}
  const top=cl.slice(0,5).map((c,i)=>`<div><span>${i+1}º ${esc(c.nome)}</span><b>${c.t==null?'abandonou':relogio(c.t*P.ts)}</b></div>`).join('');
  document.getElementById('fimT').textContent=aband?'PROVA ENCERRADA':!chegou?'QUEBROU':pos===1?'VOCÊ VENCEU!':pos+'º LUGAR';
@@ -1052,6 +1204,45 @@ function fimCorrida(quebrouEu,chegou,aband){if(S.pago)return;S.pago=true;S.fim=t
   (pos>5?`<div><span>${pos}º VOCÊ</span><b>${relogio(tp*P.ts)}</b></div>`:'');
  document.getElementById('fimDeNovo').textContent=rach?'RACHÃO DE NOVO':MODO==='corrida'?'CORRER DE NOVO':'PEDALAR DE NOVO';
  pausaEl.hidden=true;document.getElementById('fim').hidden=false}
+// fim de uma ETAPA de Tour: tempo de todos (quebrou/abandonou = último que chegou + 8% do vencedor), geral, prêmios; 5ª etapa = final
+function fimEtapa(cl,chegou,aband,tp,km){const C=campAtivo(),D=campDef(C.id),E=D.et[C.etapa],L=[];
+ cl.sort((a,b)=>(a.t==null)-(b.t==null)||a.t-b.t);
+ const ch=cl.filter(c=>c.t!=null),t1=ch.length?ch[0].t:tp,tU=ch.length?ch[ch.length-1].t:tp,pen=tU+CAMP.penal*t1;
+ for(const c of cl)if(!c.eu)C.tot[c.gi]+=(c.t==null?pen:c.t)*P.ts;
+ C.eu+=(chegou?tp:pen)*P.ts;
+ const pos=chegou?cl.findIndex(c=>c.eu)+1:0;C.pos.push(pos);
+ let xp=0,moedas=0,up=0;
+ if(!LAB()){xp=chegou?ECO.prova.xpPos[Math.min(pos,15)-1]*CAMP.xpEt:km*ECO.prova.xpKm;moedas=chegou?Math.round(ECO.prova.pos[Math.min(pos,15)-1]*CAMP.moedaEt):0;
+  xp=Math.round(xp);CS.moedas+=moedas;cqAdd('moedas',moedas);up=ganharXP(xp);CS.kmTotal=+(CS.kmTotal+km).toFixed(2);CS.etapas=(CS.etapas||0)+1;if(pos===1)cqAdd('vitEt')}
+ C.etapa++;const G=campGeral(C),eu=G.find(x=>x.eu),final=C.etapa>=CAMP.etapas;
+ L.push(['Etapa '+C.etapa+'/'+CAMP.etapas,E.n+' · '+C.km+' km'],['Tempo',chegou?relogio(tp*P.ts):(aband?'abandonou':'quebrou')+' (+penalidade)'],
+  ['Na etapa',chegou?pos+'º':'—'],['Geral',eu.pos+'º'+(eu.gap>0?' · +'+relogio(eu.gap):'')]);
+ if(!LAB())L.push(['Prêmio da etapa',moedas+' moedas · +'+xp+' XP']);
+ if(up)L.push(['NÍVEL '+CS.nivel+'!','+'+up+' ponto'+(up>1?'s':'')+' de habilidade']);
+ let campeao=null;
+ if(final){const pr=Math.round(C.insc*(CAMP.premio[eu.pos-1]||0));let sobe='';
+  if(!LAB()){CS.moedas+=pr;cqAdd('moedas',pr);cqAdd('toursFim');
+   if(eu.pos===1){cqAdd('titulos');cqAdd('tit_'+C.id);if(CS.pat<ECO.patentes.length-1){CS.pat++;sobe=ECO.patentes[CS.pat].n}}}
+  L.push(['GERAL FINAL',eu.pos+'º lugar'],['Prêmio da geral',pr?pr+' moedas':'—']);if(sobe)L.push(['PATENTE NOVA',sobe]);
+  if(eu.pos===1)campeao={D,G,pr,sobe};CS.camp=null}
+ L.push(...cqFim({tipo:'etapa',pos,vacKm:S.vacKm}));
+ if(!LAB())L.push(['Saldo',fmt(CS.moedas,0)+' moedas']);csSalvar();
+ const top=G.slice(0,5).map(x=>`<div><span>${x.pos}º ${esc(x.nome)}</span><b>${x.pos===1?relogio(x.tot):'+'+relogio(x.gap)}</b></div>`).join('');
+ document.getElementById('fimT').textContent=final?(eu.pos===1?'CAMPEÃO!':eu.pos+'º NA GERAL'):!chegou?(aband?'ETAPA ABANDONADA':'QUEBROU'):pos===1?'VENCEU A ETAPA!':pos+'º NA ETAPA';
+ document.getElementById('fimS').textContent=D.n+(final?' · fim do Tour':' · próxima: '+D.et[C.etapa].n);
+ document.getElementById('fimL').innerHTML=L.map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('')+'<h3 style="margin:10px 0 2px;font:italic 900 15px system-ui">GERAL</h3>'+top+
+  (eu.pos>5?`<div><span>${eu.pos}º VOCÊ</span><b>+${relogio(eu.gap)}</b></div>`:'');
+ document.getElementById('fimDeNovo').textContent=final?'VER CORRIDAS':'PRÓXIMA ETAPA';
+ pausaEl.hidden=true;document.getElementById('fim').hidden=false;
+ if(campeao)mostraCampeao(campeao)}
+// tela de CAMPEÃO (venceu a geral do Tour)
+function mostraCampeao({D,G,pr,sobe}){const el=document.getElementById('campeao');
+ document.getElementById('cpTour').textContent=D.n;
+ document.getElementById('cpL').innerHTML=G.slice(0,3).map(x=>`<div><span>${x.pos}º ${esc(x.nome)}</span><b>${x.pos===1?relogio(x.tot):'+'+relogio(x.gap)}</b></div>`).join('')+
+  (pr?`<div><span>Prêmio</span><b class="ac">+${fmt(pr,0)} moedas</b></div>`:'')+(sobe?`<div><span>Patente nova</span><b class="ac">${esc(sobe)}</b></div>`:'');
+ const cf=document.getElementById('cpConf');cf.innerHTML='';const cores=['#f5c518','#fff','#e8453c','#1f6fe0','#20a050','#f08a1c'];
+ for(let i=0;i<60;i++){const d=document.createElement('i');d.style.cssText=`left:${Math.random()*100}%;background:${cores[i%cores.length]};animation-delay:${(Math.random()*2.5).toFixed(2)}s;animation-duration:${(2.6+Math.random()*2).toFixed(2)}s;transform:rotate(${Math.random()*360}deg)`;cf.appendChild(d)}
+ el.hidden=false;som('bonus');setTimeout(()=>som('moeda'),350);setTimeout(()=>som('bonus'),700);vibra(60)}
 // fim do Pedal Livre: placar, XP e moedas (regras do livre.js antigo). Paga UMA vez (S.pago) e salva junto.
 function fimPedal(aband){if(S.pago)return;S.pago=true;S.fim=true;pausado=true;dedos.clear();teclado=false;atualizaHold();
  const km=Math.max(0,(S.x-S.x0)/1000),tp=(S.t-S.t0)*P.ts,avg=tp>0?km*3600/tp:0,pp=patPedal(avg),L=[];let moedas=0,xp=0,up=0,rec=false;
@@ -1062,11 +1253,12 @@ function fimPedal(aband){if(S.pago)return;S.pago=true;S.fim=true;pausado=true;de
   if(aband)moedas=Math.floor(moedas*ECO.aband);
   else{xp=km*ECO.xpKm*pp.m+(S.vacKm>=.5?S.vacKm*ECO.xpVac*pp.m:0);
    if(km>CS.recLivre&&km>.5){xp+=ECO.xpRec;moedas+=ECO.moedaRec;CS.recLivre=+km.toFixed(2);rec=true}}
-  xp=Math.round(xp);CS.moedas+=moedas;up=ganharXP(xp);CS.livres++;CS.kmTotal=+(CS.kmTotal+km).toFixed(2);csSalvar();
+  xp=Math.round(xp);CS.moedas+=moedas;cqAdd('moedas',moedas);up=ganharXP(xp);CS.livres++;CS.kmTotal=+(CS.kmTotal+km).toFixed(2);csSalvar();
   if(S.moedasRun)L.push(['Moedas na pista','+'+S.moedasRun]);
   L.push(['Moedas da pedalada','+'+moedas+(aband?' (encerrou: 80%)':'')],['XP',aband?'0 (encerrou)':'+'+xp+' ×'+String(pp.m).replace('.',',')]);
   if(rec)L.push(['NOVO RECORDE','+20 XP · +20 moedas']);
   if(up)L.push(['NÍVEL '+CS.nivel+'!','+'+up+' ponto'+(up>1?'s':'')+' de habilidade']);
+  L.push(...cqFim({tipo:'livre'}));
   L.push(['Saldo',fmt(CS.moedas,0)+' moedas'])}
  document.getElementById('fimT').textContent=aband?'PEDALADA ENCERRADA':'QUEBROU';document.getElementById('fimDeNovo').textContent='PEDALAR DE NOVO';
  document.getElementById('fimS').textContent=aband?'':'Acabou o fôlego no km '+fmt(km,1);
@@ -1078,7 +1270,7 @@ const GEL_RENDE=[1,.75,.55,.4],RENDE=[1,1,1,.9,.8,.72,.65,.58,.52,.47,.43,.4];
 const rendeItem=id=>{if((MODO!=='rachao'&&MODO!=='corrida')||!['iso','banana','gel'].includes(id))return 1;const k=RENDE[Math.min(S.nIt=(S.nIt||0)+1,RENDE.length)-1];return k}
 function usar(id){if(MODO==='abertura'||pausado||S.fim||!S.it[id]||S.efe.some(e=>e.id===id))return;S.it[id]--;let txtm='';
  // carreira: o item sai do inventário quando é usado (o que não usou continua seu); a garrafa de iso abre no 1º gole
- if(!LAB()){if(id==='iso'){if(!S.isoAberto){S.isoAberto=true;CS.inv.iso=Math.max(0,CS.inv.iso-1)}}else if(id!=='agua')CS.inv[id]=Math.max(0,CS.inv[id]-1);csSalvar()}
+ if(!LAB()){CS.cq[id]=(CS.cq[id]||0)+1;if(CQS){CQS.cons[id]=1;if(id!=='agua')CQS.usou=true}if(id==='iso'){if(!S.isoAberto){S.isoAberto=true;CS.inv.iso=Math.max(0,CS.inv.iso-1)}}else if(id!=='agua')CS.inv[id]=Math.max(0,CS.inv[id]-1);csSalvar()}
  const kR=rendeItem(id);
  if(id==='azul'){S.teto=100;S.ms=0;S.mord=0;S.acum=0;txtm='GEL AZUL: VIDA EXTRA!'}
  else if(id==='gel'){const k=GEL_RENDE[Math.min(S.nGel++,3)],q=(100-S.teto)*P.gelFrac/100*k*kR;S.teto=Math.min(100,S.teto+q);txtm='GEL −'+fmt(q,0)+' FADIGA'+(k<1?' (rendeu '+Math.round(k*100)+'%)':'')}
@@ -1191,27 +1383,31 @@ const patAtual=()=>ECO.patentes[Math.min(CS.pat,ECO.patentes.length-1)];
 function comecar(modo,op){if(MODO!=='abertura')return;
  if(modo==='rachao'){const ap=op&&op.aposta||CS.aposta;if(!LAB()&&CS.moedas<ap)return;PROVA={km:op&&op.km||CS.rachaoKm||30,aposta:LAB()?0:ap,tipo:'rachao'};
   if(!LAB()){CS.moedas-=ap;csSalvar()}}   // Rachão = aposta, paga na largada
- if(modo==='corrida'){const pt=patAtual();PROVA={km:pt.km,aposta:0,tipo:'corrida'}}
+ if(modo==='corrida'){const pt=patAtual(),C=op&&op.etapa?campAtivo():null;PROVA=C?{km:C.km,aposta:0,tipo:'etapa',etapa:C.etapa}:{km:pt.km,aposta:0,tipo:'corrida'}}
  somLiga();MODO=modo;DESCE=false;fechaCentral();mostraInicio(false);
  Object.assign(S,{x0:S.x,t0:S.t,soma:0,ganho:0,pico:0,fim:false,teto:100,mord:0,ms:0,msV:0,acum:0,spr:null,sprFeito:false,tw:9999,
   vacKm:0,moedasRun:0,pago:false,isoAberto:false,nGel:0,efe:[],msg:null,holdT:0,segT:0});
+ if(PROVA.tipo==='etapa'&&modo==='corrida'){terrenoPerfil(campSegs(campAtivo(),PROVA.etapa));S.x=0;S.x0=0;S.ganho=0}   // etapa: o mapa fixo começa aqui
+ cqInicio();
  S.it=bolsoInicial(modo);S.gas=0;S.nIt=0;NPCS=[];EV=modo==='crono'?null:eventosNovo();
  if(modo==='livre'&&Math.random()<.8)livreEncontro(true);   // largada com 1–2 tranquilos já à vista
- if(modo==='rachao'||modo==='corrida'){const F=FTPv(),pt=patAtual();provaGrade(Math.max(pt.forca,F),modo==='rachao')}
+ if(modo==='corrida'&&PROVA.tipo==='etapa'){const C=campAtivo(),L=LB();NPCS=C.grade.map((g,i)=>npcNovo({nome:g.nome,tipo:g.tipo,ftp:C.forca*g.f*NPCK.corr.oficial,pace:mr(.78,.86),
+  x:S.x+(i%5-2)*L*.9+(Math.floor(i/5)-1)*L*1.2,v:S.v,papel:'corrida',itens:1,azul:false,agr:g.agr,cores:g.cores,rodas:g.rodas,gi:i,lane:.1+((i*7)%5)*.08}));cqAdd('etapas');csSalvar()}
+ else if(modo==='rachao'||modo==='corrida'){const F=FTPv(),pt=patAtual();provaGrade(Math.max(pt.forca,F),modo==='rachao')}
  ult=performance.now()}
 document.getElementById('btPedalar').onclick=()=>comecar('livre');
 document.getElementById('btCentral').onclick=()=>{somLiga();abreCentral('pedalar')};
-document.getElementById('fimDeNovo').onclick=()=>{const m=MODO==='abertura'?'livre':MODO,ap=PROVA.aposta;novaDemo(false);if(m==='rachao'||m==='corrida'){abreCentral('pedalar')}else comecar(m)};
+document.getElementById('fimDeNovo').onclick=()=>{const m=MODO==='abertura'?'livre':MODO,ap=PROVA.aposta;novaDemo(false);if(m==='corrida'&&PROVA.tipo==='etapa'&&campAtivo()){comecar('corrida',{etapa:true});return}if(m==='rachao'||m==='corrida'){abreCentral('pedalar')}else comecar(m)};
 document.getElementById('fimCentral').onclick=()=>{novaDemo(false);abreCentral('pedalar')};
 // ---------------------------------------------------------------------------------------------
 // CENTRAL DO CICLISTA
 const conteudo=document.getElementById('conteudo');let abaAtual='pedalar';
 // trava contra toque duplo: a mesma ação não repete em menos de 300 ms
 const TRAVA={},trava=k=>{const n=performance.now();if(n-(TRAVA[k]||0)<300)return true;TRAVA[k]=n;return false};
-function abreCentral(aba){if(MODO!=='abertura')return;abaAtual=aba||abaAtual;centralEl.hidden=false;mostraInicio(false);renderCentral()}
+function abreCentral(aba){if(MODO!=='abertura')return;abaAtual=aba||abaAtual;centralEl.hidden=false;mostraInicio(false);renderCentral();conteudo.scrollTop=0}
 function fechaCentral(){centralEl.hidden=true;if(MODO==='abertura'&&INTRO.botoes)mostraInicio(true)}
 document.getElementById('cVoltar').onclick=fechaCentral;
-centralEl.querySelectorAll('.aba').forEach(b=>b.onclick=()=>{abaAtual=b.dataset.aba;renderCentral()});
+centralEl.querySelectorAll('.aba').forEach(b=>b.onclick=()=>{abaAtual=b.dataset.aba;renderCentral();conteudo.scrollTop=0});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 const imgItem=id=>id==='reset'?'':`<img src="elementos/${GARRAFA(id)?id+'_5':id}.webp" alt="">`;
 function renderCentral(){
@@ -1237,6 +1433,20 @@ function renderCentral(){
    Só água, isotônico e gel. Vencer sobe a patente. Prêmio pela colocação.</p>
    <p>Vitórias: ${CS.vitorias} · corridas: ${CS.corridas}</p>
    <button class="lp peq" data-modo="corrida" type="button">LARGAR ${pt.km} KM</button></div>`);
+  // TOURS (dentro de Corrida): em andamento ou os 3 para se inscrever
+  const C=campAtivo();
+  if(C){const D=campDef(C.id),G=campGeral(C),eu=G.find(x=>x.eu);
+   h.push(`<div class="card larga"><span class="selo">CORRIDA · TOUR EM ANDAMENTO</span><h3>${D.n}</h3>
+    <p>Etapa <span class="ac">${C.etapa+1}/${CAMP.etapas}</span>: ${D.et[C.etapa].n} · ${C.km} km · ${D.d}</p>
+    <div class="etapas">${D.et.map((e,i)=>`<span class="${i<C.etapa?'ok':i===C.etapa?'ag':''}">${i+1}${i<C.etapa&&C.pos[i]?' · '+C.pos[i]+'º':''}</span>`).join('')}</div>
+    <p>${C.etapa?`Geral: <span class="ac">${eu.pos}º</span>${eu.gap>0?' · +'+relogio(eu.gap)+' do líder ('+esc(G[0].nome)+')':' · você lidera!'}`:'Geral: começa na 1ª etapa'}</p>
+    <div class="linha"><button class="lp peq" data-etapa="1" type="button">CORRER ETAPA ${C.etapa+1}</button>
+     <button class="lp sec peq" data-desiste="1" type="button">DESISTIR</button></div></div>`)}
+  else{const p=campInsc();
+   CAMP.lista.forEach(D=>{const sem=!LAB()&&CS.moedas<p,tit=cqQ('tit_'+D.id);
+    h.push(`<div class="card"><span class="selo">CORRIDA · TOUR · ${D.esp.toUpperCase()}</span><h3>${D.n}</h3><p>${D.d} 5 etapas de ${patAtual().km} km, os mesmos 14 rivais; ganha quem somar menos tempo.</p>
+     <p>Inscrição <span class="ac">${fmt(p,0)}</span> · campeão leva ${fmt(p*CAMP.premio[0],0)} e sobe de patente${tit?' · <span class="ac">🏆 ×'+tit+'</span>':''}</p>
+     <button class="lp peq" data-tour="${D.id}" type="button" ${sem?'disabled':''}>${sem?'SEM MOEDAS':'INSCREVER'}</button></div>`)})}
   if(GM)h.push(`<div class="card"><span class="selo">SÓ GM · TESTE</span><h3>CONTRARRELÓGIO</h3><p>${fmt(P.dist,0)} km contra o relógio (recorde local). Usa os ajustes.</p>
    <button class="lp sec peq" data-modo="crono" type="button">TESTAR</button></div>`)}
  else if(abaAtual==='habil'){const s=CS.sk,bd=B(),ftp=ftpDe(CS.nivel,s.motor),kg=ECO.peso-s.escalada,nx=xpNec(CS.nivel),fim=CS.nivel>=ECO.nivelMax;
@@ -1268,8 +1478,12 @@ function renderCentral(){
    h.push(`<div class="card${C.k==='uniforme'?' larga':''}"><div class="linha"><h3>${C.n}</h3><span style="color:var(--dim)">${C.d}</span></div><div class="linha">${C.op.map(o=>{
     const tem=garTem(C.k,o[0]),cor=C.k==='rodas'?'':`<i class="sw" style="background:${o[2]||(C.k==='pele'?'#e2ad7e':'#f4f6f8')}"></i>`;
     return `<button class="chip gar" data-gar="${C.k}:${o[0]}" type="button" aria-pressed="${u===o[0]}" ${!tem&&CS.moedas<o[3]&&!LAB()?'disabled':''}>${cor}${o[1]?esc(o[1]):''}${tem?'':` <i class="moeda"></i>${fmt(o[3],0)}`}</button>`}).join('')}</div></div>`)})}
- else h.push(`<div class="card larga"><span class="selo">PRÓXIMA ETAPA</span><h3>CONQUISTAS</h3><p>As conquistas do Time Trial antigo, ligadas aos eventos da pedalada, com recompensa paga uma vez só.
-  Em breve. Seus números já estão sendo guardados: ${CS.livres} pedalada${CS.livres===1?'':'s'}, ${fmt(CS.kmTotal,1)} km.</p></div>`);
+ else{CS.conq=CS.conq||{};const tot=CONQ.filter(c=>CS.conq[c.id]).length;
+  h.push(`<div class="card larga"><div class="linha"><h3>CONQUISTAS</h3><span class="ac">${tot} de ${CONQ.length}</span></div>
+   <div class="xp"><i style="width:${tot/CONQ.length*100}%"></i></div><p>Recompensa: fácil 10 · média 25 · difícil 50 · lendária 100 moedas (paga uma vez).</p></div>`);
+  CQ_CAT.forEach(([k,n])=>{const L=CONQ.filter(c=>c.cat===k);
+   h.push(`<div class="card larga"><div class="linha"><h3>${n}</h3><span style="color:var(--dim)">${L.filter(c=>CS.conq[c.id]).length}/${L.length}</span></div><div class="cqs">${L.map(c=>{const ok=CS.conq[c.id],D=CQ_DIF[c.dif];
+    return `<div class="cq${ok?' ok':''}"><i style="--c:${D.c}">${ok?'★':''}</i><div><b>${c.n}</b><span>${c.d} · ${D.n.toLowerCase()}${D.m?' · '+D.m+' moedas':''}</span></div></div>`}).join('')}</div></div>`)})}
  conteudo.innerHTML=h.join('');
  conteudo.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{if(trava('m'))return;comecar(b.dataset.modo)});
  conteudo.querySelectorAll('[data-rkm]').forEach(b=>b.onclick=()=>{CS.rachaoKm=+b.dataset.rkm;csSalvar();renderCentral()});
@@ -1277,6 +1491,11 @@ function renderCentral(){
  conteudo.querySelectorAll('[data-atr]').forEach(b=>b.onclick=()=>{const k=b.dataset.atr;if(trava('a'+k))return;
   if(CS.pontos>0&&CS.sk[k]<ECO.maxAtr){CS.pontos--;CS.sk[k]++;csSalvar()}renderCentral()});
  conteudo.querySelectorAll('[data-compra]').forEach(b=>b.onclick=()=>comprar(b.dataset.compra));
+ conteudo.querySelectorAll('[data-tour]').forEach(b=>b.onclick=()=>{const D=campDef(b.dataset.tour),p=campInsc();
+  confirmar('INSCREVER NO '+D.n+'?',`Inscrição <b class="ac">${fmt(p,0)} moedas</b>. Você tem ${fmt(CS.moedas,0)}; fica com ${fmt(CS.moedas-p,0)}. Desistir no meio devolve só 30%.`,()=>{campInscrever(D.id);renderCentral()})});
+ conteudo.querySelectorAll('[data-etapa]').forEach(b=>b.onclick=()=>{if(trava('e'))return;comecar('corrida',{etapa:true})});
+ conteudo.querySelectorAll('[data-desiste]').forEach(b=>b.onclick=()=>{const C=campAtivo();if(!C)return;
+  confirmar('DESISTIR DO TOUR?',`Você recebe de volta só <b class="ac">${fmt(Math.floor(C.insc*CAMP.devolve),0)} moedas</b> (30% da inscrição).`,()=>{campDesistir();renderCentral()})});
  conteudo.querySelectorAll('[data-gar]').forEach(b=>b.onclick=()=>{const[cat,id]=b.dataset.gar.split(':');garEscolhe(cat,id)});
  if(abaAtual==='garagem')garPrevia()}
 // garagem: comprar (confere o saldo na hora) e já usar; o que é seu só troca
@@ -1295,6 +1514,7 @@ function garPrevia(){const c=document.getElementById('garCv');if(!c)return;const
 // 28/11: toda compra pergunta antes ("tem que perguntar se quer mesmo")
 const cfEl=document.getElementById('confirma');let cfFaz=null;
 function confirmar(tit,txt,faz){document.getElementById('cfTit').textContent=tit;document.getElementById('cfTxt').innerHTML=txt;cfFaz=faz;cfEl.hidden=false}
+document.getElementById('cpOk').onclick=()=>{document.getElementById('campeao').hidden=true};
 document.getElementById('cfNao').onclick=()=>{cfEl.hidden=true;cfFaz=null};
 cfEl.onclick=e=>{if(e.target===cfEl){cfEl.hidden=true;cfFaz=null}};
 document.getElementById('cfSim').onclick=()=>{cfEl.hidden=true;const f=cfFaz;cfFaz=null;if(f)f()};
@@ -1308,7 +1528,7 @@ document.getElementById('gmMoedas').onclick=()=>{if(!GM)return;CS.moedas+=500;cs
 document.getElementById('gmNivel').onclick=()=>{if(!GM)return;ganharXP(xpNec(CS.nivel)-CS.xp);csSalvar();renderCentral()};
 document.getElementById('gmZera').onclick=()=>{if(GM&&confirm('Zerar a carreira (moedas, itens, nível, habilidades)?')){CS=csNovo();csSalvar();renderCentral()}};
 let ult=performance.now();
-tam();novaDemo(true);montaPainel();
+tam();novaDemo(true);montaPainel();cqChecar(true);
 // 28/11: 1º toque = tela cheia + deitado + som, e só então a câmera desce (a entrada completa)
 const toqueEl=document.getElementById('toque');
 toqueEl.addEventListener('pointerdown',e=>{e.preventDefault();if(!INTRO.espera)return;INTRO.espera=false;toqueEl.classList.add('fora');somLiga();
@@ -1320,7 +1540,7 @@ document.addEventListener('visibilitychange',()=>{
  if(document.hidden){if(AC&&AC.state==='running')AC.suspend();
   if(MODO!=='abertura'&&!S.fim&&!pausado){dedos.clear();teclado=false;atualizaHold();abrePausa('PAUSA')}}
  else{if(AC&&!INTRO.espera)AC.resume();ult=performance.now()}});
-function loop(t){const dt=Math.min(.05,(t-ult)/1000);ult=t;if(!pausado)passo(dt);desenha(pausado?0:dt);somTick();requestAnimationFrame(loop)}
+function loop(t){const dt=Math.min(.05,(t-ult)/1000);ult=t;if(!pausado){passo(dt);cqTick(dt)}desenha(pausado?0:dt);somTick();requestAnimationFrame(loop)}
 requestAnimationFrame(loop);
 </script>
 </body></html>
