@@ -110,6 +110,13 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 .cq.ok i{background:var(--c)}.cq b{display:block;font:italic 800 13px system-ui,sans-serif}.cq span{font-size:12px;color:var(--dim)}
 #confirma{position:fixed;inset:0;background:rgba(8,12,22,.62);display:flex;align-items:center;justify-content:center;padding:16px;z-index:6}
 #confirma .card{width:min(380px,100%)}
+#nomeDlg{position:fixed;inset:0;background:rgba(8,12,22,.7);display:flex;align-items:center;justify-content:center;padding:16px;z-index:7}
+#nomeDlg[hidden]{display:none}#nomeDlg .card{width:min(380px,100%)}
+#nomeIn{box-sizing:border-box;width:100%;font:italic 900 22px system-ui,sans-serif;letter-spacing:.04em;padding:12px 14px;border:2px solid var(--acc);
+ border-radius:6px;background:rgba(0,0,0,.35);color:#fff;outline:none;text-transform:uppercase}
+.nomeBt{border:0;cursor:pointer;background:none;color:var(--fg);font:italic 900 clamp(16px,2.4vw,22px) system-ui,sans-serif;letter-spacing:.04em;padding:4px 6px}
+.nomeBt i{font-style:normal;color:var(--acc);font-size:.8em;margin-left:6px}
+#conteudo{touch-action:pan-y}
 #opcoes .card{width:min(420px,100%);max-height:100%;overflow-y:auto}
 .op{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:6px 0;border-bottom:1px solid #2c3644;font-weight:700}
 .op input[type=range]{width:55%;accent-color:var(--acc)}.op input[type=checkbox]{width:22px;height:22px;accent-color:var(--acc)}
@@ -136,6 +143,7 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 
 <section id="central" hidden aria-label="Central do Ciclista">
  <header><h1>CENTRAL DO <b>CICLISTA</b></h1>
+  <button class="nomeBt" id="cNome" type="button" aria-label="Trocar o nome"></button>
   <div class="saldo"><span id="cNivel"></span><span><i class="moeda"></i><b id="cMoedas">0</b></span></div></header>
  <nav class="abas" role="tablist">
   <button class="aba" role="tab" data-aba="pedalar" type="button">PEDALAR</button>
@@ -179,6 +187,9 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
  <button class="lp peq" id="cpOk" type="button">CONTINUAR</button></div></div>
 <div id="confirma" hidden><div class="card"><h3 id="cfTit">COMPRAR?</h3><p id="cfTxt"></p>
  <div class="linha" style="justify-content:flex-end"><button class="lp sec peq" id="cfNao" type="button">CANCELAR</button><button class="lp peq" id="cfSim" type="button">COMPRAR</button></div></div></div>
+<div id="nomeDlg" hidden><div class="card"><h3>SEU NOME</h3><p>Aparece nas classificações. Dá para trocar depois tocando nele na Central.</p>
+ <input id="nomeIn" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="SEU NOME">
+ <div class="linha" style="justify-content:flex-end"><button class="lp sec peq" id="nomeNao" type="button">CANCELAR</button><button class="lp peq" id="nomeOk" type="button">OK</button></div></div></div>
 <div id="opcoes" hidden><div class="card">
  <h3>SOM E OPÇÕES</h3>
  <label class="op"><span>Som</span><input type="checkbox" id="cfgSom"></label>
@@ -376,12 +387,13 @@ const ATR=[{k:'motor',n:'MOTOR',d:'+4 W de FTP por ponto (cada nível do ciclist
  {k:'escalada',n:'ESCALADA',d:'−1 kg por ponto: sobe melhor.'},
  {k:'sprint',n:'SPRINT',d:'+40 W de pico por ponto.'}];
 function csNovo(){return{v:1,nivel:1,xp:0,pontos:1,moedas:0,inv:{banana:0,gel:0,iso:0,azul:0},sk:{motor:0,folego:0,recup:0,escalada:0,sprint:0},
- recLivre:0,livres:0,kmTotal:0,cq:{},conq:{},camp:null,etapas:0,gar:{tem:{},uso:{}},pat:0,rec:{},melhorPos:{},treinos:0,corridas:0,vitorias:0,aposta:100,rachaoKm:30}}
+ recLivre:0,livres:0,kmTotal:0,cq:{},conq:{},camp:null,etapas:0,gar:{tem:{},uso:{}},nome:'',pat:0,rec:{},melhorPos:{},treinos:0,corridas:0,vitorias:0,aposta:100,rachaoKm:30}}
 // campos novos entram com o padrão de csNovo (saves antigos continuam valendo)
 function csLer(){const n=csNovo();try{const j=JSON.parse(localStorage.getItem(SAVE)||'null');
  if(j&&j.v===1){Object.assign(n,j);n.inv=Object.assign(csNovo().inv,j.inv);n.gar=Object.assign({tem:{},uso:{}},j.gar);n.cq=n.cq||{};n.conq=n.conq||{};n.sk=Object.assign(csNovo().sk,j.sk);n.rec=n.rec||{};n.melhorPos=n.melhorPos||{}}}catch(e){}return n}
 function csSalvar(){try{localStorage.setItem(SAVE,JSON.stringify(CS))}catch(e){}}
 let CS=csLer();
+const meuNome=()=>CS.nome||'VOCÊ';
 // ---------- GARAGEM (28/11): só visual. Original = grátis; peça mais cara ≈ 10 h de jogo (regra do jogo antigo) ----------
 const GAR=[
  {k:'uniforme',n:'UNIFORME',d:'Camisa e bermuda.',campo:'roupa',op:[['orig','BRANCO',null,0],['verm','VERMELHO','#d8323c',500],['azul','AZUL','#1f6fe0',500],['verde','VERDE','#20a050',500],
@@ -427,7 +439,7 @@ function campInscrever(id){const D=campDef(id),p=campInsc();if(campAtivo()||(!LA
    rodas:(r=>r<.15?3:r<.4?2:r<.6?1:0)(Math.random()),agr:+mr(.4,1.6).toFixed(2)})}
  CS.camp={id,km:patAtual().km,forca,insc:LAB()?0:p,etapa:0,grade:G,tot:G.map(()=>0),eu:0,pos:[]};csSalvar()}
 function campDesistir(){const C=campAtivo();if(!C)return;CS.moedas+=Math.floor(C.insc*CAMP.devolve);CS.camp=null;csSalvar()}
-function campGeral(C){const L=C.grade.map((g,i)=>({nome:g.nome,tot:C.tot[i]}));L.push({nome:'VOCÊ',eu:true,tot:C.eu});
+function campGeral(C){const L=C.grade.map((g,i)=>({nome:g.nome,tot:C.tot[i]}));L.push({nome:meuNome(),eu:true,tot:C.eu});
  L.sort((a,b)=>a.tot-b.tot||(a.eu?1:b.eu?-1:0));L.forEach((x,i)=>{x.pos=i+1;x.gap=x.tot-L[0].tot});return L}
 // ---------- CONQUISTAS (28/11, do jogo antigo, só o que existe aqui: Pedal Livre, Rachão, Corrida e Tours) ----------
 const CQ_DIF={mf:{m:0,c:'#c98a4e',n:'MUITO FÁCIL'},f:{m:10,c:'#c98a4e',n:'FÁCIL'},m:{m:25,c:'#d9e2ea',n:'MÉDIA'},d:{m:50,c:'#f5c518',n:'DIFÍCIL'},l:{m:100,c:'#c07cff',n:'LENDÁRIA'}};
@@ -1175,7 +1187,7 @@ function quebrou(){S.fim=true;if(MODO==='livre')fimPedal(false);else if(MODO==='
 function fimCorrida(quebrouEu,chegou,aband){if(S.pago)return;S.pago=true;S.fim=true;pausado=true;dedos.clear();teclado=false;atualizaHold();
  const tp=S.t-S.t0,km=Math.min(PROVA.km,(S.x-S.x0)/1000),meta=PROVA.km*1000,rach=MODO==='rachao',L=[];let moedas=0,xp=0,pos=0,up=0,sobe='';
  const cl=NPCS.map(n=>({nome:n.nome,tipo:n.tipo,gi:n.gi,t:n.fim!=null?n.fim:n.quebrou?null:tp+Math.max(0,S.x0+meta-n.x)/Math.max(1,n.v)/P.ts}));
- if(chegou)cl.push({nome:'VOCÊ',eu:true,t:tp});
+ if(chegou)cl.push({nome:meuNome(),eu:true,t:tp});
  if(PROVA.tipo==='etapa'&&campAtivo())return fimEtapa(cl,chegou,aband,tp,km);
  cl.sort((a,b)=>(a.t==null)-(b.t==null)||a.t-b.t);
  if(chegou)pos=cl.findIndex(c=>c.eu)+1;
@@ -1204,7 +1216,7 @@ function fimCorrida(quebrouEu,chegou,aband){if(S.pago)return;S.pago=true;S.fim=t
  document.getElementById('fimT').textContent=aband?'PROVA ENCERRADA':!chegou?'QUEBROU':pos===1?'VOCÊ VENCEU!':pos+'º LUGAR';
  document.getElementById('fimS').textContent=(rach?'RACHÃO ':'CORRIDA ')+PROVA.km+' km'+(!chegou&&!aband?' • abandonou no km '+fmt(km,1):'');
  document.getElementById('fimL').innerHTML=L.map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('')+'<h3 style="margin:10px 0 2px;font:italic 900 15px system-ui">CLASSIFICAÇÃO</h3>'+top+
-  (pos>5?`<div><span>${pos}º VOCÊ</span><b>${relogio(tp*P.ts)}</b></div>`:'');
+  (pos>5?`<div><span>${pos}º ${esc(meuNome())}</span><b>${relogio(tp*P.ts)}</b></div>`:'');
  document.getElementById('fimDeNovo').textContent=rach?'RACHÃO DE NOVO':MODO==='corrida'?'CORRER DE NOVO':'PEDALAR DE NOVO';
  pausaEl.hidden=true;document.getElementById('fim').hidden=false}
 // fim de uma ETAPA de Tour: tempo de todos (quebrou/abandonou = último que chegou + 8% do vencedor), geral, prêmios; 5ª etapa = final
@@ -1234,7 +1246,7 @@ function fimEtapa(cl,chegou,aband,tp,km){const C=campAtivo(),D=campDef(C.id),E=D
  document.getElementById('fimT').textContent=final?(eu.pos===1?'CAMPEÃO!':eu.pos+'º NA GERAL'):!chegou?(aband?'ETAPA ABANDONADA':'QUEBROU'):pos===1?'VENCEU A ETAPA!':pos+'º NA ETAPA';
  document.getElementById('fimS').textContent=D.n+(final?' · fim do Tour':' · próxima: '+D.et[C.etapa].n);
  document.getElementById('fimL').innerHTML=L.map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('')+'<h3 style="margin:10px 0 2px;font:italic 900 15px system-ui">GERAL</h3>'+top+
-  (eu.pos>5?`<div><span>${eu.pos}º VOCÊ</span><b>+${relogio(eu.gap)}</b></div>`:'');
+  (eu.pos>5?`<div><span>${eu.pos}º ${esc(meuNome())}</span><b>+${relogio(eu.gap)}</b></div>`:'');
  document.getElementById('fimDeNovo').textContent=final?'VER CORRIDAS':'PRÓXIMA ETAPA';
  pausaEl.hidden=true;document.getElementById('fim').hidden=false;
  if(campeao)mostraCampeao(campeao)}
@@ -1309,7 +1321,7 @@ cv.addEventListener('pointerdown',e=>{e.preventDefault();somLiga();if(MODO==='ab
  for(const b of botItens)if(e.clientX>=b.x&&e.clientX<=b.x+b.w&&e.clientY>=b.y&&e.clientY<=b.y+b.h){usar(b.id);return}
  dedos.add(e.pointerId);try{cv.setPointerCapture(e.pointerId)}catch(_){}atualizaHold()});
 ['pointerup','pointercancel','lostpointercapture'].forEach(n=>cv.addEventListener(n,e=>{dedos.delete(e.pointerId);atualizaHold()}));
-addEventListener('keydown',e=>{somLiga();if(!opEl.hidden){if(e.code==='Escape')opEl.hidden=true;return}
+addEventListener('keydown',e=>{somLiga();if(!document.getElementById('nomeDlg').hidden)return;if(!opEl.hidden){if(e.code==='Escape')opEl.hidden=true;return}
  if(MODO==='abertura'){if(e.code==='Escape'&&!centralEl.hidden)fechaCentral();else if((e.code==='Enter'||e.code==='Space')&&INTRO.botoes&&centralEl.hidden){e.preventDefault();comecar('livre')}return}
  if(!document.getElementById('fim').hidden)return;
  if(e.code==='Space'&&!pausado){e.preventDefault();teclado=true;atualizaHold()}
@@ -1398,8 +1410,8 @@ function comecar(modo,op){if(MODO!=='abertura')return;
   x:S.x+(i%5-2)*L*.9+(Math.floor(i/5)-1)*L*1.2,v:S.v,papel:'corrida',itens:1,azul:false,agr:g.agr,cores:g.cores,rodas:g.rodas,gi:i,lane:.1+((i*7)%5)*.08}));cqAdd('etapas');csSalvar()}
  else if(modo==='rachao'||modo==='corrida'){const F=FTPv(),pt=patAtual();provaGrade(Math.max(pt.forca,F),modo==='rachao')}
  ult=performance.now()}
-document.getElementById('btPedalar').onclick=()=>comecar('livre');
-document.getElementById('btCentral').onclick=()=>{somLiga();abreCentral('pedalar')};
+document.getElementById('btPedalar').onclick=()=>pedeNome(()=>comecar('livre'));
+document.getElementById('btCentral').onclick=()=>{somLiga();pedeNome(()=>abreCentral('pedalar'))};
 document.getElementById('fimDeNovo').onclick=()=>{const m=MODO==='abertura'?'livre':MODO,ap=PROVA.aposta;novaDemo(false);if(m==='corrida'&&PROVA.tipo==='etapa'&&campAtivo()){comecar('corrida',{etapa:true});return}if(m==='rachao'||m==='corrida'){abreCentral('pedalar')}else comecar(m)};
 document.getElementById('fimCentral').onclick=()=>{novaDemo(false);abreCentral('pedalar')};
 // ---------------------------------------------------------------------------------------------
@@ -1410,12 +1422,38 @@ const TRAVA={},trava=k=>{const n=performance.now();if(n-(TRAVA[k]||0)<300)return
 function abreCentral(aba){if(MODO!=='abertura')return;abaAtual=aba||abaAtual;centralEl.hidden=false;mostraInicio(false);renderCentral();conteudo.scrollTop=0}
 function fechaCentral(){centralEl.hidden=true;if(MODO==='abertura'&&INTRO.botoes)mostraInicio(true)}
 document.getElementById('cVoltar').onclick=fechaCentral;
+// NOME DO JOGADOR (28/11): pedido na 1ª vez que toca em PEDALAR AGORA/CENTRAL; troca tocando nele na Central
+const nomeEl=document.getElementById('nomeDlg'),nomeIn=document.getElementById('nomeIn');let nomeDepois=null;
+function pedeNome(depois,forca){if(CS.nome&&!forca){depois&&depois();return}nomeDepois=depois||null;nomeIn.value=CS.nome||'';
+ document.getElementById('nomeNao').hidden=!CS.nome;nomeEl.hidden=false;setTimeout(()=>{try{nomeIn.focus()}catch(e){}},60)}
+function nomeOk(){const v=nomeIn.value.replace(/\s+/g,' ').trim().toUpperCase().slice(0,12);if(!v){nomeIn.focus();return}
+ CS.nome=v;csSalvar();nomeIn.blur();nomeEl.hidden=true;const f=nomeDepois;nomeDepois=null;if(!centralEl.hidden)renderCentral();if(f)f()}
+document.getElementById('nomeOk').onclick=nomeOk;
+document.getElementById('nomeNao').onclick=()=>{nomeIn.blur();nomeEl.hidden=true;nomeDepois=null};
+nomeIn.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();nomeOk()}e.stopPropagation()});
+document.getElementById('cNome').onclick=()=>pedeNome(null,true);
+// ARRASTO ENTRE AS ABAS (28/11): arrastar o dedo para o lado passa a página da Central
+const abasLista=()=>[...centralEl.querySelectorAll('.aba')].filter(b=>!b.hidden).map(b=>b.dataset.aba);
+function vaiAba(dir){const L=abasLista(),i=L.indexOf(abaAtual),j=i+dir;if(j<0||j>=L.length)return false;abaAtual=L[j];renderCentral();conteudo.scrollTop=0;
+ const b=centralEl.querySelector(`.aba[data-aba="${abaAtual}"]`);if(b&&b.scrollIntoView)b.scrollIntoView({inline:'center',block:'nearest',behavior:'smooth'});return true}
+{let sw=null;const solta=(x,anim)=>{conteudo.style.transition=anim?'transform .18s ease-out,opacity .18s':'none';conteudo.style.transform=x?`translateX(${x}px)`:'';conteudo.style.opacity=x?Math.max(.35,1-Math.abs(x)/500):''};
+ conteudo.addEventListener('touchstart',e=>{if(e.touches.length!==1){sw=null;return}const t=e.touches[0];sw={x:t.clientX,y:t.clientY,t:performance.now(),dx:0,on:false,no:false}},{passive:true});
+ conteudo.addEventListener('touchmove',e=>{if(!sw||sw.no)return;const t=e.touches[0],dx=t.clientX-sw.x,dy=t.clientY-sw.y;
+  if(!sw.on){if(Math.abs(dx)>14&&Math.abs(dx)>1.4*Math.abs(dy))sw.on=true;else if(Math.abs(dy)>12){sw.no=true;return}else return}
+  e.preventDefault();const L=abasLista(),i=L.indexOf(abaAtual),borda=(dx>0&&i<=0)||(dx<0&&i>=L.length-1);
+  sw.dx=dx;solta(borda?dx*.25:dx,false)},{passive:false});
+ const fim=()=>{if(!sw)return;const s=sw;sw=null;if(!s.on)return;const W=conteudo.clientWidth||360,v=Math.abs(s.dx)/Math.max(1,performance.now()-s.t);
+  const dir=s.dx<0?1:-1;if((Math.abs(s.dx)>W*.22||(v>.5&&Math.abs(s.dx)>40))&&abasLista().indexOf(abaAtual)+dir>=0&&abasLista().indexOf(abaAtual)+dir<abasLista().length){
+   solta(-dir*W*.6,true);setTimeout(()=>{vaiAba(dir);solta(dir*W*.4,false);requestAnimationFrame(()=>requestAnimationFrame(()=>solta(0,true)))},170)}
+  else solta(0,true)};
+ conteudo.addEventListener('touchend',fim);conteudo.addEventListener('touchcancel',fim)}
 centralEl.querySelectorAll('.aba').forEach(b=>b.onclick=()=>{abaAtual=b.dataset.aba;renderCentral();conteudo.scrollTop=0});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c]);
 const imgItem=id=>id==='reset'?'':`<img src="elementos/${GARRAFA(id)?id+'_5':id}.webp" alt="">`;
 function renderCentral(){
  document.getElementById('cMoedas').textContent=fmt(CS.moedas,0);
  document.getElementById('cNivel').textContent='NÍVEL '+CS.nivel;
+ document.getElementById('cNome').innerHTML=esc(meuNome())+'<i>✎</i>';
  centralEl.querySelectorAll('.aba').forEach(b=>{b.setAttribute('aria-selected',b.dataset.aba===abaAtual);
   b.innerHTML=b.textContent.replace(/\d+$/,'').trim()+(b.dataset.aba==='habil'&&CS.pontos>0?`<span class="bol">${CS.pontos}</span>`:'')});
  const h=[];
