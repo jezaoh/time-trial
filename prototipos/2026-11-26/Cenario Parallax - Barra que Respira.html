@@ -213,7 +213,7 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 </aside>
 
 <script>
-const VERSAO='28/11/2026 Tours (dentro de Corrida) + tela de campeão + Conquistas';
+const VERSAO='28/11/2026 NPCs em pé também nas subidas';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
@@ -889,8 +889,11 @@ function npcPasso(n,dt){const dtp=dt*P.ts,g=rampa(n.x),L=LB(),corr=MODO==='racha
  const M=n.kg+8,gg=g/100,sn=gg/Math.sqrt(1+gg*gg),cs=1/Math.sqrt(1+gg*gg);
  for(let i=0;i<2;i++){const h=dt/2,v=n.v,a=(Math.min(ETA*n.pw/Math.max(v,.1),FMAX)-M*GRV*(CRR*cs+sn)-.5*RHO*n.cda*(1-n.vac)*v*v)/M;
   n.v=clamp(v+a*h*KIN,0,30);n.x+=n.v*h*P.ts}
- if(n.pw>n.ftp*1.2)n.empeT=(n.empeT||0)+dt;else if(n.pw<n.ftp*1.05)n.empeT=0;
- n.empeA=clamp((n.empeA||0)+(n.empeT>.3?dt:-dt)/.2,0,1);
+ // em pé: ataque/sprint (> 115% do FTP) e, nas subidas de 5% ou mais, alterna ~4 s em pé a cada ~12 s (cada um no seu tempo)
+ n.ciclo=((n.ciclo==null?Math.random()*12:n.ciclo)+dt)%12;
+ const querPe=!n.quebrou&&(n.pw>n.ftp*1.15||(g>=5&&n.pw>n.ftp*.6&&n.ciclo<4));
+ n.empeT=querPe?(n.empeT||0)+dt:0;
+ n.empeA=clamp((n.empeA||0)+(n.empeT>.25?dt:-dt)/.2,0,1);
  const rpm=n.pw<25?0:clamp(62+38*(n.pw/n.ftp-.6),55,125);n.quadro=(n.quadro+rpm/60*NQ*dt)%NQ;
  if(corr&&n.fim==null&&n.x>=S.x0+PROVA.km*1000)n.fim=S.t-S.t0}
 // ---------- Pedal Livre: quem você encontra na estrada ----------
