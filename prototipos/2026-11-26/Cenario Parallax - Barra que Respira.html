@@ -94,7 +94,9 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 #fimL div{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid #2c3644}
 #fimL div b{color:var(--acc)}
 #opcoes{position:fixed;inset:0;background:rgba(8,12,22,.62);display:flex;align-items:center;justify-content:center;padding:16px;z-index:5}
-#opcoes[hidden]{display:none}
+#opcoes[hidden],#confirma[hidden]{display:none}
+#confirma{position:fixed;inset:0;background:rgba(8,12,22,.62);display:flex;align-items:center;justify-content:center;padding:16px;z-index:6}
+#confirma .card{width:min(380px,100%)}
 #opcoes .card{width:min(420px,100%);max-height:100%;overflow-y:auto}
 .op{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:6px 0;border-bottom:1px solid #2c3644;font-weight:700}
 .op input[type=range]{width:55%;accent-color:var(--acc)}.op input[type=checkbox]{width:22px;height:22px;accent-color:var(--acc)}
@@ -157,6 +159,8 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
  <button class="bt" id="cheia" type="button">TELA CHEIA</button>
 </div></div>
 
+<div id="confirma" hidden><div class="card"><h3 id="cfTit">COMPRAR?</h3><p id="cfTxt"></p>
+ <div class="linha" style="justify-content:flex-end"><button class="lp sec peq" id="cfNao" type="button">CANCELAR</button><button class="lp peq" id="cfSim" type="button">COMPRAR</button></div></div></div>
 <div id="opcoes" hidden><div class="card">
  <h3>SOM E OPÇÕES</h3>
  <label class="op"><span>Som</span><input type="checkbox" id="cfgSom"></label>
@@ -191,7 +195,7 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 </aside>
 
 <script>
-const VERSAO='28/11/2026 Garagem (uniforme, quadro, rodas, pele), NPCs em pé, app instalável';
+const VERSAO='28/11/2026 compra pergunta antes';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
@@ -1277,7 +1281,9 @@ function renderCentral(){
  if(abaAtual==='garagem')garPrevia()}
 // garagem: comprar (confere o saldo na hora) e já usar; o que é seu só troca
 function garEscolhe(cat,id){const o=garOp(cat,id);if(!o||trava('g'+cat+id))return;
- if(!garTem(cat,id)){if(CS.moedas<o[3])return;CS.moedas-=o[3];CS.gar.tem[cat+':'+id]=1;som('moeda')}
+ if(!garTem(cat,id)){if(CS.moedas<o[3])return;const C=GAR.find(c=>c.k===cat);
+  confirmar('COMPRAR '+(o[1]||C.n)+'?',`${C.n} · <b class="ac">${fmt(o[3],0)} moedas</b>. Você tem ${fmt(CS.moedas,0)}; fica com ${fmt(CS.moedas-o[3],0)}. Já passa a usar.`,
+   ()=>{if(garTem(cat,id)||CS.moedas<o[3])return;CS.moedas-=o[3];CS.gar.tem[cat+':'+id]=1;som('moeda');CS.gar.uso[cat]=id;csSalvar();renderCentral()});return}
  CS.gar.uso[cat]=id;csSalvar();renderCentral()}
 // prévia: o seu ciclista parado (quadro 0) com as peças escolhidas
 function garPrevia(){const c=document.getElementById('garCv');if(!c)return;const g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);
@@ -1286,7 +1292,15 @@ function garPrevia(){const c=document.getElementById('garCv');if(!c)return;const
  g.drawImage(im,0,0,FW,FH,c.width/2-w/2,4,w,h);
  const sv=ox;ox=g;g.save();g.translate(c.width/2,4+PE*k);rodasGiram(k,0,0,garRodas());g.restore();ox=sv}
 // compra: confere o saldo NA HORA, desconta e entrega juntos e salva; travada contra toque duplo
-function comprar(id){const it=ECO.loja.find(x=>x.id===id);if(!it||CS.moedas<it.p||trava('c'+id))return;
+// 28/11: toda compra pergunta antes ("tem que perguntar se quer mesmo")
+const cfEl=document.getElementById('confirma');let cfFaz=null;
+function confirmar(tit,txt,faz){document.getElementById('cfTit').textContent=tit;document.getElementById('cfTxt').innerHTML=txt;cfFaz=faz;cfEl.hidden=false}
+document.getElementById('cfNao').onclick=()=>{cfEl.hidden=true;cfFaz=null};
+cfEl.onclick=e=>{if(e.target===cfEl){cfEl.hidden=true;cfFaz=null}};
+document.getElementById('cfSim').onclick=()=>{cfEl.hidden=true;const f=cfFaz;cfFaz=null;if(f)f()};
+function comprar(id){const it=ECO.loja.find(x=>x.id===id);if(!it||CS.moedas<it.p)return;
+ confirmar(it.id==='reset'?'RESETAR PONTOS?':'COMPRAR '+it.n+'?',`Custa <b class="ac">${fmt(it.p,0)} moedas</b>. Você tem ${fmt(CS.moedas,0)}; fica com ${fmt(CS.moedas-it.p,0)}.`,()=>comprarJa(id))}
+function comprarJa(id){const it=ECO.loja.find(x=>x.id===id);if(!it||CS.moedas<it.p||trava('c'+id))return;
  if(id==='reset'){let u=0;for(const k in CS.sk){u+=CS.sk[k];CS.sk[k]=0}if(!u)return;CS.pontos+=u}
  else CS.inv[id]=(CS.inv[id]||0)+1;
  CS.moedas-=it.p;csSalvar();som('moeda');renderCentral()}
