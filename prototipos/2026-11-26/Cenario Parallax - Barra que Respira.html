@@ -1262,7 +1262,7 @@ function mostraCampeao({D,G,pr,sobe}){const el=document.getElementById('campeao'
  el.hidden=false;som('bonus');setTimeout(()=>som('moeda'),350);setTimeout(()=>som('bonus'),700);vibra(60)}
 // fim do Pedal Livre: placar, XP e moedas (regras do livre.js antigo). Paga UMA vez (S.pago) e salva junto.
 function fimPedal(aband){if(S.pago)return;S.pago=true;S.fim=true;pausado=true;dedos.clear();teclado=false;atualizaHold();
- const km=Math.max(0,(S.x-S.x0)/1000),tp=(S.t-S.t0)*P.ts,avg=tp>0?km*3600/tp:0,pp=patPedal(avg),L=[];let moedas=0,xp=0,up=0,rec=false;
+ const km=Math.max(0,(S.x-S.x0)/1000),tp=(S.t-S.t0)*P.ts,avg=tp>0?km*3600/tp:0,pp=patPedal(avg),L=[],recAnt=CS.recLivre;let moedas=0,xp=0,up=0,rec=false;
  L.push(['Distância',fmt(km,1)+' km'],['Tempo',relogio(tp)],['Média',fmt(avg,1)+' km/h · '+pp.n]);
  if(S.vacKm>=.1)L.push(['No vácuo',fmt(S.vacKm,1)+' km']);
  if(LAB())L.push(['LAB do GM','nada vai para a carreira']);
@@ -1277,8 +1277,9 @@ function fimPedal(aband){if(S.pago)return;S.pago=true;S.fim=true;pausado=true;de
   if(up)L.push(['NÍVEL '+CS.nivel+'!','+'+up+' ponto'+(up>1?'s':'')+' de habilidade']);
   L.push(...cqFim({tipo:'livre'}));
   L.push(['Saldo',fmt(CS.moedas,0)+' moedas'])}
- document.getElementById('fimT').textContent=aband?'PEDALADA ENCERRADA':'QUEBROU';document.getElementById('fimDeNovo').textContent='PEDALAR DE NOVO';
- document.getElementById('fimS').textContent=aband?'':'Acabou o fôlego no km '+fmt(km,1);
+ // 28/11: bateu o recorde = NOVO RECORDE! (na tela e no compartilhar); não bateu = QUEBROU
+ document.getElementById('fimT').textContent=rec?'NOVO RECORDE!':aband?'PEDALADA ENCERRADA':'QUEBROU';document.getElementById('fimDeNovo').textContent='PEDALAR DE NOVO';
+ document.getElementById('fimS').textContent=rec?fmt(km,1)+' km'+(recAnt>0?' · antes: '+fmt(recAnt,1)+' km':''):aband?'':'Acabou o fôlego no km '+fmt(km,1);
  document.getElementById('fimL').innerHTML=L.map(([a,b])=>`<div><span>${a}</span><b>${b}</b></div>`).join('');
  pausaEl.hidden=true;document.getElementById('fim').hidden=false}
 // ---------------------------------------------------------------------------------------------
@@ -1417,7 +1418,7 @@ document.getElementById('btCentral').onclick=()=>{somLiga();pedeNome(()=>abreCen
 document.getElementById('fimDeNovo').onclick=()=>{const m=MODO==='abertura'?'livre':MODO,ap=PROVA.aposta;novaDemo(false);if(m==='corrida'&&PROVA.tipo==='etapa'&&campAtivo()){comecar('corrida',{etapa:true});return}if(m==='rachao'||m==='corrida'){abreCentral('pedalar')}else comecar(m)};
 // COMPARTILHAR O RESULTADO (28/11): imagem 1080×1350 (cena do fim + logo + nome + números) e texto com o link do jogo
 const JOGO_URL='https://jezaoh.github.io/time-trial/';
-const SHARE_OK=/^(Distância|Tempo|Média|No vácuo|Etapa \d|Na etapa|Geral|GERAL FINAL|NOVO RECORDE|RECORDE NO|PATENTE NOVA)/;
+const SHARE_OK=/^(Distância|Tempo|Média|No vácuo|Etapa \d|Na etapa|Geral|GERAL FINAL|PATENTE NOVA)/;
 function shareDados(){const tit=document.getElementById('fimT').textContent,sub=document.getElementById('fimS').textContent;
  const L=[...document.querySelectorAll('#fimL > div')].map(d=>[d.children[0]?.textContent||'',d.children[1]?.textContent||'']).filter(([a])=>SHARE_OK.test(a)).slice(0,6);
  return{tit,sub,L}}
@@ -1438,7 +1439,7 @@ function shareImagem(D){const W=1080,H=1350,c=document.createElement('canvas');c
  const rows=D.L.slice(0,6),fim=H-120,passo=Math.min(66,(fim-(y+40))/Math.max(1,rows.length)),x0=140,x1=W-140;y+=30;
  for(const[a,b]of rows){y+=passo;g.strokeStyle='rgba(255,255,255,.12)';g.lineWidth=2;g.beginPath();g.moveTo(x0,y+18);g.lineTo(x1,y+18);g.stroke();
   g.textAlign='left';g.fillStyle='rgba(255,255,255,.75)';g.font=P(32);g.fillText(a,x0,y);
-  g.textAlign='right';g.fillStyle='#f5c518';g.font=F(38);let t=b;while(g.measureText(t+'…').width>(x1-x0)*.62&&t.length>4)t=t.slice(0,-1);g.fillText(t===b?b:t+'…',x1,y)}
+  g.textAlign='right';g.fillStyle='#f5c518';g.font=P(32);const lim=(x1-x0)-g.measureText(a).width-40;let vf=38;g.font=F(vf);while(g.measureText(b).width>lim&&vf>26){vf-=2;g.font=F(vf)}let t=b;while(g.measureText(t+'…').width>lim&&t.length>4)t=t.slice(0,-1);g.fillText(t===b?b:t+'…',x1,y)}
  g.textAlign='center';g.fillStyle='rgba(255,255,255,.55)';g.font=P(30);g.fillText('Bora pedalar? '+JOGO_URL.replace(/^https:\/\//,'').replace(/\/$/,''),W/2,H-52);
  return c}
 function shareAviso(t){const a=document.getElementById('fimAviso');a.textContent=t;a.hidden=false;clearTimeout(shareAviso.t);shareAviso.t=setTimeout(()=>a.hidden=true,3500)}
