@@ -164,7 +164,9 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 <div id="fim" hidden><div class="card">
  <h2 id="fimT">QUEBROU</h2><p id="fimS"></p><div id="fimL"></div>
  <div class="linha"><button class="lp peq" id="fimDeNovo" type="button">PEDALAR DE NOVO</button>
-  <button class="lp sec peq" id="fimCentral" type="button">CENTRAL</button></div>
+  <button class="lp sec peq" id="fimCentral" type="button">CENTRAL</button>
+  <button class="lp sec peq" id="fimShare" type="button">COMPARTILHAR</button></div>
+ <p id="fimAviso" style="margin:6px 0 0;color:var(--acc);font-size:13px" hidden></p>
 </div></div>
 
 <div id="pausa" hidden><div class="box">
@@ -1413,6 +1415,44 @@ function comecar(modo,op){if(MODO!=='abertura')return;
 document.getElementById('btPedalar').onclick=()=>pedeNome(()=>comecar('livre'));
 document.getElementById('btCentral').onclick=()=>{somLiga();pedeNome(()=>abreCentral('pedalar'))};
 document.getElementById('fimDeNovo').onclick=()=>{const m=MODO==='abertura'?'livre':MODO,ap=PROVA.aposta;novaDemo(false);if(m==='corrida'&&PROVA.tipo==='etapa'&&campAtivo()){comecar('corrida',{etapa:true});return}if(m==='rachao'||m==='corrida'){abreCentral('pedalar')}else comecar(m)};
+// COMPARTILHAR O RESULTADO (28/11): imagem 1080×1350 (cena do fim + logo + nome + números) e texto com o link do jogo
+const JOGO_URL='https://jezaoh.github.io/time-trial/';
+const SHARE_OK=/^(Distância|Tempo|Média|No vácuo|Etapa \d|Na etapa|Geral|GERAL FINAL|NOVO RECORDE|RECORDE NO|PATENTE NOVA)/;
+function shareDados(){const tit=document.getElementById('fimT').textContent,sub=document.getElementById('fimS').textContent;
+ const L=[...document.querySelectorAll('#fimL > div')].map(d=>[d.children[0]?.textContent||'',d.children[1]?.textContent||'']).filter(([a])=>SHARE_OK.test(a)).slice(0,6);
+ return{tit,sub,L}}
+function shareImagem(D){const W=1080,H=1350,c=document.createElement('canvas');c.width=W;c.height=H;const g=c.getContext('2d');
+ // topo: céu e morros low poly (o logo é preto); embaixo: painel escuro com os números
+ let gr=g.createLinearGradient(0,0,0,560);gr.addColorStop(0,'#9fd3ee');gr.addColorStop(1,'#e6f3f7');g.fillStyle=gr;g.fillRect(0,0,W,600);
+ const morro=(cor,pts)=>{g.fillStyle=cor;g.beginPath();g.moveTo(0,600);for(const[x,y]of pts)g.lineTo(x,y);g.lineTo(W,600);g.closePath();g.fill()};
+ morro('#b9d7c9',[[0,390],[170,300],[330,360],[520,270],[700,350],[880,290],[W,340]]);
+ morro('#7fb88a',[[0,470],[200,400],[380,450],[600,380],[800,440],[W,400]]);
+ morro('#4e9a5f',[[0,540],[260,490],[520,530],[760,480],[W,520]]);
+ g.fillStyle='#0b1020';g.beginPath();g.moveTo(0,560);g.lineTo(W,500);g.lineTo(W,H);g.lineTo(0,H);g.closePath();g.fill();
+ g.fillStyle='#f5c518';g.beginPath();g.moveTo(0,552);g.lineTo(W,492);g.lineTo(W,504);g.lineTo(0,564);g.closePath();g.fill();
+ try{if(LOGO&&LOGO.naturalWidth){const lw=700,lh=lw*LOGO.naturalHeight/LOGO.naturalWidth;g.drawImage(LOGO,(W-lw)/2,Math.max(40,220-lh/2),lw,lh)}}catch(e){}
+ const F=p=>`italic 900 ${p}px system-ui,sans-serif`,P=p=>`600 ${p}px Poppins,system-ui,sans-serif`;g.textAlign='center';g.textBaseline='alphabetic';
+ let y=650;g.fillStyle='#fff';g.font=F(48);g.fillText(meuNome(),W/2,y);
+ y+=110;g.fillStyle='#f5c518';let fs=112;g.font=F(fs);while(g.measureText(D.tit).width>W-100&&fs>50){fs-=6;g.font=F(fs)}g.fillText(D.tit,W/2,y);
+ if(D.sub){y+=56;g.fillStyle='rgba(255,255,255,.78)';let ps=32;g.font=P(ps);const st=D.sub.toUpperCase();while(g.measureText(st).width>W-120&&ps>20){ps-=2;g.font=P(ps)}g.fillText(st,W/2,y)}
+ const rows=D.L.slice(0,6),fim=H-120,passo=Math.min(66,(fim-(y+40))/Math.max(1,rows.length)),x0=140,x1=W-140;y+=30;
+ for(const[a,b]of rows){y+=passo;g.strokeStyle='rgba(255,255,255,.12)';g.lineWidth=2;g.beginPath();g.moveTo(x0,y+18);g.lineTo(x1,y+18);g.stroke();
+  g.textAlign='left';g.fillStyle='rgba(255,255,255,.75)';g.font=P(32);g.fillText(a,x0,y);
+  g.textAlign='right';g.fillStyle='#f5c518';g.font=F(38);let t=b;while(g.measureText(t+'…').width>(x1-x0)*.62&&t.length>4)t=t.slice(0,-1);g.fillText(t===b?b:t+'…',x1,y)}
+ g.textAlign='center';g.fillStyle='rgba(255,255,255,.55)';g.font=P(30);g.fillText('Bora pedalar? '+JOGO_URL.replace(/^https:\/\//,'').replace(/\/$/,''),W/2,H-52);
+ return c}
+function shareAviso(t){const a=document.getElementById('fimAviso');a.textContent=t;a.hidden=false;clearTimeout(shareAviso.t);shareAviso.t=setTimeout(()=>a.hidden=true,3500)}
+async function compartilhar(){if(trava('share'))return;const D=shareDados();
+ const txt=`${meuNome()} no Time Trial: ${D.tit}${D.sub?' · '+D.sub:''}\n`+D.L.map(([a,b])=>`${a}: ${b}`).join('\n')+`\nBora pedalar: ${JOGO_URL}`;
+ let blob=null;try{blob=await new Promise(r=>shareImagem(D).toBlob(r,'image/png'))}catch(e){}
+ const file=blob?new File([blob],'time-trial-resultado.png',{type:'image/png'}):null;
+ try{if(file&&navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:txt});return}
+  if(navigator.share){await navigator.share({text:txt,url:JOGO_URL});return}}
+ catch(e){if(e&&e.name==='AbortError')return}
+ // sem compartilhar do sistema (computador): baixa a imagem e copia o texto
+ if(blob){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='time-trial-resultado.png';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+ try{await navigator.clipboard.writeText(txt);shareAviso('Imagem salva e texto copiado.')}catch(e){shareAviso(blob?'Imagem salva.':'Não deu para compartilhar aqui.')}}
+document.getElementById('fimShare').onclick=compartilhar;
 document.getElementById('fimCentral').onclick=()=>{novaDemo(false);abreCentral('pedalar')};
 // ---------------------------------------------------------------------------------------------
 // CENTRAL DO CICLISTA
