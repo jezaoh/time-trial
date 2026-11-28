@@ -85,6 +85,8 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 .chip[aria-pressed=true]{background:var(--acc);color:#1c2634}
 .chip:disabled{opacity:.35;cursor:default}
 .chip .moeda{width:14px;height:14px}
+.chip .sw{width:16px;height:16px;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(0,0,0,.25)}
+.garPrev{align-items:center;text-align:center}.garPrev canvas{position:static;flex:none;height:min(150px,32vh);width:auto;background:radial-gradient(ellipse at 50% 80%,#3a4a5e,#222c38 70%)}
 #central footer{display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap}
 #fim{background:rgba(8,12,22,.62);display:flex;align-items:center;justify-content:center;padding:16px}
 #fim .card{width:min(460px,100%);max-height:100%;overflow-y:auto}
@@ -189,7 +191,7 @@ nav.abas{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 </aside>
 
 <script>
-const VERSAO='28/11/2026 toque para começar (tela cheia) e pausa ao sair do app';
+const VERSAO='28/11/2026 Garagem (uniforme, quadro, rodas, pele), NPCs em pé, app instalável';
 // ---------------------------------------------------------------------------------------------
 // Números ajustáveis
 const PADRAO={ftp:246,toque:1,morde:1.5,come:6,tauIn:.06,volta:.1,dureza:0,vazio:5,   // 27/11 12:29: números do dono (GM)
@@ -352,9 +354,27 @@ function csNovo(){return{v:1,nivel:1,xp:0,pontos:1,moedas:0,inv:{banana:0,gel:0,
  recLivre:0,livres:0,kmTotal:0,cq:{},gar:{tem:{},uso:{}},pat:0,rec:{},melhorPos:{},treinos:0,corridas:0,vitorias:0,aposta:100,rachaoKm:30}}
 // campos novos entram com o padrão de csNovo (saves antigos continuam valendo)
 function csLer(){const n=csNovo();try{const j=JSON.parse(localStorage.getItem(SAVE)||'null');
- if(j&&j.v===1){Object.assign(n,j);n.inv=Object.assign(csNovo().inv,j.inv);n.sk=Object.assign(csNovo().sk,j.sk);n.rec=n.rec||{};n.melhorPos=n.melhorPos||{}}}catch(e){}return n}
+ if(j&&j.v===1){Object.assign(n,j);n.inv=Object.assign(csNovo().inv,j.inv);n.gar=Object.assign({tem:{},uso:{}},j.gar);n.sk=Object.assign(csNovo().sk,j.sk);n.rec=n.rec||{};n.melhorPos=n.melhorPos||{}}}catch(e){}return n}
 function csSalvar(){try{localStorage.setItem(SAVE,JSON.stringify(CS))}catch(e){}}
 let CS=csLer();
+// ---------- GARAGEM (28/11): só visual. Original = grátis; peça mais cara ≈ 10 h de jogo (regra do jogo antigo) ----------
+const GAR=[
+ {k:'uniforme',n:'UNIFORME',d:'Camisa e bermuda.',campo:'roupa',op:[['orig','BRANCO',null,0],['verm','VERMELHO','#d8323c',500],['azul','AZUL','#1f6fe0',500],['verde','VERDE','#20a050',500],
+  ['mar','MARINHO','#2d4d8a',800],['ciano','CIANO','#18b3c4',800],['laranja','LARANJA','#f08a1c',1000],['rosa','ROSA','#e0457b',1000],['roxo','ROXO','#7a3cc8',1200],
+  ['vinho','VINHO','#8a1c2c',1500],['preto','PRETO','#15181d',2000],['amarelo','AMARELO','#f2d230',2500]]},
+ {k:'quadro',n:'QUADRO',d:'Cor da bike.',campo:'quadro',op:[['orig','BRANCO',null,0],['preto','PRETO','#15181d',1000],['verm','VERMELHO','#d8323c',1500],['azul','AZUL','#1f6fe0',1500],
+  ['verde','VERDE','#20a050',2000],['laranja','LARANJA','#f08a1c',2000],['amarelo','AMARELO','#f2d230',3000]]},
+ {k:'rodas',n:'RODAS',d:'Aro de carbono. Só visual.',campo:null,op:[['orig','ORIGINAL',0,0],['p40','PERFIL 40',1,3000],['p60','PERFIL 60',2,6000],['disco','DISCO + PERFIL 60',3,10000]]},
+ {k:'pele',n:'PELE',d:'Grátis: escolha a sua.',campo:'pele',op:[['orig','ORIGINAL',null,0],['p1','','#f3cfa6',0],['p2','','#e2ad7e',0],['p3','','#c68642',0],['p4','','#9b6338',0],['p5','','#6b4226',0]]}];
+const garOp=(cat,id)=>{const C=GAR.find(c=>c.k===cat);return C&&C.op.find(o=>o[0]===id)};
+const garUso=cat=>{const id=(CS.gar.uso||{})[cat];return garOp(cat,id)||GAR.find(c=>c.k===cat).op[0]};
+const garTem=(cat,id)=>{const o=garOp(cat,id);return !!o&&(o[3]===0||!!(CS.gar.tem||{})[cat+':'+id])};
+function garCores(){const c={};for(const C of GAR)if(C.campo)c[C.campo]=garUso(C.k)[2];return c}
+const garRodas=()=>garUso('rodas')[2];
+let PJ={key:null};
+function folhasJogador(){const c=garCores();if(!c.roupa&&!c.pele&&!c.quadro)return null;const key=JSON.stringify(c);
+ if(PJ.key!==key||!PJ.ped||!PJ.empe||!PJ.lev){if(!okF('ped')||!okF('empe')||!okF('lev'))return null;PJ={key,ped:pintar('ped',c,1),empe:pintar('empe',c,1),lev:pintar('lev',c,1)}}
+ return PJ}
 function ganharXP(x){let up=0;if(CS.nivel>=ECO.nivelMax){CS.xp=0;return 0}CS.xp+=x;
  while(CS.nivel<ECO.nivelMax&&CS.xp>=xpNec(CS.nivel)){CS.xp-=xpNec(CS.nivel);CS.nivel++;CS.pontos++;up++}if(CS.nivel>=ECO.nivelMax)CS.xp=0;return up}
 const LAB=()=>GM&&P.lab>=.5;                       // GM no laboratório: build e itens vêm dos ajustes, nada é salvo na carreira
@@ -460,7 +480,7 @@ function ceuAgora(){if(P.dia<=0)return{top:CEU[0][0],hor:CEU[0][1],tint:hx(CEU[0
  return{top:mix(a[0],b[0],t),hor:mix(a[1],b[1],t),tint:mixRgb(a[2],b[2],t),ta:a[3]+(b[3]-a[3])*t,est:a[4]+(b[4]-a[4])*t,sol:a[5]+(b[5]-a[5])*t}}
 // ---------------------------------------------------------------------------------------------
 const cv=document.getElementById('cv'),ctx=cv.getContext('2d',{alpha:false});
-const oc=document.createElement('canvas'),ox=oc.getContext('2d');let W,H,DPR;
+const oc=document.createElement('canvas');let ox=oc.getContext('2d'),W,H,DPR;
 function tam(){DPR=Math.min(2,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;
  cv.width=oc.width=W*DPR;cv.height=oc.height=H*DPR;ctx.setTransform(DPR,0,0,DPR,0,0);ox.setTransform(DPR,0,0,DPR,0,0)}
 addEventListener('resize',tam);
@@ -609,16 +629,17 @@ function desenhaCiclista(s,dt,u){
   if(a<=0)return false;ox.globalAlpha=a*.6;ox.beginPath();ox.arc(p.x,p.y,1.8*u+.6,0,7);ox.fill();return true});ox.globalAlpha=1;
  // sombra
  ox.fillStyle='rgba(0,0,0,.22)';ox.beginPath();ox.ellipse(0,0,w*.42,h*.035,0,0,7);ox.fill();
+  const PJf=folhasJogador(),fS=PJf?PJf.ped:SPR,fT=PJf?PJf.lev:LEV.img,fE=PJf?PJf.empe:EMPE.img;
  const tr=ok(EMPE.img)?S.empeA:0,E=EMPE;let aS=1-tr,aT=0,aE=tr;
  if(ok(LEV.img)&&tr>0&&tr<1){const e=.12;aS=tr<e?1-tr/e:0;aE=tr>1-e?(tr-1+e)/e:0;aT=1-Math.max(aS,aE)}   // pontas: esmaece 12% para entrar/sair da animação
- if(ok(SPR)&&aS>0){const q=Math.floor(S.quadro)%NQ;ox.globalAlpha=aS;ox.drawImage(SPR,q*FW,0,FW,FH,-w/2,-PE*k,w,h)}
- if(aT>0){const q=clamp(Math.round(tr*(LEV.n-1)),0,LEV.n-1);ox.globalAlpha=aT;ox.drawImage(LEV.img,q*E.fw,0,E.fw,E.fh,(E.dx-E.fw/2)*k,-E.pe*k,E.fw*k,E.fh*k)}
+ if(ok(SPR)&&aS>0){const q=Math.floor(S.quadro)%NQ;ox.globalAlpha=aS;ox.drawImage(fS,q*FW,0,FW,FH,-w/2,-PE*k,w,h)}
+ if(aT>0){const q=clamp(Math.round(tr*(LEV.n-1)),0,LEV.n-1);ox.globalAlpha=aT;ox.drawImage(fT,q*E.fw,0,E.fw,E.fh,(E.dx-E.fw/2)*k,-E.pe*k,E.fw*k,E.fh*k)}
  if(aE>0){const n=Math.max(1,Math.round(E.img.naturalWidth/E.fw)),q=Math.floor(S.quadro/NQ*n)%n;
-  ox.globalAlpha=aE;ox.drawImage(E.img,q*E.fw,0,E.fw,E.fh,(E.dx-E.fw/2)*k,-E.pe*k,E.fw*k,E.fh*k)}
+  ox.globalAlpha=aE;ox.drawImage(fE,q*E.fw,0,E.fw,E.fh,(E.dx-E.fw/2)*k,-E.pe*k,E.fw*k,E.fh*k)}
  ox.globalAlpha=1;
  if(!ok(SPR)){ox.fillStyle='#fff';ox.beginPath();ox.arc(0,-h*.4,h*.2,0,7);ox.fill()}
  // rodas girando: borrão e dois reflexos que giram com a distância (centros medidos na folha: x 72 e 252, y 228, raio 57; pneu na linha 284)
- rodasGiram(k,S.roll/(57*P.tam),S.v);
+ rodasGiram(k,S.roll/(57*P.tam),S.v,garRodas());
 }
 // ---------------------------------------------------------------------------------------------
 let CAMV={s:0,sk:0,bx:0,cw:0,u:1},EV=null;
@@ -629,8 +650,9 @@ let CAMV={s:0,sk:0,bx:0,cw:0,u:1},EV=null;
 const LB=()=>FW*P.tam*P.ts/P.vis;
 const VEI={caminhao:{img:CAMI.img,rodas:[[187,349],[736,349]],r:72,aro:.6},furgao:{img:carrega('elementos/furgao.webp'),rodas:[[180,343],[734,343]],r:70,aro:.56}};
 const TORC=carrega('elementos/torcedor.webp'),MOEDA=carrega('elementos/moeda.webp');
-const NB={base:carrega('ciclista branco/sprite pedalando/npc_base.webp'),roupa:carrega('ciclista branco/sprite pedalando/npc_roupa.webp'),
- pele:carrega('ciclista branco/sprite pedalando/npc_pele.webp'),quadro:carrega('ciclista branco/sprite pedalando/npc_quadro.webp')};
+// 28/11: máscaras (camisa/pele/quadro) das 3 folhas, resolução cheia — tools/poly/mascaras_npc.py
+const mkM=p=>({roupa:carrega('ciclista branco/'+p+'/m_roupa.webp'),pele:carrega('ciclista branco/'+p+'/m_pele.webp'),quadro:carrega('ciclista branco/'+p+'/m_quadro.webp')});
+const MK={ped:{img:SPR,m:mkM('sprite pedalando')},empe:{img:EMPE.img,m:mkM('sprite em pe')},lev:{img:LEV.img,m:mkM('sprite levantando')}};
 const NPCK={vacMax:.4,                                  // vácuo atrás de um ciclista (pelotão do jogo antigo: 40%)
  livre:{prim:[1.5,3],prox:[4,7],max:9,passeio:.4,cansKm:[20,80],cansP:[.1,.35]},   // Pedal Livre: encontros (FIS do antigo)
  corr:{n:14,dope:1.2,oficial:1.05,   // Corrida: pelotão um pouco acima da força da patente (robô a 90–95% ficava em 1º–2º)
@@ -641,14 +663,19 @@ const QUADROS=['#eef1f4','#15181d','#d8323c','#1f6fe0','#f2d230','#20a050','#f08
 const NOMES=['Zé','Tião','Jorginho','Bia','Marcão','Lu','Paulinho','Rafa','Dudu','Nando','Cris','Gui','Léo','Tonho','Fefa','Juca','Beto','Mari','Kiko','Vina',
  'Didi','Neto','Ana','Russo','Galego','Baixinho','Pardal','Toninho','Cacá','Dani'];
 const TIPOS={escalador:{kg:63,cda:.30,spr:.9},sprinter:{kg:78,cda:.31,spr:1.35},rolador:{kg:74,cda:.28,spr:1},classico:{kg:70,cda:.30,spr:1.1}};
-const okNB=()=>ok(NB.base)&&ok(NB.roupa)&&ok(NB.pele)&&ok(NB.quadro);
-const PINT={};   // folhas pintadas (metade da resolução), uma por combinação
-function folhaPintada(c){const key=c.roupa+c.pele+c.quadro;if(PINT[key])return PINT[key];if(!okNB())return null;
- const w=NB.base.naturalWidth,h=NB.base.naturalHeight,o=document.createElement('canvas');o.width=w;o.height=h;const g=o.getContext('2d');g.drawImage(NB.base,0,0);
+const okF=f=>ok(MK[f].img)&&ok(MK[f].m.roupa)&&ok(MK[f].m.pele)&&ok(MK[f].m.quadro);
+// pinta a folha f com as cores c ({roupa,pele,quadro}; null = cor original) na escala e (NPC = .5)
+function pintar(f,c,e){if(!okF(f))return null;const F=MK[f],im=F.img,w=Math.round(im.naturalWidth*e),h=Math.round(im.naturalHeight*e);
+ const o=document.createElement('canvas');o.width=w;o.height=h;const g=o.getContext('2d');g.drawImage(im,0,0,w,h);
  const t=document.createElement('canvas');t.width=w;t.height=h;const tg=t.getContext('2d');
- for(const k of['roupa','pele','quadro']){tg.globalCompositeOperation='copy';tg.drawImage(NB[k],0,0);tg.globalCompositeOperation='source-in';tg.fillStyle=c[k];tg.fillRect(0,0,w,h);
+ if(c.pele){tg.filter='grayscale(1) brightness(1.75)';tg.drawImage(im,0,0,w,h);tg.filter='none';   // pele em cinza claro para receber a cor
+  tg.globalCompositeOperation='destination-in';tg.drawImage(F.m.pele,0,0,w,h);tg.globalCompositeOperation='source-over';g.drawImage(t,0,0)}
+ for(const k of['roupa','pele','quadro']){if(!c[k])continue;tg.globalCompositeOperation='copy';tg.drawImage(F.m[k],0,0,w,h);tg.globalCompositeOperation='source-in';tg.fillStyle=c[k];tg.fillRect(0,0,w,h);
   g.globalCompositeOperation='multiply';g.drawImage(t,0,0)}
- g.globalCompositeOperation='destination-in';g.drawImage(NB.base,0,0);g.globalCompositeOperation='source-over';return PINT[key]=o}
+ g.globalCompositeOperation='destination-in';g.drawImage(im,0,0,w,h);g.globalCompositeOperation='source-over';return o}
+const PINT={};let PINTn=0;
+function folhaPintada(c,f='ped'){const key=f+c.roupa+c.pele+c.quadro;if(PINT[key])return PINT[key];if(!okF(f))return null;
+ if(++PINTn>60){for(const k in PINT)delete PINT[k];PINTn=1}return PINT[key]=pintar(f,c,.5)}
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 function coresNovas(){return{roupa:pick(KITS),pele:pick(PELES),quadro:pick(QUADROS)}}
 // ---------- ciclista NPC ----------
@@ -660,7 +687,7 @@ const FALA={ataque:['Bora!','Vamos embora!','Segura essa!','Quem vem?','Tchau!',
  cansado:['Tô quebrado...','Só mais um pouco...','Perna de pau hoje','Arrebentou...'],
  grupo:['Vamos embora!','Reveza aí!','Bora, galera!','Tá rodando bem!','Segura o ritmo!','Nossa, tá puxado!'],
  roda:['Vou na sua roda!','Bora junto?','Puxa aí que eu vou!'],
- passou:['Boa!','Vai lá!','Bom pedal!','Que perna!','Voando, hein!'],
+ passou:['Boa!','Vai lá!','Bom pedal!','Tá tomando suco?','Voando, hein!'],
  cfg:{dur:2.6,intervalo:3.5}};
 let FALA_T=0,CAMY_=0;const FALAS_TELA=[];
 const FONTE_FALA='Poppins,system-ui,sans-serif';
@@ -676,7 +703,7 @@ function balaoClean(c,x,y,s,u,a=1){c.save();c.globalAlpha=a*.95;const fs=Math.ro
 function falasDesenha(u){for(const f of FALAS_TELA)balaoClean(ctx,f.x,f.y+CAMY_+(1-f.a)*6*u,f.s,u,f.a)}
 function npcNovo(o){const tp=o.tipo||pick(Object.keys(TIPOS)),T=TIPOS[tp];
  return Object.assign({id:++NPCID,nome:pick(NOMES),tipo:tp,kg:T.kg,cda:T.cda,spr:T.spr,x:S.x,v:S.v,pw:0,ftp:FTPv(),pace:.8,fad:0,res:100,
-  lane:.12+Math.random()*.3,agr:1,cores:coresNovas(),quadro:Math.random()*NQ,a:0,papel:'livre',segue:0,ataque:0,fim:null,quebrou:false,itens:0,azul:false,vac:0,fora:false},o)}
+  lane:.12+Math.random()*.3,agr:1,cores:coresNovas(),rodas:(r=>r<.12?3:r<.35?2:r<.55?1:0)(Math.random()),quadro:Math.random()*NQ,a:0,papel:'livre',segue:0,ataque:0,fim:null,quebrou:false,itens:0,azul:false,vac:0,fora:false},o)}
 function pNeed(v,g,kg,cda,vac){const gg=g/100,sn=gg/Math.sqrt(1+gg*gg),cs=1/Math.sqrt(1+gg*gg);return Math.max(0,((kg+8)*GRV*(CRR*cs+sn)+.5*RHO*cda*(1-vac)*v*v)*v/ETA)}
 // quem está logo à frente (NPC ou você) e o vácuo que isso dá
 function frente(x,eu){let best=null,bg=1e9;const L=LB();
@@ -713,6 +740,8 @@ function npcPasso(n,dt){const dtp=dt*P.ts,g=rampa(n.x),L=LB(),corr=MODO==='racha
  const M=n.kg+8,gg=g/100,sn=gg/Math.sqrt(1+gg*gg),cs=1/Math.sqrt(1+gg*gg);
  for(let i=0;i<2;i++){const h=dt/2,v=n.v,a=(Math.min(ETA*n.pw/Math.max(v,.1),FMAX)-M*GRV*(CRR*cs+sn)-.5*RHO*n.cda*(1-n.vac)*v*v)/M;
   n.v=clamp(v+a*h*KIN,0,30);n.x+=n.v*h*P.ts}
+ if(n.pw>n.ftp*1.2)n.empeT=(n.empeT||0)+dt;else if(n.pw<n.ftp*1.05)n.empeT=0;
+ n.empeA=clamp((n.empeA||0)+(n.empeT>.3?dt:-dt)/.2,0,1);
  const rpm=n.pw<25?0:clamp(62+38*(n.pw/n.ftp-.6),55,125);n.quadro=(n.quadro+rpm/60*NQ*dt)%NQ;
  if(corr&&n.fim==null&&n.x>=S.x0+PROVA.km*1000)n.fim=S.t-S.t0}
 // ---------- Pedal Livre: quem você encontra na estrada ----------
@@ -796,17 +825,27 @@ function ganhaMoeda(n){S.moedasRun+=n;if(!LAB()){CS.moedas+=n;csSalvar()}som('mo
 // ---------- desenho do mundo ----------
 function moedaIc(c,x,y,r,fr){if(ok(MOEDA)){const f=Math.floor(fr)%8;c.drawImage(MOEDA,f*96,0,96,96,x-r,y-r,2*r,2*r)}
  else{c.fillStyle='#f5c518';c.beginPath();c.arc(x,y,r,0,7);c.fill()}}
-function desenhaNPC(n,sk,bx,yT,RT,cw,s){const x=bx+(n.x-S.x)*sk;if(x<-cw||x>W+cw)return;const fo=folhaPintada(n.cores);
+function desenhaNPC(n,sk,bx,yT,RT,cw,s){const x=bx+(n.x-S.x)*sk;if(x<-cw||x>W+cw)return;const fo=folhaPintada(n.cores),fe=n.empeA>0?folhaPintada(n.cores,'empe'):null;
  const dd=cw*.35/sk,y=yT(n.x)+RT*n.lane,ang=Math.atan2(yT(n.x+dd)-yT(n.x-dd),2*dd*sk),k=s*P.tam,w=FW*k,h=FH*k;
  ox.save();ox.translate(x,y);ox.rotate(ang);ox.globalAlpha=n.a;
  ox.fillStyle='rgba(0,0,0,.2)';ox.beginPath();ox.ellipse(0,0,w*.42,h*.035,0,0,7);ox.fill();
  const q=Math.floor(n.quadro)%NQ;
- if(fo)ox.drawImage(fo,q*FW/2,0,FW/2,FH/2,-w/2,-PE*k,w,h);else if(ok(SPR))ox.drawImage(SPR,q*FW,0,FW,FH,-w/2,-PE*k,w,h);
- rodasGiram(k,n.x*sk/(57*k),n.v);
+ const ea=fe?n.empeA:0,A0=ox.globalAlpha;   // 28/11: NPC pedala em pé no ataque/sprint (troca suave)
+ if(ea<1){ox.globalAlpha=A0*(1-ea);if(fo)ox.drawImage(fo,q*FW/2,0,FW/2,FH/2,-w/2,-PE*k,w,h);else if(ok(SPR))ox.drawImage(SPR,q*FW,0,FW,FH,-w/2,-PE*k,w,h)}
+ if(ea>0){const E=EMPE,ne=Math.max(1,Math.round(E.img.naturalWidth/E.fw)),qe=Math.floor(n.quadro/NQ*ne)%ne;ox.globalAlpha=A0*ea;
+  ox.drawImage(fe,qe*E.fw/2,0,E.fw/2,E.fh/2,(E.dx-E.fw/2)*k,-E.pe*k,E.fw*k,E.fh*k)}
+ ox.globalAlpha=A0;
+ rodasGiram(k,n.x*sk/(57*k),n.v,n.rodas||0);
  ox.globalAlpha=1;ox.restore();
  if(n.fala&&n.fala.t>0)FALAS_TELA.push({x:x+w*.08,y:y-h*1.0,s:n.fala.s,a:clamp(n.fala.t*3,0,1)*Math.min(1,(FALA.cfg.dur-n.fala.t)*6)*n.a})}
-function rodasGiram(k,giro,v){const rr0=50*k,wv=v/.34;
- [72,252].forEach(cx=>{const X=(cx-FW/2)*k,Y=(228-PE)*k;
+// rodas da Garagem: 0 original · 1 perfil 40 · 2 perfil 60 · 3 disco atrás + perfil 60 na frente (aro de carbono por cima da arte)
+const RODA_P=[0,.12,.24,.24];
+function rodasGiram(k,giro,v,tipo=0){const rr0=50*k,wv=v/.34;
+ [72,252].forEach((cx,i)=>{const X=(cx-FW/2)*k,Y=(228-PE)*k;
+  if(tipo===3&&i===0){ox.save();const g=ox.createRadialGradient(X-rr0*.3,Y-rr0*.3,rr0*.1,X,Y,rr0*1.02);g.addColorStop(0,'#4a505a');g.addColorStop(1,'#16181d');
+   ox.fillStyle=g;ox.beginPath();ox.arc(X,Y,rr0*1.0,0,7);ox.fill();ox.fillStyle='#8a929c';ox.beginPath();ox.arc(X,Y,rr0*.1,0,7);ox.fill();ox.restore();return}
+  if(tipo>0){const d=RODA_P[tipo];ox.save();ox.strokeStyle='#1b1e24';ox.lineWidth=rr0*d;ox.beginPath();ox.arc(X,Y,rr0*(1-d/2),0,7);ox.stroke();
+   ox.strokeStyle='rgba(255,255,255,.14)';ox.lineWidth=Math.max(1,rr0*.03);ox.beginPath();ox.arc(X,Y,rr0*(1-d*.75),Math.PI*1.1,Math.PI*1.6);ox.stroke();ox.restore()}
   ox.save();ox.globalAlpha*=.16*clamp(wv/20,0,1);ox.fillStyle='#d8dde3';ox.beginPath();ox.arc(X,Y,rr0,0,7);ox.fill();ox.restore();
   ox.save();ox.globalAlpha*=.55*clamp(1-wv/45,.15,1);ox.strokeStyle='#eef2f6';ox.lineWidth=Math.max(1,1.6*k);ox.beginPath();
   for(let j=0;j<2;j++){const a=giro+j*Math.PI;ox.moveTo(X+Math.cos(a)*rr0*.25,Y+Math.sin(a)*rr0*.25);ox.lineTo(X+Math.cos(a)*rr0*.92,Y+Math.sin(a)*rr0*.92)}
@@ -1218,17 +1257,34 @@ function renderCentral(){
     <p>${it.d}</p><div class="linha"><span>${tem}</span><button class="lp peq" data-compra="${it.id}" type="button" style="margin-left:auto" ${pode?'':'disabled'}>COMPRAR</button></div></div>`)});
   h.push(`<div class="card larga"><p>Água: 5 goles grátis em toda pedalada. Itens comprados vão para o inventário e entram no bolso automaticamente
    (banana até 5, gel até 3, 1 garrafa de isotônico, 1 gel azul). Só sai do inventário o que você usar.</p></div>`)}
- else if(abaAtual==='garagem')h.push(`<div class="card larga"><span class="selo">PRÓXIMA ETAPA</span><h3>GARAGEM</h3><p>Camisa, cor de pele, quadro e rodas (perfil 40, perfil 60, disco).
-  As peças vão aparecer no ciclista da abertura e da pedalada. Vem na etapa 3, junto com os ciclistas NPC recoloridos.</p></div>`);
+ else if(abaAtual==='garagem'){
+  h.push(`<div class="card larga garPrev"><canvas id="garCv" width="640" height="300" aria-label="Seu ciclista"></canvas>
+   <p>Só visual: não muda a força. Toque numa peça para comprar; o que já é seu, toque para usar.</p></div>`);
+  GAR.forEach(C=>{const u=garUso(C.k)[0];
+   h.push(`<div class="card${C.k==='uniforme'?' larga':''}"><div class="linha"><h3>${C.n}</h3><span style="color:var(--dim)">${C.d}</span></div><div class="linha">${C.op.map(o=>{
+    const tem=garTem(C.k,o[0]),cor=C.k==='rodas'?'':`<i class="sw" style="background:${o[2]||(C.k==='pele'?'#e2ad7e':'#f4f6f8')}"></i>`;
+    return `<button class="chip gar" data-gar="${C.k}:${o[0]}" type="button" aria-pressed="${u===o[0]}" ${!tem&&CS.moedas<o[3]&&!LAB()?'disabled':''}>${cor}${o[1]?esc(o[1]):''}${tem?'':` <i class="moeda"></i>${fmt(o[3],0)}`}</button>`}).join('')}</div></div>`)})}
  else h.push(`<div class="card larga"><span class="selo">PRÓXIMA ETAPA</span><h3>CONQUISTAS</h3><p>As conquistas do Time Trial antigo, ligadas aos eventos da pedalada, com recompensa paga uma vez só.
-  Vêm na etapa 3. Seus números já estão sendo guardados: ${CS.livres} pedalada${CS.livres===1?'':'s'}, ${fmt(CS.kmTotal,1)} km.</p></div>`);
+  Em breve. Seus números já estão sendo guardados: ${CS.livres} pedalada${CS.livres===1?'':'s'}, ${fmt(CS.kmTotal,1)} km.</p></div>`);
  conteudo.innerHTML=h.join('');
  conteudo.querySelectorAll('[data-modo]').forEach(b=>b.onclick=()=>{if(trava('m'))return;comecar(b.dataset.modo)});
  conteudo.querySelectorAll('[data-rkm]').forEach(b=>b.onclick=()=>{CS.rachaoKm=+b.dataset.rkm;csSalvar();renderCentral()});
  conteudo.querySelectorAll('[data-ap]').forEach(b=>b.onclick=()=>{CS.aposta=+b.dataset.ap;csSalvar();renderCentral()});
  conteudo.querySelectorAll('[data-atr]').forEach(b=>b.onclick=()=>{const k=b.dataset.atr;if(trava('a'+k))return;
   if(CS.pontos>0&&CS.sk[k]<ECO.maxAtr){CS.pontos--;CS.sk[k]++;csSalvar()}renderCentral()});
- conteudo.querySelectorAll('[data-compra]').forEach(b=>b.onclick=()=>comprar(b.dataset.compra))}
+ conteudo.querySelectorAll('[data-compra]').forEach(b=>b.onclick=()=>comprar(b.dataset.compra));
+ conteudo.querySelectorAll('[data-gar]').forEach(b=>b.onclick=()=>{const[cat,id]=b.dataset.gar.split(':');garEscolhe(cat,id)});
+ if(abaAtual==='garagem')garPrevia()}
+// garagem: comprar (confere o saldo na hora) e já usar; o que é seu só troca
+function garEscolhe(cat,id){const o=garOp(cat,id);if(!o||trava('g'+cat+id))return;
+ if(!garTem(cat,id)){if(CS.moedas<o[3])return;CS.moedas-=o[3];CS.gar.tem[cat+':'+id]=1;som('moeda')}
+ CS.gar.uso[cat]=id;csSalvar();renderCentral()}
+// prévia: o seu ciclista parado (quadro 0) com as peças escolhidas
+function garPrevia(){const c=document.getElementById('garCv');if(!c)return;const g=c.getContext('2d');g.clearRect(0,0,c.width,c.height);
+ const PJf=folhasJogador(),im=PJf?PJf.ped:SPR;if(!ok(SPR)){setTimeout(garPrevia,300);return}
+ const k=Math.min(c.width/FW,(c.height-10)/FH),w=FW*k,h=FH*k;g.fillStyle='rgba(0,0,0,.25)';g.beginPath();g.ellipse(c.width/2,PE*k+4,w*.42,h*.035,0,0,7);g.fill();
+ g.drawImage(im,0,0,FW,FH,c.width/2-w/2,4,w,h);
+ const sv=ox;ox=g;g.save();g.translate(c.width/2,4+PE*k);rodasGiram(k,0,0,garRodas());g.restore();ox=sv}
 // compra: confere o saldo NA HORA, desconta e entrega juntos e salva; travada contra toque duplo
 function comprar(id){const it=ECO.loja.find(x=>x.id===id);if(!it||CS.moedas<it.p||trava('c'+id))return;
  if(id==='reset'){let u=0;for(const k in CS.sk){u+=CS.sk[k];CS.sk[k]=0}if(!u)return;CS.pontos+=u}
